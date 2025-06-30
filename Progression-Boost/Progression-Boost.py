@@ -748,7 +748,7 @@ def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Call
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-metric_target = 85.000
+metric_target = 83.000
 #
 # You can also have a look at `final_dynamic_crf` section, where we
 # perform a flat readjustment to make the result more suitable for the
