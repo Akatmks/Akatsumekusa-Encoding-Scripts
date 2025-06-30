@@ -4,7 +4,8 @@
 
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their autoboost, and BoatsMcGee and their Normal-Boost that makes this script possible.
 
-Constant quality? Eliminating bad frames? Whatever your target is, Progression Boost gets you covered. Progression Boost is a flexible boosting script that runs faster and gives better result than av1an's `--target-quality`. It works in the same idea as Ironclad's grav1an using polynomial regression, and can be easily configured to target different quality targets and more.  
+Constant quality? Eliminating bad frames? Whatever your target is, Progression Boost gets you covered.  
+Progression Boost is a flexible boosting script that runs faster and gives better result than av1an's `--target-quality`. It works in the same idea as Ironclad's grav1an using polynomial regression, and can be easily configured to target different quality targets and more.  
 
 ### Usage
 
