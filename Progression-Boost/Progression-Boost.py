@@ -841,9 +841,12 @@ if scene_detection_method == "av1an":
         scene_detection_bits = scene_detection_clip.format.bits_per_sample
         scene_detection_clip = scene_detection_clip.std.PlaneStats(scene_detection_clip[0] + scene_detection_clip, plane=0, prop="Luma")
         
+        start = time() - 0.000001
         scene_detection_diffs = np.empty((scene_detection_clip.num_frames,), dtype=float)
         for current_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
+            print(f"\033[KFrame {current_frame} / Calculating frame diff / {current_frame / (time() - start):.02f} fps", end="\r")
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
+        print(f"\033[KFrame {current_frame} / Frame diff calculation complete / {current_frame / (time() - start):.02f} fps")
 
         np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
     else:
