@@ -4,11 +4,11 @@
 
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their autoboost, and BoatsMcGee and their Normal-Boost that makes this script possible.
 
-Progression boost is a boosting script for maintaining a consistent quality throughout the whole encode. It works in the same way as Ironclad's grav1an using polynomial regression, and can be easily configured to target different quality levels and more.  
+Constant quality? Eliminating bad frames? Whatever your target is, Progression Boost has you covered. Progression Boost is a flexible boosting script that runs faster and gives better result than av1an's `--target-quality`. It works in the same idea as Ironclad's grav1an using polynomial regression, and can be easily configured to target different quality targets and more.  
 
 ### Usage
 
-Progression Boost is very customisable. As a starting point, we offer multiple presets with different quality targets. You can choose one that's closer to what you want to achieve with your encode, and then modify the config from that.  
+As a starting point, Progression Boost offers multiple presets with different quality targets. You can choose one that's closer to what you want to achieve with your encode, and then modify the config from that.  
 
 For users that don't want too much tinkering and just want to quickly get a good result – one that's even better than av1an's `--target-quality`, both qualitywise and timewise – don't worry. There will be guides in the file specifically for this. Once you've picked the suitable preset for your target, you would only need to adjust three quick parameters in the files and you are good to go! Download a preset and follow the guide at the very top of the file.  
 
@@ -22,10 +22,10 @@ For users that don't want too much tinkering and just want to quickly get a good
 
 After you've downloaded a preset, open the file in a text editor and follow the guide at the very top to adjust the config. The guide should be able to lead you through all the options for Progression Boost.  
 
-After you've adjusted the config for the encode, you need to install a few dependencies for Progression Boost to work:  
+After you've adjusted the config for the encode, you need to install a few dependencies before you run Progression Boost:  
 * Progression Boost's Python dependencies are specified in [`requirements.txt`](Progression-Boost/requirements.txt) including `numpy` and `scipy`. You can install them using pip.  
-* Progression Boost only supports VapourSynth based metric calculation at the moment. By default, all presets use Vship, which can be installed from vsrepo (`vship_nvidia` or `vship_amd`) or AUR ([Cuda](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-cuda-git) or [AMD](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-amd-git)). However, you can easily switch to vszip or any other VapourSynth based methods in the config.  
-* Additionally, to ensure a better quality, all presets except for Preset-SSIMU2-Harmonic-Mean-Dampening by default use WWXD or Scxvid based scene detection methods. You would need to install them from vsrepo (`wwxd`, `scxvid`) or AUR ([WWXD](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git), [Scxvid](https://aur.archlinux.org/packages/vapoursynth-plugin-scxvid-git)). However, this is totally optional. If you can't get them installed, you can always switch back to av1an based scene detection in the config.  
+* Progression Boost supports all VapourSynth based metric calculation. All presets are set to use Vship by default, which can be installed from vsrepo (`vship_nvidia` or `vship_amd`) or AUR ([Cuda](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-cuda-git) or [AMD](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-amd-git)). However, if you can only use vszip, you can easily switch to it or any other VapourSynth based methods in the config. Search for `metric_calculate` in the file.  
+* Additionally, to ensure a better quality, all presets except for Preset-SSIMU2-Harmonic-Mean-Dampening by default use WWXD or Scxvid based scene detection methods. You would need to install them from vsrepo (`wwxd`, `scxvid`) or AUR ([WWXD](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git), [Scxvid](https://aur.archlinux.org/packages/vapoursynth-plugin-scxvid-git)). However, if you can't get them installed. Don't worry. This is totally optional, and you can always switch to av1an based scene detection in the config.  
 * If you want to test out the experimental feature character boosting, you would need to install additional dependencies vs-mlrt and akarin from vsrepo (`trt` or other suitable backend for vs-mlrt, `akarin`) or AUR ([trt](https://aur.archlinux.org/packages/vapoursynth-plugin-mlrt-trt-runtime-git) or other suitable runtime, [akarin](https://aur.archlinux.org/packages?K=vapoursynth-plugin-vsakarin)).
 
 ### Note
