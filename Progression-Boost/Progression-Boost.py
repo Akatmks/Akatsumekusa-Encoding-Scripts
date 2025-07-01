@@ -63,9 +63,15 @@ if not zones_file and not scenes_file:
 temp_dir = args.temp
 if not temp_dir:
     if zones_file:
-        temp_dir = zones_file.with_suffix(".boost.tmp")
+        temp_dir = zones_file
+        if temp_dir.with_suffix("").suffix == ".zones":
+            temp_dir = temp_dir.with_suffix("")
+        temp_dir = temp_dir.with_suffix(".boost.tmp")
     else:
-        temp_dir = scenes_file.with_suffix(".boost.tmp")
+        temp_dir = scenes_file
+        if temp_dir.with_suffix("").suffix == ".scenes":
+            temp_dir = temp_dir.with_suffix("")
+        temp_dir = temp_dir.with_suffix(".boost.tmp")
 temp_dir.mkdir(parents=True, exist_ok=True)
 testing_resume = args.resume
 metric_verbose = args.verbose
@@ -266,6 +272,12 @@ chroma_noise = False
 # the field `chroma_noise` in the scenes file, set the following         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # variable to `True`.                                                    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 chroma_noise_available = True
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# How should Progression Boost load your source video? Select the video
+# provider for both this Python script and for av1an
+video_provider = "lsmash"
+video_load = partial(core.lsmas.LWLibavSource, cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Specify the desired scene length for scene detection. The result from
