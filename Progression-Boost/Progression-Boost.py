@@ -821,6 +821,7 @@ scene_detection_scenes_file = temp_dir.joinpath("scenes-detection.scenes.json")
 scene_detection_diffs_file = temp_dir.joinpath("scenes-detection.diff.txt")
 
 if scene_detection_method == "av1an":
+    scene_detection_process = None
     if not testing_resume or not scene_detection_scenes_file.exists():
         scene_detection_scenes_file.unlink(missing_ok=True)
         command = [
@@ -830,11 +831,7 @@ if scene_detection_method == "av1an":
             "--scenes", str(scene_detection_scenes_file),
             *scene_detection_parameters.split()
         ]
-        subprocess.run(command, text=True, check=True)
-    assert scene_detection_scenes_file.exists()
-
-    with scene_detection_scenes_file.open("r") as scenes_f:
-        scenes = json.load(scenes_f)
+        scene_detection_process = subprocess.Popen(command, text=True)
 
     if not testing_resume or not scene_detection_diffs_file.exists():
         scene_detection_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
@@ -844,13 +841,23 @@ if scene_detection_method == "av1an":
         start = time() - 0.000001
         scene_detection_diffs = np.empty((scene_detection_clip.num_frames,), dtype=float)
         for current_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
-            print(f"\033[KFrame {current_frame} / Calculating frame diff / {current_frame / (time() - start):.02f} fps", end="\r")
+            print(f"\r\033[KFrame {current_frame} / Calculating frame diff / {current_frame / (time() - start):.02f} fps", end="\r")
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
-        print(f"\033[KFrame {current_frame} / Frame diff calculation complete / {current_frame / (time() - start):.02f} fps")
+        print(f"\r\033[KFrame {current_frame} / Frame diff calculation complete / {current_frame / (time() - start):.02f} fps")
 
         np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
     else:
         scene_detection_diffs = np.loadtxt(scene_detection_diffs_file)
+
+    if scene_detection_process is not None:
+        scene_detection_process.wait()
+        if scene_detection_process.returncode != 0:
+            raise subprocess.CalledProcessError
+
+        assert scene_detection_scenes_file.exists()
+
+    with scene_detection_scenes_file.open("r") as scenes_f:
+        scenes = json.load(scenes_f)
 
 elif scene_detection_method == "vapoursynth":
     if not testing_resume or not scene_detection_scenes_file.exists() or not scene_detection_diffs_file.exists():
