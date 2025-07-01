@@ -41,7 +41,7 @@ from vapoursynth import core
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
-parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`, and filtering before metric calculation can be set in the `Progression-Boost.py` file itself")
+parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
 parser.add_argument("-o", "--output-zones", type=Path, help="Output zones file for encoding")
 parser.add_argument("--output-scenes", type=Path, help="Output scenes file for encoding")
 parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes or zones file")
@@ -265,19 +265,23 @@ final_parameters_reset = False
 # `--output-scenes` and not `--output-zones`.
 photon_noise = None
 chroma_noise = False
-# Note that due to av1an being not backward compatible, depending on     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the version of av1an you're using, if you see av1an complaining about  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# extra field `chroma_noise` in the scenes file, set the following       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# variable to `False`. If you see av1an complaining about not finding    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the field `chroma_noise` in the scenes file, set the following         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# variable to `True`.                                                    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Note that due to av1an being not backward compatible, depending on
+# the version of av1an you're using, if you see av1an complaining about
+# extra field `chroma_noise` in the scenes file, set the following
+# variable to `False`. If you see av1an complaining about not finding
+# the field `chroma_noise` in the scenes file, set the following
+# variable to `True`.
 chroma_noise_available = True
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # How should Progression Boost load your source video? Select the video
 # provider for both this Python script and for av1an
-video_provider = "lsmash"
-video_load = partial(core.lsmas.LWLibavSource, cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+source_provider = "lsmash"
+# If you want to use BestSource instead, comment the lines above and
+# uncomment the lines below.
+# source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+# source_provider = "bestsource"
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Specify the desired scene length for scene detection. The result from
@@ -336,7 +340,7 @@ scene_detection_target_split = 60
 # parameters. You need to specify all parameters for an `--sc-only`
 # pass other than `-i`, `--temp` and `--scenes`.
 # scene_detection_method = "av1an".lower()
-# scene_detection_parameters = f"--sc-method fast --chunk-method lsmash"
+# scene_detection_parameters = f"--sc-method fast --chunk-method {source_provider}"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
 # scene_detection_parameters += f" --sc-only --extra-split {scene_detection_extra_split} --min-scene-len {scene_detection_min_scene_len}"
@@ -401,17 +405,19 @@ scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
 # testing, for SVT-AV1-PSY v2.3.0-B, it's optimum to use `--lp 3` and
 # `--workers 8` for system with 32 threads, and `--lp 3` and
 # `--workers 6` for system with 24 threads.
-testing_av1an_parameters = "--workers 8 --chunk-method lsmash --pix-format yuv420p10le --encoder svt-av1 --concat mkvmerge"
+testing_av1an_parameters = f"--workers 8 --chunk-method {source_provider} --pix-format yuv420p10le --encoder svt-av1 --concat mkvmerge"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-testing_av1an_parameters += " -y"
+testing_av1an_parameters += f" -y"
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Once the test encodes finish, Progression Boost will start
 # calculating metric for each scenes.
-# If you want to do some filtering before calculating, you can modify
-# the following lines. Otherwise you can leave it unchanged.
-metric_reference = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+
+# If you've applied filtering for test encodes via `--encode-input`,
+# you probably also want to apply the same filtering before metric
+# calculation here.
+metric_reference = source_clip
 # ---------------------------------------------------------------------
 # Additionally, you can also apply some filters to both the source and
 # the encoded clip before calculating metric. By default, no processing
@@ -846,7 +852,7 @@ if scene_detection_method == "av1an":
         scene_detection_process = subprocess.Popen(command, text=True)
 
     if not testing_resume or not scene_detection_diffs_file.exists():
-        scene_detection_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+        scene_detection_clip = source_clip
         scene_detection_bits = scene_detection_clip.format.bits_per_sample
         scene_detection_clip = scene_detection_clip.std.PlaneStats(scene_detection_clip[0] + scene_detection_clip, plane=0, prop="Luma")
         
@@ -875,7 +881,7 @@ elif scene_detection_method == "vapoursynth":
     if not testing_resume or not scene_detection_scenes_file.exists() or not scene_detection_diffs_file.exists():
         assert scene_detection_extra_split >= scene_detection_min_scene_len * 2, "`scene_detection_method` `vapoursynth` does not support `scene_detection_extra_split` to be smaller than 2 times `scene_detection_min_scene_len`."
     
-        scene_detection_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+        scene_detection_clip = source_clip
         scene_detection_bits = scene_detection_clip.format.bits_per_sample
         scene_detection_clip = scene_detection_clip.std.PlaneStats(scene_detection_clip[0] + scene_detection_clip, plane=0, prop="Luma")
         target_width = np.round(np.sqrt(1280 * 720 / scene_detection_clip.width / scene_detection_clip.height) * scene_detection_clip.width / 40) * 40
@@ -1063,7 +1069,7 @@ metric_clips = [metric_reference] + \
 metric_clips = metric_process(metric_clips)
 
 if character_enable:
-    character_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+    character_clip = source_clip
 
     character_block_width = math.ceil(character_clip.width / 64)
     character_block_height = math.ceil(character_clip.height / 64)
