@@ -1037,7 +1037,7 @@ if zones_file:
 
 # Ding
 metric_iterate_crfs = np.append(testing_crfs, [final_max_crf, final_min_crf])
-metric_reporting_crf = final_min_crf + 6.00
+metric_reporting_crf = final_min_crf + 9.00
 
 metric_scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
 metric_scene_rjust = lambda scene: str(scene).rjust(metric_scene_rjust_digits, "0")
