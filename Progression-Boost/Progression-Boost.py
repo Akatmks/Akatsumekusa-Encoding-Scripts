@@ -265,12 +265,12 @@ final_parameters_reset = False
 # `--output-scenes` and not `--output-zones`.
 photon_noise = None
 chroma_noise = False
-# Note that due to av1an being not backward compatible, depending on     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the version of av1an you're using, if you see av1an complaining about  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# extra field `chroma_noise` in the scenes file, set the following       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# variable to `False`. If you see av1an complaining about not finding    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the field `chroma_noise` in the scenes file, set the following         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# variable to `True`.                                                    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Note that due to av1an being not backward compatible, depending on
+# the version of av1an you're using, if you see av1an complaining about
+# extra field `chroma_noise` in the scenes file, set the following
+# variable to `False`. If you see av1an complaining about not finding
+# the field `chroma_noise` in the scenes file, set the following
+# variable to `True`.
 chroma_noise_available = True
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
