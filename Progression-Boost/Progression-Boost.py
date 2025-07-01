@@ -898,7 +898,7 @@ elif scene_detection_method == "vapoursynth":
         except NameError:
             assert False, "You need to select a `scene_detection_vapoursynth_method` to use `scene_detection_method` `vapoursynth`. Please check your config inside `Progression-Boost.py`."
             
-        scene_detection_rjust_digits = math.floor(np.log10(scene_detection_clip.num_frames))
+        scene_detection_rjust_digits = math.floor(np.log10(scene_detection_clip.num_frames)) + 1
         scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits)
         
         scenes = {}
