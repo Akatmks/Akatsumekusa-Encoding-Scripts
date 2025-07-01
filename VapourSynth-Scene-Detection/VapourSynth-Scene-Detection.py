@@ -85,7 +85,7 @@ if True:
         scene_detection_clip = scene_detection_clip.std.PlaneStats(scene_detection_clip[0] + scene_detection_clip, plane=0, prop="Luma")
         target_width = np.round(np.sqrt(1280 * 720 / scene_detection_clip.width / scene_detection_clip.height) * scene_detection_clip.width / 40) * 40
         if target_width < scene_detection_clip.width * 0.9:
-            target_height = np.ceil(target_width / scene_detection_clip.width * scene_detection_clip.height)
+            target_height = np.ceil(target_width / scene_detection_clip.width * scene_detection_clip.height / 2) * 2
             src_height = target_height / target_width * scene_detection_clip.width
             src_top = (scene_detection_clip.height - src_height) / 2
             scene_detection_clip = scene_detection_clip.resize.Point(width=target_width, height=target_height, src_top=src_top, src_height=src_height,
@@ -97,8 +97,8 @@ if True:
         except NameError:
             assert False, "You need to select a `scene_detection_vapoursynth_method` to use `scene_detection_method` `vapoursynth`. Please check your config inside `Progression-Boost.py`."
 
-        scene_detection_rjust_digits = np.floor(np.log10(scene_detection_clip.num_frames)) + 1
-        scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits.astype(int))
+        scene_detection_rjust_digits = math.floor(np.log10(scene_detection_clip.num_frames)) + 1
+        scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits)
         
         scenes = {}
         scenes["frames"] = scene_detection_clip.num_frames
@@ -108,7 +108,7 @@ if True:
         diffs[0] = 1.0
         luma_scenecut_prev = True
         def scene_detection_split_scene(great_diffs, diffs, start_frame, end_frame):
-            print(f"Frame [{scene_detection_rjust(start_frame)}:{scene_detection_rjust(end_frame)}] / Creating scenes", end="\r")
+            print(f"\033[KFrame [{scene_detection_rjust(start_frame)}:{scene_detection_rjust(end_frame)}] / Creating scenes", end="\r")
 
             if end_frame - start_frame <= scene_detection_target_split or \
                end_frame - start_frame < 2 * scene_detection_min_scene_len:
@@ -146,9 +146,9 @@ if True:
                     if great_diffs[current_frame] < 1.12:
                         break
                     if (current_frame - start_frame >= scene_detection_min_scene_len and end_frame - current_frame >= scene_detection_min_scene_len) and \
-                       np.ceil((current_frame - start_frame) / scene_detection_extra_split).astype(int) + \
-                       np.ceil((end_frame - current_frame) / scene_detection_extra_split).astype(int) <= \
-                       np.ceil((end_frame - start_frame) / scene_detection_extra_split + 0.15).astype(int):
+                       math.ceil((current_frame - start_frame) / scene_detection_extra_split) + \
+                       math.ceil((end_frame - current_frame) / scene_detection_extra_split) <= \
+                       math.ceil((end_frame - start_frame) / scene_detection_extra_split + 0.15):
                         return scene_detection_split_scene(great_diffs, diffs, start_frame, current_frame) + \
                                scene_detection_split_scene(great_diffs, diffs, current_frame, end_frame)
                                
@@ -171,17 +171,17 @@ if True:
 
                 for current_frame in diffs_sort:
                     if (current_frame - start_frame >= scene_detection_min_scene_len and end_frame - current_frame >= scene_detection_min_scene_len) and \
-                       np.ceil((current_frame - start_frame) / scene_detection_extra_split).astype(int) + \
-                       np.ceil((end_frame - current_frame) / scene_detection_extra_split).astype(int) <= \
-                       np.ceil((end_frame - start_frame) / scene_detection_extra_split).astype(int):
+                       math.ceil((current_frame - start_frame) / scene_detection_extra_split) + \
+                       math.ceil((end_frame - current_frame) / scene_detection_extra_split) <= \
+                       math.ceil((end_frame - start_frame) / scene_detection_extra_split):
                         return scene_detection_split_scene(great_diffs, diffs, start_frame, current_frame) + \
                                scene_detection_split_scene(great_diffs, diffs, current_frame, end_frame)
 
             assert False, "This indicates a bug in the original code. Please report this to the repository including this error message in full."
 
-        start = time()
+        start = time() - 0.000001
         for current_frame, frame in islice(enumerate(scene_detection_clip.frames(backlog=48)), 1, None):
-            print(f"Frame {current_frame} / Detecting scenes / {current_frame / (time() - start):.02f} fps", end="\r")
+            print(f"\033[KFrame {current_frame} / Detecting scenes / {current_frame / (time() - start):.02f} fps", end="\r")
 
             if scene_detection_vapoursynth_method == "wwxd":
                 scene_detection_scenecut = frame.props["Scenechange"] == 1
@@ -202,14 +202,14 @@ if True:
                 diffs[current_frame] = frame.props["LumaDiff"] + scene_detection_scenecut
                 
             luma_scenecut_prev = luma_scenecut
-        print(f"Frame {current_frame} / Scene detection complete / {current_frame / (time() - start):.02f} fps")
+        print(f"\033[KFrame {current_frame + 1} / Scene detection complete / {(current_frame + 1) / (time() - start):.02f} fps")
 
         great_diffs = diffs.copy()
         great_diffs[great_diffs < 1.0] = 0
         start_frames = scene_detection_split_scene(great_diffs, diffs, 0, len(diffs)) + [scene_detection_clip.num_frames]
         for i in range(len(start_frames) - 1):
             scenes["scenes"].append({"start_frame": int(start_frames[i]), "end_frame": int(start_frames[i + 1]), "zone_overrides": None})
-        print(f"Frame [{scene_detection_rjust(start_frames[i])}:{scene_detection_rjust(start_frames[i + 1])}] / Scene creation complete")
+        print(f"\033[KFrame [{scene_detection_rjust(start_frames[i])}:{scene_detection_rjust(start_frames[i + 1])}] / Scene creation complete")
     
 
 # Metric
