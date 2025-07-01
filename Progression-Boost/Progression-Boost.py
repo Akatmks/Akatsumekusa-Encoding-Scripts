@@ -41,7 +41,7 @@ from vapoursynth import core
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
-parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`, and filtering before metric calculation can be set in the `Progression-Boost.py` file itself")
+parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
 parser.add_argument("-o", "--output-zones", type=Path, help="Output zones file for encoding")
 parser.add_argument("--output-scenes", type=Path, help="Output scenes file for encoding")
 parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes or zones file")
@@ -413,8 +413,10 @@ testing_av1an_parameters += f" -y"
 # ---------------------------------------------------------------------
 # Once the test encodes finish, Progression Boost will start
 # calculating metric for each scenes.
-# If you want to do some filtering before calculating, you can modify
-# the following lines. Otherwise you can leave it unchanged.
+
+# If you've applied filtering for test encodes via `--encode-input`,
+# you probably also want to apply the same filtering before metric
+# calculation here.
 metric_reference = source_clip
 # ---------------------------------------------------------------------
 # Additionally, you can also apply some filters to both the source and
