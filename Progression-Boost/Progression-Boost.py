@@ -323,7 +323,7 @@ scene_detection_target_split = 60
 # overboosted or underboosted.
 #
 # However, in sections that's challenging for scene detection, such as
-# a continous cut many times the length of
+# a continuous cut many times the length of
 # `scene_detection_extra_split` featuring lots of movements but no
 # actual scenecuts, or sections with a lot of very fancy transition
 # effects between cuts, `--sc-method standard` should be always
@@ -361,7 +361,7 @@ scene_detection_target_split = 60
 #
 # Similar to `--sc-method fast` against `--sc-method standard`, WWXD
 # and Scxvid struggles in sections challenging for scene detection,
-# such as a continous cut many times the length of
+# such as a continuous cut many times the length of
 # `scene_detection_extra_split` featuring lots of movements but no
 # actual scenecuts, or sections with a lot of very fancy transition
 # effects between cuts. WWXD or Scxvid tends to mark either too much or
