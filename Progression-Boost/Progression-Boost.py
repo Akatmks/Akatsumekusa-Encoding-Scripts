@@ -219,7 +219,7 @@ def final_dynamic_crf(crf: float) -> float:
 # scenes? Here's a way to dampen scenes that has been boosted to very
 # high `--crf`. Enable this if needed.
 #     if crf < 26.00:
-#         crf = (crf / 26.00) ** 0.50 * 26.00
+#         crf = (crf / 26.00) ** 0.60 * 26.00
 
 # You may also implement your own function here.
 # The `--crf`s this function receives are in multiples of 0.05. The new
