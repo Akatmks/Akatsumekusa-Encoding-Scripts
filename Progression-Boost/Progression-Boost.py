@@ -843,7 +843,7 @@ if scene_detection_method == "av1an":
         for current_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
             print(f"\r\033[KFrame {current_frame} / Calculating frame diff / {current_frame / (time() - start):.02f} fps", end="\r")
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
-        print(f"\r\033[KFrame {current_frame} / Frame diff calculation complete / {current_frame / (time() - start):.02f} fps")
+        print(f"\r\033[KFrame {current_frame + 1} / Frame diff calculation complete / {(current_frame + 1) / (time() - start):.02f} fps")
 
         np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
     else:
@@ -985,7 +985,7 @@ elif scene_detection_method == "vapoursynth":
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
                 
             luma_scenecut_prev = luma_scenecut
-        print(f"\033[KFrame {current_frame} / Scene detection complete / {current_frame / (time() - start):.02f} fps")
+        print(f"\033[KFrame {current_frame + 1} / Scene detection complete / {(current_frame + 1) / (time() - start):.02f} fps")
 
         great_diffs = diffs.copy()
         great_diffs[great_diffs < 1.0] = 0
@@ -1037,7 +1037,7 @@ if zones_file:
 
 # Ding
 metric_iterate_crfs = np.append(testing_crfs, [final_max_crf, final_min_crf])
-metric_reporting_crf = testing_crfs[0]
+metric_reporting_crf = final_min_crf + 6.00
 
 metric_scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
 metric_scene_rjust = lambda scene: str(scene).rjust(metric_scene_rjust_digits, "0")
@@ -1299,4 +1299,4 @@ if zones_file:
 if scenes_file:
     with scenes_file.open("w") as scenes_f:
         json.dump(scenes, scenes_f)
-print(f"\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Boost calculation complete / {i / (time() - start):.02f} scenes per second")
+print(f"\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Boost calculation complete / {(i + 1) / (time() - start):.02f} scenes per second")
