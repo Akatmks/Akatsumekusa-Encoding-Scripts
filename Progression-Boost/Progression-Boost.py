@@ -263,15 +263,15 @@ final_parameters_reset = False
 # You should specify this the same way these values are represented
 # in each scene in the scenes JSON. This is only applied in
 # `--output-scenes` and not `--output-zones`.
-photon_noise = None
-chroma_noise = False
+final_photon_noise = None
+final_chroma_noise = False
 # Note that due to av1an being not backward compatible, depending on
 # the version of av1an you're using, if you see av1an complaining about
 # extra field `chroma_noise` in the scenes file, set the following
 # variable to `False`. If you see av1an complaining about not finding
 # the field `chroma_noise` in the scenes file, set the following
 # variable to `True`.
-chroma_noise_available = True
+final_chroma_noise_available = True
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # How should Progression Boost load your source video? Select the video
@@ -1304,12 +1304,12 @@ for i, scene in enumerate(scenes["scenes"]):
             "encoder": "svt_av1",
             "passes": 1,
             "video_params": ["--crf", f"{final_crf_:.2f}" ] + final_dynamic_parameters(final_crf).split() + final_parameters.split() + roi_parameters_array,
-            "photon_noise": photon_noise,
+            "photon_noise": final_photon_noise,
             "extra_splits_len": scene_detection_extra_split,
             "min_scene_len": scene_detection_min_scene_len
         }
-        if chroma_noise_available:
-            scene["zone_overrides"]["chroma_noise"] = chroma_noise
+        if final_chroma_noise_available:
+            scene["zone_overrides"]["chroma_noise"] = final_chroma_noise
 
 if zones_file:
     zones_f.close()
