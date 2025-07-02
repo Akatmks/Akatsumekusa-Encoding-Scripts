@@ -1,6 +1,8 @@
-<p align="center"><a href="#progression-boost">Progression Boost</a> · <a href="#dispatch-server">Dispatch Server</a> · <a href="#vapoursynth-scene-detection">VapourSynth Scene Detection</a></p>
+⮚ [Progression Boost](#progression-boost)  
+⮚ [Dispatch Server](#dispatch-server)  
+⮚ [VapourSynth Scene Detection](#vapoursynth-scene-detection)  
 
-# Progression Boost
+## Progression Boost
 
 ### Introduction
 
@@ -38,7 +40,7 @@ After you've adjusted the config for the encode, you need to install a few depen
 
 * Progression Boost will encode the video multiple times until it can build a polynomial model. If you prefer a faster option that only encodes the video once and boost using a „magic number“, try Miss Moonlight's Lav1e or Trix's autoboost.  
 
-# Dispatch Server
+## Dispatch Server
 
 ### Introduction
 
@@ -74,7 +76,7 @@ To use the Dispatch Server:
 
 * Windows' builtin Task Manager is not a good tool for checking CPU usage. The CPU Utility reported in Task Manager will never reach 100% on most systems, despite the CPU is already delivering all the performance it can. This is not an advertisement, but HWiNFO, a tool commonly used by PC building community, shows a different CPU Usage number, which is more aligned to what people expects.  
 
-# VapourSynth Scene Detection
+## VapourSynth Scene Detection
 
 ### Introduction
 
