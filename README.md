@@ -1,4 +1,4 @@
-<p align="right">[Progression Boost](#progression-boost) · [Dispatch Server](#dispatch-server) · [VapourSynth Scene Detection](#vapoursynth-scene-detection)</p>
+<p align="right"><a href="#progression-boost">Progression Boost</a> · <a href="#dispatch-server">Dispatch Server</a> · <a href="#vapoursynth-scene-detection">VapourSynth Scene Detection</a></p>
 
 ## Progression Boost
 
