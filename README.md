@@ -1,5 +1,4 @@
-⮚ [Progression Boost](#progression-boost)・[VapourSynth Scene Detection](#vapoursynth-scene-detection)  
-⮚ [Dispatch Server](#dispatch-server)  
+⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[VapourSynth Scene Detection](#vapoursynth-scene-detection)  
 
 # Progression Boost
 
