@@ -705,6 +705,13 @@ def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Call
             return np.nan
     raise UnreliableModelError(cut, f"Unable to construct a polynomial model. This may result in overboosting.")
 
+# For SSIMU2, Emre also suggests using PCHIP interpolator, which is
+# provided here. This is not yet tested to be fully stable. Use it with
+# caution.
+# from scipy.interpolate import PchipInterpolator
+# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
+#     return PchipInterpolator(crfs, quantisers, extrapolate=True)
+
 # For Butteraugli 3Norm, as explained in the `testing_crfs` section,
 # there appears to be a linear relation between `--crf` and Butteraugli
 # 3Norm scores in `--crf [10 ~ 30]` range. For `--crf`s below 10 to 12,
