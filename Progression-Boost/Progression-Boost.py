@@ -33,7 +33,6 @@ import os
 from pathlib import Path
 import platform
 from scipy.optimize import Bounds, minimize
-from scipy.stats import median_abs_deviation
 import subprocess
 from time import time
 import vapoursynth as vs
