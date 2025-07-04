@@ -41,6 +41,7 @@ from vapoursynth import core
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
 parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
+parser.add_argument("--encode-vspipe-args", nargs="+", help="VSPipe argument for test encodes.")
 parser.add_argument("-o", "--output-zones", type=Path, help="Output zones file for encoding")
 parser.add_argument("--output-scenes", type=Path, help="Output scenes file for encoding")
 parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes or zones file")
@@ -52,6 +53,7 @@ input_file = args.input
 testing_input_file = args.encode_input
 if testing_input_file is None:
     testing_input_file = input_file
+testing_input_vspipe_args = args.encode_vspipe_args
 zones_file = args.output_zones
 scenes_file = args.output_scenes
 roi_maps_dir = args.output_roi_maps
@@ -1049,6 +1051,8 @@ for n, crf in enumerate(testing_crfs):
             *testing_av1an_parameters.split(),
             "--video-params", f"--crf {crf:.2f} {testing_dynamic_parameters(crf)} {testing_parameters}"
         ]
+        if testing_input_vspipe_args is not None:
+            command += ["--vspipe-args"] + testing_input_vspipe_args
         subprocess.run(command, text=True, check=True)
         assert temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists()
 
