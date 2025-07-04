@@ -524,8 +524,8 @@ metric_better_metric = np.greater
 # metric_better_metric = np.less
 
 # To use SSIMU2 via vszip, uncomment the lines below.
-# metric_calculate = partial(core.vszip.Metrics, mode=0)
-# metric_metric = lambda frame: frame.props["_SSIMULACRA2"]
+# metric_calculate = core.vszip.SSIMULACRA2
+# metric_metric = lambda frame: frame.props["SSIMULACRA2"]
 # metric_better_metric = np.greater
 # ---------------------------------------------------------------------
 # You don't need to modify anything here.
