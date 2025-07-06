@@ -1251,8 +1251,7 @@ for i, scene in enumerate(scenes["scenes"]):
         character_16_multiplier = 0.60
         character_8_multiplier = 0.40
         for fter, frame in enumerate(clip.frames(backlog=48)):
-            a = np.array(frame[0], dtype=np.float32).reshape((character_block_height, -1))
-            a = a[:, :character_block_width]
+            a = np.array(frame[0], dtype=np.float32)
             a = np.round(a * -7).reshape((1, -1))
 
             if fter == 0:
