@@ -1036,6 +1036,9 @@ else:
 # Testing
 for n, crf in enumerate(testing_crfs):
     if not testing_resume or not temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists():
+        temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").unlink(missing_ok=True)
+        temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").unlink(missing_ok=True)
+
         # If you want to use a different encoder than SVT-AV1 derived ones, modify here. This is not tested and may have additional issues.
         command = [
             "av1an",
@@ -1053,10 +1056,11 @@ for n, crf in enumerate(testing_crfs):
         ]
         if testing_input_vspipe_args is not None:
             command += ["--vspipe-args"] + testing_input_vspipe_args
-        subprocess.run(command, text=True, check=True)
+        try:
+            subprocess.run(command, text=True, check=True)
+        except subprocess.CalledProcessError:
+            traceback.print_exc()
         assert temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists()
-
-        temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").unlink(missing_ok=True)
 
 
 # Metric
