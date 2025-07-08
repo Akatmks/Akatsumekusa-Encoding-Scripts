@@ -797,7 +797,7 @@ character_sigma = 6.00
 if character_enable:
     import vsmlrt
 # Select backend for vs-mlrt image segmentation model:
-    character_backend = vsmlrt.Backend.TRT
+    character_backend = vsmlrt.Backend.TRT(fp16=True)
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
