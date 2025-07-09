@@ -1245,7 +1245,7 @@ for i, scene in enumerate(scenes["scenes"]):
 
     if character_enable:
         clip = character_clip[scene["start_frame"]]
-        for fter in range(1, (scene["end_frame"] - scene["start_frame"]) // 8 + 1):
+        for fter in range(1, (scene["end_frame"] - scene["start_frame"]) // 8):
             clip += (character_clip[scene["start_frame"] + fter * 8])
 
         roi_map = []
