@@ -35,6 +35,7 @@ import platform
 from scipy.optimize import Bounds, minimize
 import subprocess
 from time import time
+import traceback
 import vapoursynth as vs
 from vapoursynth import core
 
