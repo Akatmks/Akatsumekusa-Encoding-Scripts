@@ -796,7 +796,19 @@ metric_target = 83.000
 # Enable character boosting by setting the line below to True.
 character_enable = False
 # Set how aggressive character boosting should be.
-character_sigma = 6.00
+# This value is the same scale as `--crf`. In a sense the default
+# `5.00` means the biggest character boost is 4 `--crf` better than the
+# background. Or if you're familiar with the internals of SVT-AV1
+# derived encoder, it's more accurate to say the Q of Super Block with
+# characters can be at most 20 better than Super Block containing only
+# backgrounds using the default `5.00` sigma.
+# However, this maximum boost is only applied to the first frame of a
+# scene. Later frames will be boosted less depending on how the
+# hierarchial structure is commonly constructed.
+# There're still a lot to refine for this feature to fit properly with
+# the hierarchial system of the encoder. Head down to the code and
+# experiment with different values if needed.
+character_sigma = 5.00
 # ---------------------------------------------------------------------
 if character_enable:
     import vsmlrt
