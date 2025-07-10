@@ -199,9 +199,12 @@ def final_dynamic_crf(crf: float) -> float:
 # 
 # The higher the difference between the test encode `--preset` and the
 # final encode `--preset` is, the smaller the value you can try here.
-# During our test, we found that 0.92 should be a safe value going from
-# `--preset 7` to `--preset 2`, while 0.84 to 0.82 should be a fine
-# value from `--preset 6` to `--preset 0`.
+# This is some of the numbers we found working during our tests:
+# [test encode `--preset` → final encode `--preset`: offset]
+# `--preset 6` → `--preset 0`: 0.84 to 0.82
+# `--preset 6` → `--preset 1`: 0.88-ish
+# `--preset 7` → `--preset 2`: 0.92
+# `--preset 8` → `--preset 4`: 0.94
 #
 # Also, if you're doing multiscene encoding tests such as to test out
 # optimal encoder parameters to use, you can run the metric on these
