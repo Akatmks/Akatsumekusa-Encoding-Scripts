@@ -199,9 +199,12 @@ def final_dynamic_crf(crf: float) -> float:
 # 
 # The higher the difference between the test encode `--preset` and the
 # final encode `--preset` is, the smaller the value you can try here.
-# During our test, we found that 0.92 should be a safe value going from
-# `--preset 7` to `--preset 2`, while 0.84 to 0.82 should be a fine
-# value from `--preset 6` to `--preset 0`.
+# This is some of the numbers we found working during our tests:
+# [test encode `--preset` → final encode `--preset`: offset]
+# `--preset 6` → `--preset 0`: 0.84 to 0.82
+# `--preset 6` → `--preset 1`: 0.88-ish
+# `--preset 7` → `--preset 2`: 0.92
+# `--preset 8` → `--preset 4`: 0.94
 #
 # Also, if you're doing multiscene encoding tests such as to test out
 # optimal encoder parameters to use, you can run the metric on these
@@ -793,7 +796,19 @@ metric_target = 77.000
 # Enable character boosting by setting the line below to True.
 character_enable = False
 # Set how aggressive character boosting should be.
-character_sigma = 6.00
+# This value is the same scale as `--crf`. In a sense the default
+# `5.00` means the biggest character boost is 4 `--crf` better than the
+# background. Or if you're familiar with the internals of SVT-AV1
+# derived encoder, it's more accurate to say the Q of Super Block with
+# characters can be at most 20 better than Super Block containing only
+# backgrounds using the default `5.00` sigma.
+# However, this maximum boost is only applied to the first frame of a
+# scene. Later frames will be boosted less depending on how the
+# hierarchial structure is commonly constructed.
+# There're still a lot to refine for this feature to fit properly with
+# the hierarchial system of the encoder. Head down to the code and
+# experiment with different values if needed.
+character_sigma = 5.00
 # ---------------------------------------------------------------------
 if character_enable:
     import vsmlrt
