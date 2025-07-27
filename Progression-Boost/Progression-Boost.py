@@ -32,12 +32,15 @@ from numpy.random import default_rng
 import os
 from pathlib import Path
 import platform
-from scipy.optimize import Bounds, minimize
 import subprocess
 from time import time
+from typing import Optional
 import traceback
 import vapoursynth as vs
 from vapoursynth import core
+
+if platform.system() == "Windows":
+    os.system("")
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
@@ -46,19 +49,22 @@ parser.add_argument("--encode-vspipe-args", nargs="+", help="VSPipe argument for
 parser.add_argument("--input-scenes", type=Path, help="Perform your own scene detection and skip Progression Boost's scene detection")
 parser.add_argument("-o", "--output-scenes", type=Path, required=True, help="Output scenes file for encoding")
 parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes")
-parser.add_argument("--zones", type=Path, help="Zones file for Progression Boost. Check the guide inside `Progression-Boost.py` for more information")
-parser.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--zones", type=Path, help="Zones file for Progression Boost. Check the guide inside `Progression-Boost.py` for more information")
+group.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
 parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output scenes file with file extension replaced by „.boost.tmp“)")
 parser.add_argument("-r", "--resume", action="store_true", help="Resume from the temporary folder. By enabling this option, Progression Boost will reuse finished or unfinished testing encodes. This should be disabled should the parameters for test encode be changed")
 parser.add_argument("--verbose", action="store_true", help="Progression Boost by default only reports scenes that have received big boost, or scenes that have built unexpected polynomial model. By enabling this option, all scenes will be reported")
 args = parser.parse_args()
 input_file = args.input
-testing_input_file = args.encode_input
-if testing_input_file is None:
-    testing_input_file = input_file
-testing_input_vspipe_args = args.encode_vspipe_args
+probing_input_file = args.encode_input
+if probing_input_file is None:
+    probing_input_file = input_file
+probing_input_vspipe_args = args.encode_vspipe_args
 scenes_file = args.output_scenes
 roi_maps_dir = args.output_roi_maps
+zones_file = args.zones
+zones_string = args.zones_string
 temp_dir = args.temp
 if not temp_dir:
     temp_dir = scenes_file
@@ -70,8 +76,14 @@ progression_boost_temp_dir = temp_dir / "progression-boost"
 character_boost_temp_dir = temp_dir / "characters-boost"
 for dir_ in [scene_detection_temp_dir, progression_boost_temp_dir, character_boost_temp_dir]:
     dir_.mkdir(parents=True, exist_ok=True)
-testing_resume = args.resume
-metric_verbose = args.verbose
+resume = args.resume
+verbose = args.verbose
+
+
+class UnreliableSummarisationError(Exception):
+    def __init__(self, score, message):
+        super().__init__(message)
+        self.score = score
 
 
 # ---------------------------------------------------------------------
@@ -172,7 +184,9 @@ class DefaultZone:
 # ```
 
 # Zoning information: `source_clip` and `source_provider` are not
-# zoneable.
+# zoneable, but you can write VapourSynth code to `core.std.Splice` it
+# yourself. Make sure you do the same for `--encode-input` and final
+# encode as well.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -216,11 +230,12 @@ class DefaultZone:
 # If you want to use av1an for scene detection, specify the av1an
 # parameters. You need to specify all parameters for an `--sc-only`
 # pass other than `-i`, `--temp` and `--scenes`.
-    scene_detection_method = "av1an".lower()
-    scene_detection_parameters = (f"--sc-method standard --chunk-method {source_provider}"
+    # scene_detection_method = "av1an".lower()
+    # def scene_detection_av1an_parameters(self) -> list[str]:
+    #     return (f"--sc-method standard"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-                                + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len}")
+    #           + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len} --chunk-method {self.source_provider}").split()
 
 # av1an is mostly good, except for one single problem: av1an often
 # prefers to place the keyframe at the start of a series of still,
@@ -279,9 +294,10 @@ class DefaultZone:
 # error if an `--input-scenes` is not specified:
     # scene_detection_method = "skip".lower()
 
-# Zoning information: `scene_detection_method` and
-# `scene_detection_parameters` are not zoneable. However,
-# `scene_detection_vapoursynth_method` is zoneable.
+# Zoning information: `scene_detection_method` is zoneable, which means
+# you can mix av1an based scene detection with VapourSynth based scene
+# detection. However, `scene_detection_av1an_parameters` is not
+# zoneable. There will only be one av1an scene detection pass.
 # ---------------------------------------------------------------------
 # Specify the desired scene length for scene detection. The result from
 # this scene detection will be used both for test encodes and the final
@@ -308,6 +324,10 @@ class DefaultZone:
 # maybe 36. If you are not going to enable Character Boost, the default
 # 60 would be fine.
     scene_detection_target_split = 60
+
+# Zoning information: `scene_detection_extra_split` and
+# `scene_detection_min_scene_len` are only zoneable if you use
+# VapourSynth based scene detection.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -329,10 +349,21 @@ class DefaultZone:
 # first 3 cells below to find the settings you'll need to change.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# For the encoding parameters below, you will see two variables for you
+# Set the encoding parameters!
+# For the parameters below, you will see two sets of variables for you
 # to adjust, one of them is for the probing passes, and one of them
-# well be set into your output scenes file and for the final encoding
+# will be set into your output scenes file and for the final encoding
 # pass.
+#
+# Play special attention that a lot of settings below not only apply to
+# this Progression Boost module, but also the next Character Boost
+# module. They should be listed separately in the Character Boost
+# module, but that would make it very difficult to adjust because
+# you'll have to scroll up and down all the time. Any variables with
+# prefix `probing_` is for the probing passes, any variables with
+# `metric_` applies to this Progression Boost module, and any variables
+# with prefix `final_` applies after both Progression Boost and
+# Character Boost module finishes.
 
 # First, `--crf`:
 
@@ -388,14 +419,9 @@ class DefaultZone:
 # the line below to set a new one.
     # metric_max_crf = 32.00
 
-# At last, if you've disabled this Progression Boost module, and you
-# only want Character Boost, set a base `--crf` here. This value has no
-# effect if Progression Boost module is enabled.
-    metric_unboosted_crf = 25.00
-
 # In addition to setting our maximum and minimum clamp, we can also
 # adjust our `--crf` values dynamically.
-    def metric_dynamic_crf(crf: float) -> float:
+    def metric_dynamic_crf(self, crf: float) -> float:
 # For example, one common usage is for encodes targeting lower filesize
 # targets to dampen the boost. We willingly allow some scenes to have a
 # worse quality than the target we set, in order to save space for all
@@ -409,6 +435,18 @@ class DefaultZone:
 # Note that the clamp of `metric_max_crf` and `metric_min_crf` happens
 # before this function and there are no clamps after this function.
         return crf
+
+# At last, if you've disabled this Progression Boost module, and you
+# only want Character Boost, set a base `--crf` here. This value has no
+# effect if Progression Boost module is enabled.
+    metric_unboosted_crf = 27.00
+
+# Although we already clamp once for Progression Boost module above,
+# the Character Boost module might also boost the `--crf` value. Let's
+# clamp this one last time.
+# This clamp is applied after both Progression Boost and Character
+# Boost has finished.
+    final_min_crf = 6.50
 # ---------------------------------------------------------------------
 # Second, `--preset`:
 
@@ -452,7 +490,7 @@ class DefaultZone:
 # includes `--crf` result from this Progression Boost module after
 # `metric_dynamic_crf`, but also the `--crf` boosts in the next
 # Character Boost module as well.
-    def final_dynamic_preset(crf: float) -> int:
+    def final_dynamic_preset(self, crf: float) -> int:
         return 0
 # ---------------------------------------------------------------------
 # Third, every other parameters:
@@ -494,134 +532,54 @@ class DefaultZone:
 # not only includes `--crf` result from this Progression Boost module
 # after `metric_dynamic_crf`, but also the `--crf` boosts in the next
 # Character Boost module as well.
-    def probing_dynamic_parameters(crf: float) -> list[str]:
+    def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-min 8 --chroma-qp-min 10
                   --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
-    def final_dynamic_parameters(crf: float) -> list[str]:
+    def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-min 8 --chroma-qp-min 10
                   --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # ---------------------------------------------------------------------
+# At last, av1an parameters:
 
-final_photon_noise = None
-# av1an
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-# ---------------------------------------------------------------------
-# The following function is run after we've measured the test encodes
-# and deducted a `--crf` number for the final encode. It is used to
-# perform a final adjustment to the `--crf` value in the output.
-def final_dynamic_crf(crf: float) -> float:
-
-# The first thing we want to address is the difference in quality
-# difference between `--crf`s moving from faster `--preset`s in test
-# encodes to slower `--preset`s in the final encode. Let's say if
-# `--crf A` is 50% better than `--crf B` in `--preset 6`, it might be
-# up to 80% better in `--preset -1`. To help mitigate this issue, we
-# can apply a uniform offset.
-# 
-# The higher the difference between the test encode `--preset` and the
-# final encode `--preset` is, the smaller the value you can try here.
-# This is some of the numbers we found working during our tests:
-# [test encode `--preset` → final encode `--preset`: offset]
-# `--preset 6` → `--preset 0`: 0.84 to 0.82
-# `--preset 6` → `--preset 1`: 0.88-ish
-# `--preset 7` → `--preset 2`: 0.92
-# `--preset 8` → `--preset 4`: 0.94
-#
-# Also, if you're doing multiscene encoding tests such as to test out
-# optimal encoder parameters to use, you can run the metric on these
-# tests and find out around which `--crf` levels does the bad frames
-# commonly reside, and you can adjust this value to better suit your
-# settings.
-#
-# Select one of the values below by uncommenting the line and
-# commenting the others, or picking your own value by entering into any
-# of the lines.
-    crf = (crf / 24.00) ** 0.92 * 24.00
-    # crf = (crf / 24.00) ** 0.88 * 24.00
-    # crf = (crf / 24.00) ** 0.82 * 24.00
-
-
-
-
-# Specify `--photon-noise` and `--chroma-noise` for the scenes file.
-# You should specify this the same way these values are represented
-# in each scene in the scenes JSON. This is only applied in
-# `--output-scenes` and not `--output-zones`.
-final_photon_noise = None
-final_chroma_noise = False
-# Note that due to av1an being not backward compatible, depending on
-# the version of av1an you're using, if you see av1an complaining about
-# extra field `chroma_noise` in the scenes file, set the following
-# variable to `False`. If you see av1an complaining about not finding
-# the field `chroma_noise` in the scenes file, set the following
-# variable to `True`.
-final_chroma_noise_available = True
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-
-
-
-
-# Specify the av1an parameters for the test encodes. You need to
-# specify everything other than `-i`, `-o`, `--temp`, `--resume`,
-# `--video-params`, and `--scenes`.
-#
-# Make sure the number of workers set here suits the number of `--lp`
-# specified in `testing_parameters`. As a reference, per BONES and my
-# testing, for SVT-AV1-PSY v2.3.0-B, it's optimum to use `--lp 3` and
-# `--workers 8` for system with 32 threads, and `--lp 3` and
-# `--workers 6` for system with 24 threads.
-testing_av1an_parameters = f"--workers 8 --chunk-method {source_provider} --pix-format yuv420p10le --encoder svt-av1 --concat mkvmerge"
+# These are the av1an parameters for probe encodes.
+# The only thing you would need to adjust here is `--workers`. The
+# fastest `--lp` `--workers` combination is listed below:
+#   32 threads: --lp 3 --workers 8
+#   24 threads: --lp 3 --workers 6
+#   16 threads: --lp 3 --workers 4
+#   12 threads: --lp 3 --workers 3
+    def probing_av1an_parameters(self, message: str) -> list[str]:
+        return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-testing_av1an_parameters += f" -y"
+              + f" -y --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --no-defaults --video-params").split() + \
+                [message]
+
+# These are the photon noise parameters for your final encode. These
+# are not applied in probe encodes.
+#
+# For `photon_noise`, we made it a function that you can dynamically
+# adjust based on the luminance of the frame. The three parameters
+# `luma_average`, `luma_min`, `luma_max` are straight from
+# `core.std.PlaneStats` of the luma plane of `source_clip`. The shape
+# of the three ndarrays are `(num_frames_in_the_scene,)`.
+# Note that the default value for `photon_noise` in scenes file is
+# `None` instead of `0`, and the result for `photon_noise` `0` is
+# undefined.
+    def final_dynamic_photon_noise(self, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32]) -> Optional[int]:
+        return None
+    final_photon_noise_height = None
+    final_photon_noise_width = None
+    final_chroma_noise = False
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Once the test encodes finish, Progression Boost will start
 # calculating metric for each scenes.
 
-# If you've applied filtering for test encodes via `--encode-input`,
-# you probably also want to apply the same filtering before metric
-# calculation here.
-metric_reference = source_clip
-# ---------------------------------------------------------------------
-# Additionally, you can also apply some filters to both the source and
-# the encoded clip before calculating metric. By default, no processing
-# is performed.
-def metric_process(clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
-    return clips
-
-# If you want higher speed calculating metrics, here is a hack. What
-# about cropping the clip from 1080p to 900p or 720p? This is tested to
-# have been working very well, producing very similar final `--crf`s
-# while increasing measuring speed significantly. However, since we
-# are cropping away outer edges of the screen, for most anime, we will
-# have proportionally more characters than backgrounds in the cropped
-# compare. This may not may not be preferrable. If you want to enable
-# cropping, comment the lines above and uncomment the lines below to
-# crop the clip to 900p before comparing.
-# def metric_process(clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
-#     for i in range(len(clips)):
-#         clips[i] = clips[i].std.Crop(left=160, right=160, top=90, bottom=90)
-#     return clips
-# ---------------------------------------------------------------------
 # When calculating metric, we don't need to calculate it for every
 # single frame. It's very common for anime to have 1 frame of animation
 # every 2 to 3 frames. It's not only meaningless trying to calculate
@@ -638,11 +596,11 @@ def metric_process(clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
 # of the frames you're measuring here. Although do note that this way
 # the percentile you're measuring no longer represents the percentile
 # of the whole scene, but just the percentile of the frames you pick.
-metric_highest_diff_frames = 8
+    metric_highest_diff_frames = 8
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
-metric_highest_diff_min_separation = 4
+    metric_highest_diff_min_separation = 4
 #
 # Then we will separate the frames into two brackets at 2 times MAD but
 # based on the 40th percentile instead of mean value. The lower bracket
@@ -654,69 +612,113 @@ metric_highest_diff_min_separation = 4
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-metric_upper_diff_bracket_frames = 18
-metric_lower_diff_bracket_frames = 0
+    metric_upper_diff_bracket_frames = 16
+    metric_lower_diff_bracket_frames = 0
 # We select frames from the two brackets randomly, but we want to avoid
 # picking a frame in the lower bracket right after a frame from the
 # upper bracket, because these two frames are most likely exactly the
 # same.
-metric_lower_diff_bracket_min_separation = 2
+    metric_lower_diff_bracket_min_separation = 2
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-metric_upper_diff_bracket_fallback_frames = 10
+    metric_upper_diff_bracket_fallback_frames = 10
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
 # last frame from the previous scene and is irrelevant. In addition,
 # the first frame as the keyframe often has great quality. Do you want
 # to always include the first frame in metric calculation?
-metric_first_frame = 0
+    metric_first_frame = 0
 #
-# Sometimes, certain version of SVT-AV1-PSY will encode the last frame
-# of a scene slightly worse than the rest of the frames. Do you want to
+# Sometimes, sometimes SVT-AV1-PSY will encode the last frame of a
+# scene slightly worse than the rest of the frames. Do you want to
 # always include the first frame in metric calculation?
-metric_last_frame = 1
+    metric_last_frame = 1
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# What metric do you want to use? Are you hipping, or are you zipping?
-# 
-# To use SSIMU2 via vship, uncomment the lines below. 
-# metric_calculate = core.vship.SSIMULACRA2
-# metric_metric = lambda frame: frame.props["_SSIMULACRA2"]
-# metric_better_metric = np.greater
+# Progression Boost currently supports two methods calculating metrics,
+# FFVship and VapourSynth.
+# FFVship is a standalone external program, while VapourSynth method
+# supports vship and vszip.
 
-# To use Butteraugli 3Norm via vship, uncomment the lines below.
-# metric_calculate = core.vship.BUTTERAUGLI
-# metric_metric = lambda frame: frame.props["_BUTTERAUGLI_3Norm"]
-# metric_better_metric = np.less
+# FFVship is only available if you've not applied filtering via
+# `--encode-input`, and you don't plan to apply additional filtering
+# before calculating metric. FFVship is faster than using vship in
+# VapourSynth.
+# Enable FFVship by commenting the line for VapourSynth below and
+# uncommenting the line below.
+    metric_method = "ffvship".lower()
 
-# To use Butteraugli INFNorm via vship, uncomment the lines below.
-# metric_calculate = core.vship.BUTTERAUGLI
-# metric_metric = lambda frame: frame.props["_BUTTERAUGLI_INFNorm"]
-# metric_better_metric = np.less
+# If you want to use VapourSynth based methods for calculating metrics,
+# comment the line above for FFVship and uncomment the line below.
+    # metric_method = "vapoursynth".lower()
+#
+# For VapourSynth based metric calculation, if you've applied filtering
+# via `--encode-input`, you can match it and apply the same filtering
+# here:
+    metric_reference = source_clip
+#
+# For VapourSynth based metric calculation, this function allows you to
+# perform some additional filtering before calculating metrics.
+    def metric_process(self, clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
+# First, here is a hack if you want higher speed calculating metrics.
+# What about cropping the clip from 1080p to 900p or 720p? This is
+# tested to have been working very well, producing very similar final
+# `--crf`swhile increasing measuring speed significantly. However,
+# since we are cropping away outer edges of the screen, for most anime,
+# we will have proportionally more characters than backgrounds in the
+# cropped compare. This may not may not be preferrable. If you want to
+# enable cropping, uncomment the lines below to crop the clip to 900p
+# before comparing.
+    #     for i in range(len(clips)):
+    #         clips[i] = clips[i].std.Crop(left=160, right=160, top=90, bottom=90)
+# If you want some other processing before calculating metrics, you can
+# implement it here.
+        return clips
+# ---------------------------------------------------------------------
+# What metric do you want to use?
+
+# To use Butteraugli 3Norm via FFVship or vship, uncomment the lines
+# below.
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_metric = lambda self, frame: frame[1]
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"]
+    # metric_better_metric = np.less
+
+# To use Butteraugli INFNorm via FFVship or vship, uncomment the lines
+# below.
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_metric = lambda self, frame: frame[2]
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_INFNorm"]
+    # metric_better_metric = np.less
 
 # During testing, we found that Butteraugli 3Norm with a tiny spice of
 # Butteraugli INFNorm performs very well when targeting high quality
 # targets. Butteraugli 3Norm ensures a good baseline measurement, while
 # the tiny spice of Butteraugli INFNorm patches some of the small
 # issues Butteraugli 3Norm missed.
-metric_calculate = core.vship.BUTTERAUGLI
-metric_metric = lambda frame: frame.props["_BUTTERAUGLI_3Norm"] * 0.97 + frame.props["_BUTTERAUGLI_INFNorm"] * 0.03
-metric_better_metric = np.less
+    metric_ffvship_calculate = "Butteraugli"
+    metric_ffvship_metric = lambda self, frame: frame[1] * 0.975 + frame[2] * 0.025
+    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] * 0.975 + frame.props["_BUTTERAUGLI_INFNorm"] * 0.025
+    metric_better_metric = np.less
+
+# To use SSIMU2 via FFVship or vship, uncomment the lines below.
+    # metric_ffvship_calculate = "SSIMULACRA2"
+    # metric_ffvship_metric = lambda self, frame: frame[0]
+    # metric_vapoursynth_calculate = core.vship.SSIMULACRA2
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
+    # metric_better_metric = np.greater
 
 # To use SSIMU2 via vszip, uncomment the lines below.
-# metric_calculate = core.vszip.SSIMULACRA2
-# metric_metric = lambda frame: frame.props["SSIMULACRA2"]
-# metric_better_metric = np.greater
-# ---------------------------------------------------------------------
-# You don't need to modify anything here.
-class UnreliableSummarisationError(Exception):
-    def __init__(self, score, message):
-        super().__init__(message)
-        self.score = score
+    # metric_vapoursynth_calculate = core.vszip.SSIMULACRA2
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["SSIMULACRA2"]
+    # metric_better_metric = np.greater
 # ---------------------------------------------------------------------
 # After calcuating metric for frames, we summarise the quality for each
 # scene into a single value. There are three common way for this.
@@ -738,19 +740,16 @@ class UnreliableSummarisationError(Exception):
 # Note that Progression Boost by default uses median-unbiased estimator
 # for calculating percentile, which is much more sensitive to extreme
 # values than linear estimator.
-#
-# Specify the `metric_percentile` you want to observe below depending on
-# your desired quality for the encode.
-# metric_percentile = 15
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     return np.percentile(scores, metric_percentile, method="median_unbiased")
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     percentile = 15
+    #     return np.percentile(scores, percentile, method="median_unbiased")
 
 # The percentile method is also tested on Butteraugli 3Norm score, use
 # 90th percentile instead of 10th, and 80th percentile instead of 20th,
 # and you are good to go.
-# metric_percentile = 90
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     return np.percentile(scores, metric_percentile, method="median_unbiased")
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     percentile = 80
+    #     return np.percentile(scores, percentile, method="median_unbiased")
 
 # The second method is even more aggressive than the first method, to
 # take the minimum or the maximum value from all the frames measured.
@@ -759,10 +758,10 @@ class UnreliableSummarisationError(Exception):
 # A note is that if you want to get the best quality, you should also
 # increase the number of frames to measured specified above in order to
 # prevent random bad frames from slipping through.
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     return np.min(scores)
-def metric_summarise(scores: np.ndarray[float]) -> float:
-    return np.max(scores)
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     return np.min(scores)
+    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+        return np.max(scores)
 
 # The second method is to calculate a mean value for the whole scene.
 # For SSIMU2 score, harmonic mean is studied by Miss Moonlight to have
@@ -781,169 +780,28 @@ def metric_summarise(scores: np.ndarray[float]) -> float:
 #
 # To use the harmonic mean method, comment the lines above for the
 # percentile method, and uncomment the lines below.
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     if np.any((small := scores < 15)):
-#         scores[small] = 15
-#         raise UnreliableSummarisationError(scores.shape[0] / np.sum(1 / scores), f"Frames in this scene receive a metric score below 15 for test encodes. If this happens a lot for the this specific source, try switching to better `--crf`s in `testing_crfs`.")
-#     else:
-#         return scores.shape[0] / np.sum(1 / scores)
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     if np.any((small := scores < 15)):
+    #         scores[small] = 15
+    #         raise UnreliableSummarisationError(scores.shape[0] / np.sum(1 / scores), f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
+    #     else:
+    #         return scores.shape[0] / np.sum(1 / scores)
 
 # For Butteraugli 3Norm score, root mean cube is suggested by Miss
 # Moonlight and tested to have good overall boosting result.
 #
 # To use the root mean cube method, comment the lines above for the
 # percentile method, and uncomment the two lines below.
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     return np.mean(scores ** 3) ** (1 / 3)
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     return np.mean(scores ** 3) ** (1 / 3)
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
 # 
 # This function is called independently for every scene for every test
 # encode.
-# def metric_summarise(scores: np.ndarray[float]) -> float:
-#     pass
-# ---------------------------------------------------------------------
-# You don't need to modify anything here.
-class UnreliableModelError(Exception):
-    def __init__(self, model, message):
-        super().__init__(message)
-        self.model = model
-# ---------------------------------------------------------------------
-# For SSIMU2, by default, Progression Boost fit the metric data to a
-# constrained cubic polynomial model. If a fit could not be made under
-# constraints, an „Unreliable model“ will be reported. You don't need
-# to modify anything here unless you want to implement your own method.
-# The code here is a little bit long, try scrolling harder if you can't
-# reach the next paragraph.
-# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
-#     if crfs.shape[0] >= 4:
-#         polynomial = lambda X, coef: coef[0] * X ** 3 + coef[1] * X ** 2 + coef[2] * X + coef[3]
-#         # Mean Squared Error biased towards overboosting
-#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
-#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
-#             bounds = Bounds([-np.inf, -np.inf, -np.inf, -np.inf], [0, np.inf, np.inf, np.inf])
-#             constraints = [
-#                 # Second derivative 6ax + 2b <= 0 if np.greater
-#                 {"type": "ineq", "fun": lambda coef: -(6 * coef[0] * final_min_crf + 2 * coef[1])},
-#                 # b^2 - 3ac <= 0
-#                 {"type": "ineq", "fun": lambda coef: -(coef[1] ** 2 - 3 * coef[0] * coef[2])}
-#             ]
-#         else:
-#             bounds = Bounds([0, -np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf, np.inf])
-#             constraints = [
-#                 # Second derivative 6ax + 2b >= 0 if np.less
-#                 {"type": "ineq", "fun": lambda coef: 6 * coef[0] * final_min_crf + 2 * coef[1]},
-#                 # b^2 - 3ac <= 0
-#                 {"type": "ineq", "fun": lambda coef: -(coef[1] ** 2 - 3 * coef[0] * coef[2])}
-#             ]
-#         fit = minimize(objective, [0, *np.polyfit(crfs, quantisers, 2)],
-#                        method="SLSQP", options={"ftol": 1e-6}, bounds=bounds, constraints=constraints)
-#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
-#             return partial(polynomial, coef=fit.x)
-#
-#     if crfs.shape[0] >= 3:
-#         polynomial = lambda X, coef: coef[0] * X ** 2 + coef[1] * X + coef[2]
-#         # Mean Squared Error biased towards overboosting
-#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
-#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
-#             bounds = Bounds([-np.inf, -np.inf, -np.inf], [0, np.inf, np.inf])
-#             # First derivative 2ax + b <= 0 if np.greater
-#             constraints = [{"type": "ineq", "fun": lambda coef: -(2 * coef[0] * final_min_crf + coef[1])}]
-#         else:
-#             bounds = Bounds([0, -np.inf, -np.inf], [np.inf, np.inf, np.inf])
-#             # First derivative 2ax + b >= 0 if np.less
-#             constraints = [{"type": "ineq", "fun": lambda coef: 2 * coef[0] * final_min_crf + coef[1]}]
-#         fit = minimize(objective, [0, *np.polyfit(crfs, quantisers, 1)],
-#                        method="SLSQP", options={"ftol": 1e-6}, bounds=bounds, constraints=constraints)
-#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
-#             return partial(polynomial, coef=fit.x)
-#
-#     if crfs.shape[0] >= 2:
-#         polynomial = lambda X, coef: coef[0] * X + coef[1]
-#         # Mean Squared Error biased towards overboosting
-#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
-#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
-#             bounds = Bounds([-np.inf, -np.inf], [0, np.inf])
-#         else:
-#             bounds = Bounds([0, -np.inf], [np.inf, np.inf])
-#         fit = minimize(objective, np.polyfit(crfs, quantisers, 1),
-#                        method="L-BFGS-B", options={"ftol": 1e-6}, bounds=bounds)
-#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
-#             if not crfs.shape[0] >= 3:
-#                 return partial(polynomial, coef=fit.x)
-#             else:
-#                 def cut(crf):
-#                     if crf <= np.average([crfs[-1], final_max_crf], weights=[3, 1]):
-#                         return polynomial(crf, fit.x)
-#                     else:
-#                         return np.nan
-#                 return cut
-#
-#     def cut(crf):
-#         for i in range(0, crfs.shape[0]):
-#             if crf <= crfs[i]:
-#                 return quantisers[i]
-#         else:
-#             return np.nan
-#     raise UnreliableModelError(cut, f"Unable to construct a polynomial model. This may result in overboosting.")
-
-# For SSIMU2, Emre also suggests using PCHIP interpolator, which is
-# provided here. This is not yet tested to be fully stable. Use it with
-# caution.
-# from scipy.interpolate import PchipInterpolator
-# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
-#     return PchipInterpolator(crfs, quantisers, extrapolate=True)
-
-# For Butteraugli 3Norm, as explained in the `testing_crfs` section,
-# there appears to be a linear relation between `--crf` and Butteraugli
-# 3Norm scores in `--crf [10 ~ 30]` range. For `--crf`s below 10 to 12,
-# it seems like the encode quality increases faster than `--crf`
-# decreases. The following function accounts for this and deviates from
-# the linear regression at `--crf` 12 or lower. The rate used in the
-# function is very conservative, in the sense that it will almost only
-# overboost than underboost. If you're using the default `testing_crfs`
-# for Butteraugli 3Norm, comment the function above for SSIMU2 and
-# uncomment the function below.
-def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
-    polynomial = lambda X, coef: coef[0] * X + coef[1]
-    # Mean Squared Error biased towards overboosting
-    objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
-    if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
-        bounds = Bounds([-np.inf, -np.inf], [0, np.inf])
-    else:
-        bounds = Bounds([0, -np.inf], [np.inf, np.inf])
-    fit = minimize(objective, np.polyfit(crfs, quantisers, 1),
-                    method="L-BFGS-B", options={"ftol": 1e-6}, bounds=bounds)
-    if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
-        def predict(crf):
-            if crf >= 11:
-                return polynomial(crf, fit.x)
-            else:
-                return polynomial(12 - (12 - crf) ** 1.12, fit.x)
-        return predict
-
-    def cut(crf):
-        for i in range(0, crfs.shape[0]):
-            if crf <= crfs[i]:
-                return quantisers[i]
-        else:
-            return np.nan
-    raise UnreliableModelError(cut, f"Test encodes with higher `--crf` received better score than encodes with lower `--crf`. This may result in overboosting.")
-
-# If you want to use a different method, you can implement it here.
-#
-# This function receives quantisers corresponding to each test encodes
-# specified previously in `testing_crfs`, which is provided in the
-# first argument `crfs`. It should return a function that will return
-# predicted metric score when called with `--crf`.
-# You should raise an UnreliableModelError with a model and an error
-# message if the model constructed is unreliable. You will have to
-# return a model in the exception. If the model constructed is
-# unusable, you can use something similar to the `cut` function at the
-# end of the two builtin `metric_model` functions.
-# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
-#     pass
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     pass
 # ---------------------------------------------------------------------
 # After calculating the percentile, or harmonic mean, or other           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # quantizer of the data, we fit the quantizers to a polynomial model     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -952,60 +810,232 @@ def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Call
 # Specify the target quality using the variable below.                   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # Note that Progression Boost can only create the model based on test    # <<<<  These three parameters are all you need to get a good  <<<<<<<
-# encodes performed at `--preset 6` by default. You will get much        # <<<<  result fast, but you are recommended to have a look at  <<<<<<
+# encodes performed at `--preset 7` by default. You will get much        # <<<<  result fast, but you are recommended to have a look at  <<<<<<
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-metric_target = 0.620
-#
-# You can also have a look at `final_dynamic_crf` section, where we
-# perform a flat readjustment to make the result more suitable for the
-# final `--crf`.
+    metric_target = 0.620
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Section: Character Boost
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Character boosting is a separate boosting system based on ROI (Region
-# Of Interest) map instead of `--crf`. This utilises image segmentation
+# Of Interest) map as well as `--crf`. This utilises image segmentation
 # model to recognise the character in the scene, and selectively boost
 # the characters.
-# This feature is still in early stage of testing. Nothing really bad
-# will spill out from this, just that we haven't figured out the
-# perfect parameters. Head down to the code section and adjust
-# parameters if necessary.
 # Enable character boosting by setting the line below to True.
-character_enable = False
+    character_enable = False
+# ---------------------------------------------------------------------
 # Set how aggressive character boosting should be.
-# This value is the same scale as `--crf`. In a sense the default
-# `5.00` means the biggest character boost is 4 `--crf` better than the
-# background. Or if you're familiar with the internals of SVT-AV1
-# derived encoder, it's more accurate to say the Q of Super Block with
-# characters can be at most 20 better than Super Block containing only
-# backgrounds using the default `5.00` sigma.
-# However, this maximum boost is only applied to the first frame of a
-# scene. Later frames will be boosted less depending on how the
-# hierarchial structure is commonly constructed.
-# There're still a lot to refine for this feature to fit properly with
-# the hierarchial system of the encoder. Head down to the code and
-# experiment with different values if needed.
-character_sigma = 5.00
+# This first value is for the ROI map based boosting. It's the same
+# scale as `--crf`. In a sense the default `5.00` means the biggest
+# character boost is 5 `--crf` better than the background. Or if you're
+# familiar with the internals of SVT-AV1 derived encoder, it's more
+# accurate to say the Q of Super Block with characters can be at most
+# 20 better than Super Block containing only backgrounds using the
+# default `5.00` sigma.
+#
+# The maximum recommended value for this is 7.00 ~ 8.00. If you want
+# more aggressive character boosting, applying them via the second
+# value for `--crf` based boosting should be more effective.
+#
+# This maximum boost is only applied to the first frame of a scene.
+# Later frames will be boosted less depending on how the hierarchial
+# structure is commonly constructed.
+#
+# The number here should be positive.
+    character_max_roi_boost = 5.00
+# This second value is for the `--crf` based character boosting. It
+# boosts a scene depending on how much percentage of the screen is
+# occupied by characters.
+#
+# You can set this value as high as you want.
+# You can even disable Progression Boost module, only relying on the
+# base `--crf` set by `metric_unboosted_crf` to maintain a baseline
+# consistency and hyperboost character by setting something like
+# `15.00` here.
+#
+# The number here should be positive.
+    character_max_crf_boost = 4.00
 # ---------------------------------------------------------------------
-if character_enable:
-    import vsmlrt
-# Select backend for vs-mlrt image segmentation model:
-    character_backend = vsmlrt.Backend.TRT(fp16=True)
+# Select vs-mlrt backend for image segmentation model:
+    def character_get_backend(self):
+        import vsmlrt
+        return vsmlrt.Backend.TRT(fp16=True)
+# Zoning information: `character_get_backend` is not zoneable.
+# ---------------------------------------------------------------------
+    def character_get_model(self):
+        import vsmlrt
+        model = Path(vsmlrt.models_path) / "anime-segmentation" / "isnet_is.onnx"
+        if not model.exists():
+            raise FileNotFoundError(f"Could not find anime-segmentation model at \"{character_model}\". Acquire it from https://github.com/AmusementClub/vs-mlrt/releases/external-models")
+        return model
+# Zoning information: `character_get_model` is not zoneable.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
 
-if character_enable:
-    if not roi_maps_dir:
-        parser.print_usage()
-        print("Progression Boost: error: the following arguments is required: --output-roi-maps")
-        raise SystemExit(2)
-    roi_maps_dir.mkdir(exist_ok=True)
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Section: Zones
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Everything set in the previous 4 sections are in the default zones.
+# We now collect them into our `zones_spec` dict. You don't need to
+# modify anything here.
+zones_spec = {}
+zone_default = DefaultZone()
+zones_spec["default"] = zone_default
 
-    character_model = Path(vsmlrt.models_path) / "anime-segmentation" / "isnet_is.onnx"
-    if not character_model.exists():
-        print(f"Progression Boost: error: Could not find anime-segmentation model at \"{character_model}\". Acquire it from https://github.com/AmusementClub/vs-mlrt/releases/external-models")
+# To use different zones for different sections, first, you would need
+# to create the zone spec inside this Progression-Boost.py file.
+# First, inherit a new zone from `DefaultZone`:
+class BuiltinExampleZone(DefaultZone):
+# Because we inherited `DefaultZone`, this now has the same settings
+# as all the default settings in the previous 4 sections.
+# Now we can change the settings that we want to make it different.
+# Let's first apply some `--film-grian` because why not:
+    def final_dynamic_parameters(self, crf: float) -> list[str]:
+        return """--lp 3 --keyint -1 --input-depth 10 --scm 0
+                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --film-grain 12 --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
+                  --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
+# Let's use a different `--preset` for final encode:
+    def final_dynamic_preset(self, crf: float) -> int:
+        return -1
+# Change the number of frames measured:
+    metric_highest_diff_frames = 5
+# Use a different method to measure metric:
+    metric_method = "vapoursynth".lower()
+# Do some preprocessing:
+    def metric_process(self, clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
+        for i in range(len(clips)):
+            clips[i] = clips[i].std.Crop(left=160, right=160, top=90, bottom=90)
+        return clips
+# Change to a different `metric_target`:
+    metric_target = 0.600
+# As you can see, everything can be freely changed. The only exceptions
+# are `source_clip` related options in General section, and some scene
+# detections options when you're using av1an based scene detection
+# methods in Scene Detection section. Search for `Zoning information: `
+# in this entire script, and you will find notes regarding how these
+# options can or cannot be zoned.
+# Now we've finished creating our new zone spec, let's add an instance
+# of it in our `zones_spec` dict using the key `builtin_example`:
+zones_spec["builtin_example"] = BuiltinExampleZone()
+# The key used for each zone can be any name you want, but it must not
+# contain whitespace character ` `.
+
+# Just like this, we've added our custom zones to `zones_spec`. To
+# referece this zone and actually tell the script when to use each
+# zones, use the commandline parameter `--zones` or `--zones-script`.
+#
+# `--zones` are for zones file.
+# The format for zones file are `start_frame end_frame zones_key`.
+#   The `end_frame` here is exclusive.
+#   The `zones_key` here are the same key we use to add to
+#   `zones_spec`.
+# An example zones file could look like this:
+# ```
+# 1000 2000 builtin_example
+# 13000 15000 builtin_example
+# 25000 28000 builtin_example_2
+# ```
+# Any regions not covered by zones file will be using the default zone
+# at `zones_spec["default"]`.
+#
+# `--zones-string` is exactly the same as zones file above. Throw away
+# the line breaks and put everything on the same line and it will work
+# exactly the same.
+# The example zones file above is the same as this `--zones-string`:
+# `--zones-string "1000 2000 builtin_example 13000 15000 builtin_example 25000 28000 builtin_example_2"`
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+
+
+for zone_key in zones_spec:
+    if " " in zone_key:
+        assert False, f"Key \"{zone_key}\" in `zones_spec` contains whitespace character ` `. The key for all zones must not contain whitespace character"
+
+if zones_file:
+    with zones_file.open("r") as zones_f:
+        zones_string = zones_f.read()
+if zones_string is not None:
+    if zones_file:
+        print(f"\033[31mInput `--zones` is empty. Continuing with no zoning...\033[0m")
+    else:
+        print(f"\033[31mInput `--zones-string` is empty. Continuing with no zoning...\033[0m")
+
+    zones_list = []
+    zone = []
+    zone_head = 0
+    for item in zones_string.split():
+        if zone_head in [0, 1]:
+            zone[zone_head] = int(item)
+            zone_head += 1
+        elif zone_head == 2:
+            zone[zone_head] = item
+            for i in range(len(zones_list)):
+                if zones_list[i][0] > zone[0]:
+                    zones_list.insert(i, zone)
+                    break
+            else:
+                zones_list.append(zone)
+            zone = []
+            zone_head = 0
+        else:
+            assert False
+    if zone_head != 0:
+        raise ValueError(f"Invalid zones. There are too much or two few items in the provided zones")
+else:
+    zones_list = []
+
+zones = []
+frame_head = 0
+for item in zones_list:
+    if item[0] < frame_head:
+        raise ValueError(f"Repeating section [{item[0]}:{frame_head}] between input zones.")
+    if item[1] <= item[0]:
+        raise ValueError(f"Invalid zone with start_frame {item[0]} and end_frame {item[1]}.")
+    if item[0] > source_clip.num_frames - 1:
+        print(f"Skipping zones with out of bound start_frame {item[0]}...")
+
+    if item[1] <= -2:
+        raise ValueError(f"Invalid end_frame in the zones with value {item[1]}")
+    if item[1] > source_clip.num_frames:
+        print(f"\033[31mOut of bound end_frame in the zones with value {item[1]}. Clamp end_frame for the zone to {source_clip.num_frames}...\033[0m")
+        print(f"Use `-1` as end_frame to silence this out of bound warning.")
+        item[1] = source_clip.num_frames
+    if item[1] == -1:
+        item[1] = source_clip.num_frames
+
+    if item[0] != frame_head:
+        zones.append({ "start_frame": frame_head,
+                       "end_frame": item[0],
+                       "zone": zones_spec["default"] })
+        frame_head = item[0]
+    
+    zones.append({ "start_frame": item[0],
+                   "end_frame": item[1],
+                   "zone": zones_spec[item[2]] })
+
+for zone in zones:
+    if zone.character_enable:
+        if not roi_maps_dir:
+            parser.print_usage()
+            print("Progression Boost: error: the following arguments is required when Character Boost is enabled: --output-roi-maps")
+            raise SystemExit(2)
+        roi_maps_dir.mkdir(parents=True, exist_ok=True)
+
+        character_backend = zone_default.character_get_backend
+        character_model = zone_default.character_get_model
+
+        break
 
 
 # ---------------------------------------------------------------------
@@ -1033,54 +1063,152 @@ if character_enable:
 # ---------------------------------------------------------------------
 
 
-if platform.system() == "Windows":
-    os.system("")
-
 # Scene dectection
-scene_detection_scenes_file = temp_dir.joinpath("scenes-detection.scenes.json")
-scene_detection_diffs_file = temp_dir.joinpath("scenes-detection.diff.txt")
+scene_detection_scenes_file = scene_detection_temp_dir.joinpath("scenes.json")
+scene_detection_av1an_scenes_file = scene_detection_temp_dir.joinpath("av1an.scenes.json")
+scene_detection_diffs_file = scene_detection_temp_dir.joinpath("luma_diff.txt")
+scene_detection_average_file = scene_detection_temp_dir.joinpath("luma_average.txt")
+scene_detection_min_file = scene_detection_temp_dir.joinpath("luma_min.txt")
+scene_detection_max_file = scene_detection_temp_dir.joinpath("luma_max.txt")
 
-if scene_detection_method == "av1an":
-    scene_detection_process = None
-    if not testing_resume or not scene_detection_scenes_file.exists():
-        scene_detection_scenes_file.unlink(missing_ok=True)
+scene_detection_diffs_available = False
+if resume and scene_detection_diffs_file.exists() and \
+              scene_detection_average_file.exists() and \
+              scene_detection_min_file.exist() and \
+              scene_detection_max_file.exist():
+    scene_detection_diffs = np.loadtxt(scene_detection_diffs_file, dtype=np.float32)
+    scene_detection_average = np.loadtxt(scene_detection_average_file, dtype=np.float32)
+    scene_detection_min = np.loadtxt(scene_detection_min_file, dtype=np.float32)
+    scene_detection_max = np.loadtxt(scene_detection_max_file, dtype=np.float32)
+    scene_detection_diffs_available = True
+
+
+if not resume or not scene_detection_scenes_file.exists():
+    scene_detection_perform_av1an = False
+    scene_detection_perform_vapoursynth = False
+    scene_detection_all_vapoursynth = False
+    for zone in zones:
+        if zone["zone"].scene_detection_method == "av1an":
+            if not resume or not scene_detection_av1an_scenes_file.exists():
+                scene_detection_perform_av1an = True
+            break
+    else:
+        scene_detection_all_vapoursynth = True
+    for zone in zones:
+        if zone["zone"].scene_detection_method == "vapoursynth":
+            scene_detection_perform_vapoursynth = True
+            break
+    assert not scene_detection_perform_av1an and not scene_detection_perform_vapoursynth
+
+    if scene_detection_perform_av1an:
+        scene_detection_av1an_scenes_file.unlink(missing_ok=True)
+
+        scene_detection_av1an_force_keyframes = []
+        for zone in zones:
+            scene_detection_av1an_force_keyframes.append(zone["start_frame"])
         command = [
             "av1an",
-            "--temp", str(temp_dir.joinpath("scenes-detection.tmp")),
+            "--temp", str(scene_detection_temp_dir.joinpath("av1an.tmp")),
             "-i", str(input_file),
-            "--scenes", str(scene_detection_scenes_file),
-            *scene_detection_parameters.split()
+            "--scenes", str(scene_detection_av1an_scenes_file),
+            *zone_default.scene_detection_av1an_parameters(),
+            ",".join(scene_detection_av1an_force_keyframes)
         ]
         scene_detection_process = subprocess.Popen(command, text=True)
 
-    if not testing_resume or not scene_detection_diffs_file.exists():
-        scene_detection_clip = source_clip
-        scene_detection_bits = scene_detection_clip.format.bits_per_sample
-        scene_detection_clip = scene_detection_clip.std.PlaneStats(scene_detection_clip[0] + scene_detection_clip, plane=0, prop="Luma")
-        
-        start = time() - 0.000001
-        scene_detection_diffs = np.empty((scene_detection_clip.num_frames,), dtype=float)
-        for current_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
-            print(f"\r\033[KFrame {current_frame} / Calculating frame diff / {current_frame / (time() - start):.02f} fps", end="\r")
-            scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
-        print(f"\r\033[KFrame {current_frame + 1} / Frame diff calculation complete / {(current_frame + 1) / (time() - start):.02f} fps")
 
-        np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
-    else:
-        scene_detection_diffs = np.loadtxt(scene_detection_diffs_file)
+    if not scene_detection_diffs_available:
+        if scene_detection_perform_vapoursynth and not scene_detection_all_vapoursynth:
+            scene_detection_luma_clip = source_clip
+            scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
+            
+            start = time() - 0.000001
+            scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
+                print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
+                scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
+                scene_detection_average[current_frame] = frame.props["LumaAverage"]
+                scene_detection_min[current_frame] = frame.props["LumaMin"]
+                scene_detection_max[current_frame] = frame.props["LumaMax"]
+            print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps")
+            
+            np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
+            np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
+            np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
+            np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
+            scene_detection_diffs_available = True
 
-    if scene_detection_process is not None:
+
+    if scene_detection_perform_av1an:
         scene_detection_process.wait()
         if scene_detection_process.returncode != 0:
             raise subprocess.CalledProcessError
 
-        assert scene_detection_scenes_file.exists()
+        assert scene_detection_av1an_scenes_file.exists()
 
-    with scene_detection_scenes_file.open("r") as scenes_f:
-        scenes = json.load(scenes_f)
+    if scene_detection_av1an_scenes_file.exists():
+        with scene_detection_av1an_scenes_file.open("r") as av1an_scenes_f:
+            scene_detection_av1an_scenes = json.load(av1an_scenes_f)
+        assert scene_detection_av1an_scenes["frames"] == source_clip.num_frames
+
+    if not scene_detection_perform_vapoursynth:
+        scenes = scene_detection_av1an_scenes
+        with scene_detection_scenes_file.open("w") as scenes_f:
+            json.dump(scenes, scenes_f)
+
+
+    if scene_detection_perform_vapoursynth:
+        scene_detection_clip_ = source_clip
+        scene_detection_bits = scene_detection_clip_.format.bits_per_sample
+
+        if not resume or not scene_detection_diffs_file.exists() or \
+                         not scene_detection_average_file.exists() or \
+                         not scene_detection_min_file.exist() or \
+                         not scene_detection_max_file.exist():
+            scene_detection_clip_ = scene_detection_clip_.std.PlaneStats(scene_detection_clip_[0] + scene_detection_clip_, plane=0, prop="Luma")
+        
+        target_width = np.round(np.sqrt(1280 * 720 / scene_detection_clip_.width / scene_detection_clip_.height) * scene_detection_clip_.width / 40) * 40
+        if target_width < scene_detection_clip_.width * 0.9:
+            target_height = np.ceil(target_width / scene_detection_clip_.width * scene_detection_clip_.height / 2) * 2
+            src_height = target_height / target_width * scene_detection_clip_.width
+            src_top = (scene_detection_clip_.height - src_height) / 2
+            scene_detection_clip_ = scene_detection_clip_.resize.Point(width=target_width, height=target_height, src_top=src_top, src_height=src_height,
+                                                                       format=vs.YUV420P8, dither_type="none")
+        scene_detection_clip_wwxd = scene_detection_clip_.wwxd.WWXD()
+
+        for zone in zones:
+            if zone["zone"].scene_detection_method == "vapoursynth" and zone["zone"].scene_detection_vapoursynth_method == "wwxd_scxvid":
+                scene_detection_clip_wwxd_scxvid = scene_detection_clip_wwxd.scxvid.Scxvid()
+                break
+
+
+        scenes = {}
+        scenes["frame"] = source_clip.num_frames
+        scenes["scenes"] = []
+        for zone["zone"] in zones:
+            if zone["zone"].scene_detection_method == "av1an":
+                av1an_scenes_start_copying = False
+                for av1an_scene in scene_detection_av1an_scenes["scenes"]:
+                    if av1an_scene["start_frame"] == zone["zone"].start_frame:
+                        av1an_scenes_start_copying = True
+
+                    if av1an_scene["start_frame"] >= zone["zone"].start_frame and \
+                       av1an_scene["start_frame"] < zone["zone"].end_frame:
+                        assert scenes_start_copying
+                        scenes["scenes"].append(av1an_scene)
+
+                    if av1an_scene["start_frame"] == zone["zone"].end_frame:
+                        break
+                    assert av1an_scene["start_frame"] < zone["zone"].end_frame
+
+            elif zone["zone"].scene_detection_method == "vapoursynth":
+                # XXX CONTINUE
 
 elif scene_detection_method == "vapoursynth":
-    if not testing_resume or not scene_detection_scenes_file.exists() or not scene_detection_diffs_file.exists():
+    if not resume or not scene_detection_scenes_file.exists() or not scene_detection_diffs_file.exists():
         assert scene_detection_extra_split >= scene_detection_min_scene_len * 2, "`scene_detection_method` `vapoursynth` does not support `scene_detection_extra_split` to be smaller than 2 times `scene_detection_min_scene_len`."
     
         scene_detection_clip = source_clip
@@ -1223,13 +1351,48 @@ elif scene_detection_method == "vapoursynth":
             scenes = json.load(scenes_f)
         scene_detection_diffs = np.loadtxt(scene_detection_diffs_file)
 
-else:
-    assert False, "Invalid `scene_detection_method`."
     
+
+
+
+
+
+
+
+
+# XXX CONNECT
+
+else:
+    with scene_detection_scenes_file.open("r") as scenes_f:
+        scenes = json.load(scenes_f)
+
+# During the first probe
+if not scene_detection_diffs_available:
+    scene_detection_luma_clip = source_clip
+    scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
+    
+    start = time() - 0.000001
+    scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+    scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+    scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+    scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+    for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
+        print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
+        scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
+        scene_detection_average[current_frame] = frame.props["LumaAverage"]
+        scene_detection_min[current_frame] = frame.props["LumaMin"]
+        scene_detection_max[current_frame] = frame.props["LumaMax"]
+    print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps")
+    
+    np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
+    np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
+    np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
+    np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
+    scene_detection_diffs_available = True
 
 # Testing
 for n, crf in enumerate(testing_crfs):
-    if not testing_resume or not temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists():
+    if not resume or not temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists():
         temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").unlink(missing_ok=True)
         temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").unlink(missing_ok=True)
 
@@ -1239,7 +1402,7 @@ for n, crf in enumerate(testing_crfs):
             "--temp", str(temp_dir.joinpath(f"test-encode-{n:0>2}.tmp")),
             "--keep"
         ]
-        if testing_resume:
+        if resume:
             command += ["--resume"]
         command += [
             "-i", str(testing_input_file),
@@ -1525,3 +1688,261 @@ if scenes_file:
     with scenes_file.open("w") as scenes_f:
         json.dump(scenes, scenes_f)
 print(f"\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Boost calculation complete / {(i + 1) / (time() - start):.02f} scenes per second")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# You don't need to modify anything here.
+class UnreliableModelError(Exception):
+    def __init__(self, model, message):
+        super().__init__(message)
+        self.model = model
+# ---------------------------------------------------------------------
+# For SSIMU2, by default, Progression Boost fit the metric data to a
+# constrained cubic polynomial model. If a fit could not be made under
+# constraints, an „Unreliable model“ will be reported. You don't need
+# to modify anything here unless you want to implement your own method.
+# The code here is a little bit long, try scrolling harder if you can't
+# reach the next paragraph.
+# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
+#     if crfs.shape[0] >= 4:
+#         polynomial = lambda X, coef: coef[0] * X ** 3 + coef[1] * X ** 2 + coef[2] * X + coef[3]
+#         # Mean Squared Error biased towards overboosting
+#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
+#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
+#             bounds = Bounds([-np.inf, -np.inf, -np.inf, -np.inf], [0, np.inf, np.inf, np.inf])
+#             constraints = [
+#                 # Second derivative 6ax + 2b <= 0 if np.greater
+#                 {"type": "ineq", "fun": lambda coef: -(6 * coef[0] * final_min_crf + 2 * coef[1])},
+#                 # b^2 - 3ac <= 0
+#                 {"type": "ineq", "fun": lambda coef: -(coef[1] ** 2 - 3 * coef[0] * coef[2])}
+#             ]
+#         else:
+#             bounds = Bounds([0, -np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf, np.inf])
+#             constraints = [
+#                 # Second derivative 6ax + 2b >= 0 if np.less
+#                 {"type": "ineq", "fun": lambda coef: 6 * coef[0] * final_min_crf + 2 * coef[1]},
+#                 # b^2 - 3ac <= 0
+#                 {"type": "ineq", "fun": lambda coef: -(coef[1] ** 2 - 3 * coef[0] * coef[2])}
+#             ]
+#         fit = minimize(objective, [0, *np.polyfit(crfs, quantisers, 2)],
+#                        method="SLSQP", options={"ftol": 1e-6}, bounds=bounds, constraints=constraints)
+#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
+#             return partial(polynomial, coef=fit.x)
+#
+#     if crfs.shape[0] >= 3:
+#         polynomial = lambda X, coef: coef[0] * X ** 2 + coef[1] * X + coef[2]
+#         # Mean Squared Error biased towards overboosting
+#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
+#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
+#             bounds = Bounds([-np.inf, -np.inf, -np.inf], [0, np.inf, np.inf])
+#             # First derivative 2ax + b <= 0 if np.greater
+#             constraints = [{"type": "ineq", "fun": lambda coef: -(2 * coef[0] * final_min_crf + coef[1])}]
+#         else:
+#             bounds = Bounds([0, -np.inf, -np.inf], [np.inf, np.inf, np.inf])
+#             # First derivative 2ax + b >= 0 if np.less
+#             constraints = [{"type": "ineq", "fun": lambda coef: 2 * coef[0] * final_min_crf + coef[1]}]
+#         fit = minimize(objective, [0, *np.polyfit(crfs, quantisers, 1)],
+#                        method="SLSQP", options={"ftol": 1e-6}, bounds=bounds, constraints=constraints)
+#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
+#             return partial(polynomial, coef=fit.x)
+#
+#     if crfs.shape[0] >= 2:
+#         polynomial = lambda X, coef: coef[0] * X + coef[1]
+#         # Mean Squared Error biased towards overboosting
+#         objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
+#         if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
+#             bounds = Bounds([-np.inf, -np.inf], [0, np.inf])
+#         else:
+#             bounds = Bounds([0, -np.inf], [np.inf, np.inf])
+#         fit = minimize(objective, np.polyfit(crfs, quantisers, 1),
+#                        method="L-BFGS-B", options={"ftol": 1e-6}, bounds=bounds)
+#         if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
+#             if not crfs.shape[0] >= 3:
+#                 return partial(polynomial, coef=fit.x)
+#             else:
+#                 def cut(crf):
+#                     if crf <= np.average([crfs[-1], final_max_crf], weights=[3, 1]):
+#                         return polynomial(crf, fit.x)
+#                     else:
+#                         return np.nan
+#                 return cut
+#
+#     def cut(crf):
+#         for i in range(0, crfs.shape[0]):
+#             if crf <= crfs[i]:
+#                 return quantisers[i]
+#         else:
+#             return np.nan
+#     raise UnreliableModelError(cut, f"Unable to construct a polynomial model. This may result in overboosting.")
+
+# For SSIMU2, Emre also suggests using PCHIP interpolator, which is
+# provided here. This is not yet tested to be fully stable. Use it with
+# caution.
+# from scipy.interpolate import PchipInterpolator
+# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
+#     return PchipInterpolator(crfs, quantisers, extrapolate=True)
+
+# For Butteraugli 3Norm, as explained in the `testing_crfs` section,
+# there appears to be a linear relation between `--crf` and Butteraugli
+# 3Norm scores in `--crf [10 ~ 30]` range. For `--crf`s below 10 to 12,
+# it seems like the encode quality increases faster than `--crf`
+# decreases. The following function accounts for this and deviates from
+# the linear regression at `--crf` 12 or lower. The rate used in the
+# function is very conservative, in the sense that it will almost only
+# overboost than underboost. If you're using the default `testing_crfs`
+# for Butteraugli 3Norm, comment the function above for SSIMU2 and
+# uncomment the function below.
+def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
+    polynomial = lambda X, coef: coef[0] * X + coef[1]
+    # Mean Squared Error biased towards overboosting
+    objective = lambda coef: np.average((error := (quantisers - polynomial(crfs, coef))) ** 2, weights=metric_better_metric(0, error) + 1.0)
+    if metric_better_metric(quantisers[0] * 1.1, quantisers[0]):
+        bounds = Bounds([-np.inf, -np.inf], [0, np.inf])
+    else:
+        bounds = Bounds([0, -np.inf], [np.inf, np.inf])
+    fit = minimize(objective, np.polyfit(crfs, quantisers, 1),
+                    method="L-BFGS-B", options={"ftol": 1e-6}, bounds=bounds)
+    if fit.success and not np.isclose(fit.x[0], 0, rtol=0, atol=1e-7):
+        def predict(crf):
+            if crf >= 11:
+                return polynomial(crf, fit.x)
+            else:
+                return polynomial(12 - (12 - crf) ** 1.12, fit.x)
+        return predict
+
+    def cut(crf):
+        for i in range(0, crfs.shape[0]):
+            if crf <= crfs[i]:
+                return quantisers[i]
+        else:
+            return np.nan
+    raise UnreliableModelError(cut, f"Test encodes with higher `--crf` received better score than encodes with lower `--crf`. This may result in overboosting.")
+
+# If you want to use a different method, you can implement it here.
+#
+# This function receives quantisers corresponding to each test encodes
+# specified previously in `testing_crfs`, which is provided in the
+# first argument `crfs`. It should return a function that will return
+# predicted metric score when called with `--crf`.
+# You should raise an UnreliableModelError with a model and an error
+# message if the model constructed is unreliable. You will have to
+# return a model in the exception. If the model constructed is
+# unusable, you can use something similar to the `cut` function at the
+# end of the two builtin `metric_model` functions.
+# def metric_model(crfs: np.ndarray[float], quantisers: np.ndarray[float]) -> Callable[[float], float]:
+#     pass
+
+
+
+
+
+
+
+
+
+# ---------------------------------------------------------------------
+# The following function is run after we've measured the test encodes
+# and deducted a `--crf` number for the final encode. It is used to
+# perform a final adjustment to the `--crf` value in the output.
+def final_dynamic_crf(crf: float) -> float:
+
+# The first thing we want to address is the difference in quality
+# difference between `--crf`s moving from faster `--preset`s in test
+# encodes to slower `--preset`s in the final encode. Let's say if
+# `--crf A` is 50% better than `--crf B` in `--preset 6`, it might be
+# up to 80% better in `--preset -1`. To help mitigate this issue, we
+# can apply a uniform offset.
+# 
+# The higher the difference between the test encode `--preset` and the
+# final encode `--preset` is, the smaller the value you can try here.
+# This is some of the numbers we found working during our tests:
+# [test encode `--preset` → final encode `--preset`: offset]
+# `--preset 6` → `--preset 0`: 0.84 to 0.82
+# `--preset 6` → `--preset 1`: 0.88-ish
+# `--preset 7` → `--preset 2`: 0.92
+# `--preset 8` → `--preset 4`: 0.94
+#
+# Also, if you're doing multiscene encoding tests such as to test out
+# optimal encoder parameters to use, you can run the metric on these
+# tests and find out around which `--crf` levels does the bad frames
+# commonly reside, and you can adjust this value to better suit your
+# settings.
+#
+# Select one of the values below by uncommenting the line and
+# commenting the others, or picking your own value by entering into any
+# of the lines.
+    crf = (crf / 24.00) ** 0.92 * 24.00
+    # crf = (crf / 24.00) ** 0.88 * 24.00
+    # crf = (crf / 24.00) ** 0.82 * 24.00
