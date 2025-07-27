@@ -41,12 +41,14 @@ from vapoursynth import core
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
-parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform test encodes, while scene detection will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
+parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform probe encodes, while all other processes will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
 parser.add_argument("--encode-vspipe-args", nargs="+", help="VSPipe argument for test encodes.")
-parser.add_argument("-o", "--output-zones", type=Path, help="Output zones file for encoding")
-parser.add_argument("--output-scenes", type=Path, help="Output scenes file for encoding")
-parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes or zones file")
-parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output zones or scenes file with file extension replaced by „.boost.tmp“)")
+parser.add_argument("--input-scenes", type=Path, help="Perform your own scene detection and skip Progression Boost's scene detection")
+parser.add_argument("-o", "--output-scenes", type=Path, required=True, help="Output scenes file for encoding")
+parser.add_argument("--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes")
+parser.add_argument("--zones", type=Path, help="Zones file for Progression Boost. Check the guide inside `Progression-Boost.py` for more information")
+parser.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
+parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output scenes file with file extension replaced by „.boost.tmp“)")
 parser.add_argument("-r", "--resume", action="store_true", help="Resume from the temporary folder. By enabling this option, Progression Boost will reuse finished or unfinished testing encodes. This should be disabled should the parameters for test encode be changed")
 parser.add_argument("--verbose", action="store_true", help="Progression Boost by default only reports scenes that have received big boost, or scenes that have built unexpected polynomial model. By enabling this option, all scenes will be reported")
 args = parser.parse_args()
@@ -55,26 +57,19 @@ testing_input_file = args.encode_input
 if testing_input_file is None:
     testing_input_file = input_file
 testing_input_vspipe_args = args.encode_vspipe_args
-zones_file = args.output_zones
 scenes_file = args.output_scenes
 roi_maps_dir = args.output_roi_maps
-if not zones_file and not scenes_file:
-    parser.print_usage()
-    print("Progression Boost: error: at least one of the following arguments is required: -o/--output-zones, --output-scenes")
-    raise SystemExit(2)
 temp_dir = args.temp
 if not temp_dir:
-    if zones_file:
-        temp_dir = zones_file
-        if temp_dir.with_suffix("").suffix == ".zones":
-            temp_dir = temp_dir.with_suffix("")
-        temp_dir = temp_dir.with_suffix(".boost.tmp")
-    else:
-        temp_dir = scenes_file
-        if temp_dir.with_suffix("").suffix == ".scenes":
-            temp_dir = temp_dir.with_suffix("")
-        temp_dir = temp_dir.with_suffix(".boost.tmp")
-temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir = scenes_file
+    if temp_dir.with_suffix("").suffix == ".scenes":
+        temp_dir = temp_dir.with_suffix("")
+    temp_dir = temp_dir.with_suffix(".boost.tmp")
+scene_detection_temp_dir = temp_dir / "scene-detection"
+progression_boost_temp_dir = temp_dir / "progression-boost"
+character_boost_temp_dir = temp_dir / "characters-boost"
+for dir_ in [scene_detection_temp_dir, progression_boost_temp_dir, character_boost_temp_dir]:
+    dir_.mkdir(parents=True, exist_ok=True)
 testing_resume = args.resume
 metric_verbose = args.verbose
 
@@ -83,7 +78,7 @@ metric_verbose = args.verbose
 # ---------------------------------------------------------------------
 # Before everything, the codes above are for commandline arguments.      # <<<<  Do you want a good result fast?  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # The commandline arguments are only for specifying inputs and outputs   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# while all encoding settings need to be modified within the             # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# while all encoding settings need to be modified within the script      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # starting below.                                                        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # 
 # To run the script, use `python Progression-Boost.py --input 01.mkv     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -97,7 +92,7 @@ metric_verbose = args.verbose
 # ---------------------------------------------------------------------
 # Have you noticed that we offers multiple presets for Progression       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # Boost? The guide and explanations are exactly the same for each        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# presets. The difference is only the default value selected. Of course
+# presets. The difference is only the default value selected. Of course  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # as you continue reading, you can always adjust the values for your
 # needs.
 #
@@ -111,204 +106,81 @@ metric_verbose = args.verbose
 # * `metric_target`                                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# Progression Boost will encode the video multiple times to build a
-# polynomial model in order to decide on the `--crf` used.
-# Specify the `--crf` the test encodes will run at in each pass. The
-# number of `--crf`s in this list also decides the number of test
-# encodes to perform.
-#
-# For boosting using SSIMU2 metric using most of the common methods of
-# estimating final `--crf`, it's very beneficial to run at least 4
-# encode passes. Running 3 passes will only shorten the runtime by one
-# fourth, while damaging the consistency of final encode by a huge
-# margin. It shouldn't be preferred, unless the main encoding pass is
-# also performed at a relatively high `--preset`.
+# Progression Boost has three separate modules, Scene Detection,
+# Progression Boost, and Character Boost.
 # 
-# Also, if you're wondering why the `--crf` values go so high to 50 and
-# 60, the answer is that even at 50 or 60, some, especially still,
-# scenes can still achieve amazing results with 85+ SSIMU2 mean.
-# testing_crfs = np.sort([10.00, 25.00, 40.00, 55.00])
+# Scene Detection performs scene detection using various methods,
+# including VapourSynth based methods and av1an based methods.
 #
-# If you've had a lot of messages reporting „Frames in this scene
-# receive a metric score below 15 for test encodes.“, try the follwing
-# set of `testing_crfs` instead. Optionally, you should also adjust
-# `final_max_crf` to around 55.00 when you're using this set of
-# `testing_crfs`.
-# testing_crfs = np.sort([10.00, 22.00, 34.00, 46.00])
-
-# Boosting using Butteraugli 3Norm metric is different. During our
-# testing using SVT-AV1-PSY v2.3.0-Q and v3.0.2, we observed a linear
-# relation between `--crf` and Butteraugli 3Norm score in
-# `--crf [10 ~ 30]` range. This is both a blessing and a curse. The
-# blessing is that we can create a good linear model with only two test
-# encode passes. The curse is that we're unable to build a good model
-# extending to beyond `--crf 30`, which closes the door to encodes
-# targeting lower quality targets. Comment the lines above and
-# uncomment the lines below if you want to make a linear model for
-# Butteraugli 3Norm targeting lower `--crf`s.
-testing_crfs = np.sort([12.00, 20.00])
-
-# Please keep this list sorted and only enter `--crf` values that are
-# multiples of 0.25. Progression Boost will break if this requirement
-# is not followed.
-# ---------------------------------------------------------------------
-# Do you want to change other parameters than `--crf` dynamically
-# during the test encode? This function receives a `--crf` value and
-# should return a string of parameters for the encoder.
+# Progression Boost performs two probe encodes to find the `--crf` that
+# will hit the set metric target, ensuring the quality throughout the
+# encode.
 #
-# If you don't want to change any parameters dynamically, leave this
-# function untouched.
-def testing_dynamic_parameters(crf: float) -> str:
-    return ""
-# ---------------------------------------------------------------------
-# Specify the `--video-params` or parameters for the encoder during      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# test encodes. You should use the same parameters as your final         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# encode, except for `--film-grain`, which you may want to set to `0`    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# for test encode, and `--preset`, which you want to use a faster        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# preset. You need to specify everything other than `--input`,           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# `--output`, `--crf` and the parameters you've set to generate          # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# dynamically.                                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-testing_parameters = "--lp 3 --keyint -1 --input-depth 10 --preset 6 --fast-decode 1 --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0"
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-# Config for the target quality to generate the final `--crf` comes
-# later in the config. But before that, specify a hard limit for the
-# final `--crf`.
-#
-# Specify a `--crf` value that's not too far away from the lowest and
-# the highest `--crf` value specified in `testing_crfs` to be safe.
-# final_min_crf = 6.00
-# final_max_crf = 60.00
-
-# If you're using the default `testing_crfs` for Butteraugli 3Norm,
-# comment the line above for SSIMU2 and uncomment the lines below.
-final_min_crf = 6.00
-final_max_crf = 26.00
-# ---------------------------------------------------------------------
-# The following function is run after we've measured the test encodes
-# and deducted a `--crf` number for the final encode. It is used to
-# perform a final adjustment to the `--crf` value in the output.
-def final_dynamic_crf(crf: float) -> float:
-
-# The first thing we want to address is the difference in quality
-# difference between `--crf`s moving from faster `--preset`s in test
-# encodes to slower `--preset`s in the final encode. Let's say if
-# `--crf A` is 50% better than `--crf B` in `--preset 6`, it might be
-# up to 80% better in `--preset -1`. To help mitigate this issue, we
-# can apply a uniform offset.
+# Character Boost uses character recognition model to specifically
+# boost characters on the screen using both ROI map and `--crf`.
 # 
-# The higher the difference between the test encode `--preset` and the
-# final encode `--preset` is, the smaller the value you can try here.
-# This is some of the numbers we found working during our tests:
-# [test encode `--preset` → final encode `--preset`: offset]
-# `--preset 6` → `--preset 0`: 0.84 to 0.82
-# `--preset 6` → `--preset 1`: 0.88-ish
-# `--preset 7` → `--preset 2`: 0.92
-# `--preset 8` → `--preset 4`: 0.94
-#
-# Also, if you're doing multiscene encoding tests such as to test out
-# optimal encoder parameters to use, you can run the metric on these
-# tests and find out around which `--crf` levels does the bad frames
-# commonly reside, and you can adjust this value to better suit your
-# settings.
-#
-# Select one of the values below by uncommenting the line and
-# commenting the others, or picking your own value by entering into any
-# of the lines.
-    crf = (crf / 24.00) ** 0.92 * 24.00
-    # crf = (crf / 24.00) ** 0.88 * 24.00
-    # crf = (crf / 24.00) ** 0.82 * 24.00
+# These three modules are individually togglable.
+# For example, you can skip Scene Detection by supplying your own scene
+# detection generated from, let's say, an ML based scene detection
+# scripts using `--input-scenes`. You can also skip Progression Boost
+# step, relying on fixed `--crf` to maintain a baseline quality and
+# then hyperboost characters using Character Boost. You can also skip
+# both Progression Boost and Character Boost and this script now
+# becomes a scene detection script.
+# ---------------------------------------------------------------------
+# There are five sections in the guide below. Search for
+# "Section: Section Name" to jump to the respected sections.
+# The five sections are:
+#   Section: General
+#   Section: Scene Detection
+#   Section: Progression Boost
+#   Section: Character Boost
+#   Section: Zones
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
 
-# Do you want a real constant quality, or do you just want a small
-# boost, not wishing to throw a lot of bitrates on the most demanding
-# scenes? Here's a way to dampen scenes that has been boosted to very
-# high `--crf`. Enable this if needed.
-#     if crf < 26.00:
-#         crf = (crf / 26.00) ** 0.60 * 26.00
 
-# You may also implement your own function here.
-# The `--crf`s this function receives are in multiples of 0.05. The new
-# `--crf`s it returns can be in any precision.
-# Even if you change things here, do not remove `final_min_crf` and 
-# `final_max_crf` from last section. They are necessary for Progression
-# Boost to work, even if you apply additional limits here.
-    return crf
-# ---------------------------------------------------------------------
-# Do you want to change other parameters than `--crf` dynamically for
-# the output zones file (and the eventual final encode)? This function
-# receives a `--crf` value and should return a string of parameters.
-#
-# An example usage is to lower `--preset` while increase `--crf` a
-# little bit for scenes that are boosted to very low `--crf`. However,
-# this is not tested, and whether it's worth it is not clear.
-#
-# If you don't want to change any parameters dynamically, leave this
-# function untouched.
-def final_dynamic_parameters(crf: float) -> str:
-    return ""
-# ---------------------------------------------------------------------
-# Specify other `--video-params` or parameters for the encoder for the   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# `--output-zones` and `--output-scenes` file. You should not specify    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# `--crf` or the parameters you've set to generate dynamically.          # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# Only for `--output-zones`, you may choose to not specifying anything   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# here and later specifying the parameters directly to av1an. For        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# `--output-scenes`, this scenes file from Progression Boost would be    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the final file, and all later parameters to av1an would be             # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# disregarded per design of av1an.                                       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# You should also set `testing_parameters` above with the same           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# parameters you use here. Read the guide above for                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# `testing_parameters` for the details.                                  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-final_parameters = "--lp 3 --keyint -1 --input-depth 10 --preset 0 --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0"
-# If you put all your parameters here, you can also enable this option   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# to use the reset flag in the zones file. This only affects             # <<<<  The next variable that you have to adjust is quite low  <<<<<<
-# `--output-zones` and not `--output-scenes`.                            # <<<<  down the script at somewhere around line 700 to 900.  <<<<<<<<
-final_parameters_reset = False
-# ---------------------------------------------------------------------
-# Specify `--photon-noise` and `--chroma-noise` for the scenes file.
-# You should specify this the same way these values are represented
-# in each scene in the scenes JSON. This is only applied in
-# `--output-scenes` and not `--output-zones`.
-final_photon_noise = None
-final_chroma_noise = False
-# Note that due to av1an being not backward compatible, depending on
-# the version of av1an you're using, if you see av1an complaining about
-# extra field `chroma_noise` in the scenes file, set the following
-# variable to `False`. If you see av1an complaining about not finding
-# the field `chroma_noise` in the scenes file, set the following
-# variable to `True`.
-final_chroma_noise_available = True
+class DefaultZone:
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# How should Progression Boost load your source video? Select the video
+# Section: General
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# How should this script load your source video? Select the video
 # provider for both this Python script and for av1an
-source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
-source_provider = "lsmash"
+    source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+    source_provider = "lsmash"
 # If you want to use BestSource instead, comment the lines above and
 # uncomment the lines below.
-# source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
-# source_provider = "bestsource"
+    # source_clip = core.bs.VideoSource(input_file)
+    # source_provider = "bestsource"
+
+# This `source_clip` above is used in all three modules of Progression
+# Boost. Let's say if your source has 5 seconds of intro LOGO, and you
+# want to cut it away, this is what you need to do:
+# First, for all the processes within Progression Boost, uncomment the
+# lines below:
+    # source_clip = source_clip[120:]
+# And then, for av1an, you should create a VapourSynth file like this
+# and feed it through Progression Boost's `--encode-input` commandline
+# option:
+# ```py
+# from vapoursynth import core
+#
+# src = core.lsmas.LWLibavSource(YOUR_INPUT_FILE)[120:]
+# src.set_output()
+# ```
+
+# Zoning information: `source_clip` and `source_provider` are not
+# zoneable.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# Specify the desired scene length for scene detection. The result from
-# this scene detection pass will be used both for test encodes and the
-# final encodes.
-scene_detection_extra_split = 192
-scene_detection_min_scene_len = 12
-# The next setting is only used if WWXD or SCXVID via VapourSynth is
-# selected as the scene detection method in the next section.
-# WWXD has the tendency to flag too much scenechanges in complex
-# everchanging sections. This setting marks the length for a scene for
-# the scene detection mechanism to stop dividing it any further.
-# However, this does not mean there won't be scenes shorter than this
-# setting. It's likely that scenes longer than the this setting will be
-# divided into scenes that are shorter than this setting. The hard limit
-# is still specified by `scene_detection_min_scene_len`.
-# Also, this setting only affects sections where there are a lot of
-# scenechanges detected by WWXD. For calmer sections where WWXD doesn't
-# flag any scenechanges, the scene detection mechanism will only
-# attempt to divide a scene if it is longer than
-# `scene_detection_extra_split`, and this setting has no effects.
-scene_detection_target_split = 60
+
+
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Section: Scene Detection
+# ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # In the grand scheme of scene detection, av1an is the more universal
 # option for scene detection. It works well in most conditions.
@@ -344,11 +216,11 @@ scene_detection_target_split = 60
 # If you want to use av1an for scene detection, specify the av1an
 # parameters. You need to specify all parameters for an `--sc-only`
 # pass other than `-i`, `--temp` and `--scenes`.
-# scene_detection_method = "av1an".lower()
-# scene_detection_parameters = f"--sc-method fast --chunk-method {source_provider}"
+    scene_detection_method = "av1an".lower()
+    scene_detection_parameters = (f"--sc-method standard --chunk-method {source_provider}"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-# scene_detection_parameters += f" --sc-only --extra-split {scene_detection_extra_split} --min-scene-len {scene_detection_min_scene_len}"
+                                + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len}")
 
 # av1an is mostly good, except for one single problem: av1an often
 # prefers to place the keyframe at the start of a series of still,
@@ -378,10 +250,10 @@ scene_detection_target_split = 60
 #
 # In general, you should always use WWXD or Scxvid if you cares about
 # the worst frames. For encodes targeting a good mean quality, if there
-# are no sections difficult for scene detection, WWXD or Scxvid is
-# preferred over `--sc-method fast`. If there are such sections, as
-# explained above when introducing av1an-based scene detection,
-# `--sc-method standard` should be preferred.
+# are no sections difficult for scene detection, WWXD or Scxvid should
+# always be preferred. If there are such sections, as explained above
+# when introducing av1an-based scene detection, `--sc-method standard`
+# should be preferred.
 # 
 # Progression Boost provides two options for VapourSynth-based scene
 # detection, `wwxd` and `wwxd_scxvid`. `wwxd_scxvid` is slightly safer
@@ -396,11 +268,317 @@ scene_detection_target_split = 60
 # colour range, you must go down to the code and adjust the threshold.
 # Search for „limited“, and there will be a comment there marking how
 # you should adjust.
-scene_detection_method = "vapoursynth".lower()
-scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
-# scene_detection_vapoursynth_method = "wwxd".lower() # Fast
+    scene_detection_method = "vapoursynth".lower()
+    scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
+    # scene_detection_vapoursynth_method = "wwxd".lower() # Fast
+
+# You can also provide your own scene detection via `--input-scenes`.
+# `--input-scenes` will always override the `scene_detection_method`
+# set above, and will always skip scene detection. Optionally, here
+# is an option you can specify, where Progression Boost will raise an
+# error if an `--input-scenes` is not specified:
+    # scene_detection_method = "skip".lower()
+
+# Zoning information: `scene_detection_method` and
+# `scene_detection_parameters` are not zoneable. However,
+# `scene_detection_vapoursynth_method` is zoneable.
+# ---------------------------------------------------------------------
+# Specify the desired scene length for scene detection. The result from
+# this scene detection will be used both for test encodes and the final
+# encodes.
+    scene_detection_extra_split = 192
+    scene_detection_min_scene_len = 12
+# The next setting is only used if VapourSynth based scene detection
+# method is selected.
+#
+# WWXD has the tendency to flag too much scenechanges in complex
+# everchanging sections. This setting marks the length of a scene for
+# the scene detection mechanism to stop dividing it any further.
+# However, this does not mean there won't be scenes shorter than this
+# setting. It's likely that scenes longer than the this setting will be
+# divided into scenes that are shorter than this setting. The hard limit
+# is still specified by `scene_detection_min_scene_len`.
+# Also, this setting only affects sections where there are a lot of
+# scenechanges detected by WWXD. For calmer sections where WWXD doesn't
+# flag any scenechanges, the scene detection mechanism will only
+# attempt to divide a scene if it is longer than
+# `scene_detection_extra_split`, and this setting has no effects.
+#
+# If you are using Character Boost, you should set this number lower to
+# maybe 36. If you are not going to enable Character Boost, the default
+# 60 would be fine.
+    scene_detection_target_split = 60
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Section: Progression Boost
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Progression Boost is the main module of this script. We perform two
+# probe encodes, measure the metric result of these probe encodes, and
+# then deduct a final `--crf` for the final encode.
+
+# Enable Progression Boost module by setting the following value to
+# True:
+    metric_enable = True
+# Even if you disable Progression Boost, you cannot skip this whole
+# section, as you need to set your final encoding parameters here. Read
+# first 3 cells below to find the settings you'll need to change.
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# For the encoding parameters below, you will see two variables for you
+# to adjust, one of them is for the probing passes, and one of them
+# well be set into your output scenes file and for the final encoding
+# pass.
+
+# First, `--crf`:
+
+# Presuming that you're enabling this Progression Boost module, let's
+# set the maximum and minimum clamp for the `--crf` value for the final
+# encode.
+# 
+# Although this `--crf` clamp is for your final encoding pass, and not
+# the two probes, it only applies to this very module. Later in the
+# Character Boost module, you may boost `--crf` further, and that
+# boosting is not covered by this clamp set here. For that, you need to
+# go down to the Character Boost module and set it there.
+# 
+# To set this clamp, first, there is a minimum and maximum from the
+# nature of this boosting method.
+# Let's talk about maximum `--crf` value. First, you might be surprised
+# that `--crf` values can go so high as to 50.00 while still delivering
+# a decent quality. This is because of the internal TPL system to boost
+# the quality of a block if it is shared by other frames in the scene.
+# Especially for still scenes, this TPL system can take care of
+# everything and deliver a good quality.
+# However, there's a catch, if this scene were not completely still, and
+# there were two or three frames that are actually different, since it's
+# only 2 or 3 frames, the internal the TPL system will not boost these
+# frames as hard, it will result these two frames being encoded poorly.
+# Progression Boost has a clever frame selection system in place to
+# prevent this. However, to perfectly protect these frames, you need the
+# system to select enough frames to measure, and that means more time
+# calculating metric. To not spend more time, you might just well
+# sacrifices a tiny little bit and use a safer maximum `--crf`. It's
+# really a tiny little bit because a `--crf 50.00` encode is barely
+# bigger than `--crf 60.00` encode.
+# If you've adjusted the script to select more frames than the default
+# of your downloaded Progression Boost Preset, you can try
+# `--crf 60.00` here, but `--crf 50.00` should also be fine.
+    metric_max_crf = 40.00
+# For the minimum `--crf` value, the precision of this boosting method
+# deteriorates at very low `--crf` values. And also unless you're
+# willing to spend 10% of your entire episode in a single 6 second
+# scene, you really don't want it that low.
+# That's said, if you are aiming for the highest quality, fell free to
+# lower this further to `--crf 6.00`.
+    metric_min_crf = 8.00
+
+# Above are the clamp from the nature of this boosting method, but
+# there are also additional factors to consider depending on your
+# scenario.
+# For maximum `--crf` value, for example, if you're using very high
+# `--psy-rd` such as `--psy-rd 4.00`. It's likely that it may produce
+# too much unwanted artefacts at high `--crf` values. For this reason,
+# you can limit the `metric_max_crf`. To limit the `--crf` value,
+# uncomment the code above for setting `metric_max_crf`, and uncomment
+# the line below to set a new one.
+    # metric_max_crf = 32.00
+
+# At last, if you've disabled this Progression Boost module, and you
+# only want Character Boost, set a base `--crf` here. This value has no
+# effect if Progression Boost module is enabled.
+    metric_unboosted_crf = 25.00
+
+# In addition to setting our maximum and minimum clamp, we can also
+# adjust our `--crf` values dynamically.
+    def metric_dynamic_crf(crf: float) -> float:
+# For example, one common usage is for encodes targeting lower filesize
+# targets to dampen the boost. We willingly allow some scenes to have a
+# worse quality than the target we set, in order to save space for all
+# the other scenes.
+# To enable dampening for lower filesize targets, uncomment the two
+# lines below.
+        # if crf < 26.00:
+        #     crf = (crf / 26.00) ** 0.60 * 26.00
+# You can also write your own methods here. This function takes in
+# `--crf` of any precision, and return a `--crf` of any precision.
+# Note that the clamp of `metric_max_crf` and `metric_min_crf` happens
+# before this function and there are no clamps after this function.
+        return crf
+# ---------------------------------------------------------------------
+# Second, `--preset`:
+
+# Progression Boost features a magic number based preset readjustment
+# system, and we can reasonably simulate what will be happening at
+# slower final encode based on our very fast probe encodes.
+# 
+# For this reason, we recommend setting very fast `probing_preset`.
+# For example, if on a certain system:
+#   encoding at `--preset 9` takes 3 minutes,
+#   encoding at `--preset 8` takes 3 minutes,
+#   encoding at `--preset 7` takes 4 minutes,
+#   encoding at `--preset 6` takes 7 minutes.
+# In this example, we will recommend `--preset 7` for normal boosting,
+# and `--preset 6` if you are targeting the very high quality targets
+# and want to minimise error.
+# If you have a faster system than above where it has a the point where
+# the overheads take more time than the actual encoding, you can select
+# a slower `--preset`.
+# However, don't use slower `--preset` thinking it may be safer, the
+# default `--preset 7` or at most `--preset 6` is safe enough. Boosting
+# should never take more than one third of the entire encoding time. If
+# you have more time, you should use a slower `--preset` for final
+# encoding pass and don't waste time on boosting.
+    probing_preset = 6
+
+# We'll now set the `--preset` for the output scenes file for our
+# eventual final encode. Put your `--preset` after the `return` below,
+# and you'll be good to go.
+#
+# Some of us may prefer using a mix of different `--preset`s, either
+# because some of our parameters will be safer at slower `--preset`
+# when the scene has very high (bad) `--crf`, or because one `--preset`
+# is too fast for our target encoding time, and the next `--preset` is
+# too slow.
+# To support dynamic `--preset`, this is a function that receives a
+# `--crf`, and should return a `--preset` for final encode.
+# Note that this function is performed at the very last stage of this
+# boosting script, hence the `final_` prefix instead of `metric_`
+# prefix, which means the `--crf` this function receives not only
+# includes `--crf` result from this Progression Boost module after
+# `metric_dynamic_crf`, but also the `--crf` boosts in the next
+# Character Boost module as well.
+    def final_dynamic_preset(crf: float) -> int:
+        return 0
+# ---------------------------------------------------------------------
+# Third, every other parameters:
+
+# We've set `--crf` and `--preset`, and now we're setting all the
+# remaining parameters.
+# 
+# For `final_dynamic_parameters`, use every parameters you plan to use
+# for your eventual final encode, but:
+#   Do not set `--crf` and `--preset` for `final_dynamic_parameters`,
+#   because we've already set it above.
+#   Do not set `-i` and `-b` and use the same parameters as you would
+#   feed into av1an `--video-params`.
+# For `probing_dynamic_parameters`, use the same parameters you as
+# `final_dynamic_parameters`, but:
+#   Do not set `--crf` and `--preset` for `probing_dynamic_parameters`,
+#   because we've already set it above.
+#   Do not set `-i` and `-b` and use the same parameters as you would
+#   feed into av1an `--video-params`.
+#   Set `--film-grain 0` for `probing_dynamic_parameters` if it is
+#   nonzero in `final_dynamic_parameters`. `--film-grain` is a
+#   generative process and we will get metric results that doesn't
+#   match our visual experience.
+#
+# If you want to set a set of fixed parameters, fill it in directly
+# after the `return` token.
+# These two functions also support using dynamic parameters for both
+# testing and final encodes. A common usage of using dynamic parameters
+# is when we're using very high `--psy-rd` values such as
+# `--psy-rd 4.0`. At high `--crf` values, such high `--psy-rd` is
+# likely to produce too much encoding artefacts. For this reason, we
+# can dynamically lower this when the `--crf` is very high.
+# If you want to use dynamic parameters, these two functions receives
+# a `--crf` and should return a list of string containing all the
+# parameters except `--crf` and `--preset`.
+# Note that for `final_dynamic_parameters`, it is performed at the very
+# last stage of this boosting script, hence the `final_` prefix instead
+# of `metric_` prefix, which means the `--crf` this function receives
+# not only includes `--crf` result from this Progression Boost module
+# after `metric_dynamic_crf`, but also the `--crf` boosts in the next
+# Character Boost module as well.
+    def probing_dynamic_parameters(crf: float) -> list[str]:
+        return """--lp 3 --keyint -1 --input-depth 10 --scm 0
+                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
+                  --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
+    def final_dynamic_parameters(crf: float) -> list[str]:
+        return """--lp 3 --keyint -1 --input-depth 10 --scm 0
+                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
+                  --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
+# ---------------------------------------------------------------------
+
+final_photon_noise = None
+# av1an
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+# ---------------------------------------------------------------------
+# The following function is run after we've measured the test encodes
+# and deducted a `--crf` number for the final encode. It is used to
+# perform a final adjustment to the `--crf` value in the output.
+def final_dynamic_crf(crf: float) -> float:
+
+# The first thing we want to address is the difference in quality
+# difference between `--crf`s moving from faster `--preset`s in test
+# encodes to slower `--preset`s in the final encode. Let's say if
+# `--crf A` is 50% better than `--crf B` in `--preset 6`, it might be
+# up to 80% better in `--preset -1`. To help mitigate this issue, we
+# can apply a uniform offset.
+# 
+# The higher the difference between the test encode `--preset` and the
+# final encode `--preset` is, the smaller the value you can try here.
+# This is some of the numbers we found working during our tests:
+# [test encode `--preset` → final encode `--preset`: offset]
+# `--preset 6` → `--preset 0`: 0.84 to 0.82
+# `--preset 6` → `--preset 1`: 0.88-ish
+# `--preset 7` → `--preset 2`: 0.92
+# `--preset 8` → `--preset 4`: 0.94
+#
+# Also, if you're doing multiscene encoding tests such as to test out
+# optimal encoder parameters to use, you can run the metric on these
+# tests and find out around which `--crf` levels does the bad frames
+# commonly reside, and you can adjust this value to better suit your
+# settings.
+#
+# Select one of the values below by uncommenting the line and
+# commenting the others, or picking your own value by entering into any
+# of the lines.
+    crf = (crf / 24.00) ** 0.92 * 24.00
+    # crf = (crf / 24.00) ** 0.88 * 24.00
+    # crf = (crf / 24.00) ** 0.82 * 24.00
+
+
+
+
+# Specify `--photon-noise` and `--chroma-noise` for the scenes file.
+# You should specify this the same way these values are represented
+# in each scene in the scenes JSON. This is only applied in
+# `--output-scenes` and not `--output-zones`.
+final_photon_noise = None
+final_chroma_noise = False
+# Note that due to av1an being not backward compatible, depending on
+# the version of av1an you're using, if you see av1an complaining about
+# extra field `chroma_noise` in the scenes file, set the following
+# variable to `False`. If you see av1an complaining about not finding
+# the field `chroma_noise` in the scenes file, set the following
+# variable to `True`.
+final_chroma_noise_available = True
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+
+
+
+
 # Specify the av1an parameters for the test encodes. You need to
 # specify everything other than `-i`, `-o`, `--temp`, `--resume`,
 # `--video-params`, and `--scenes`.
