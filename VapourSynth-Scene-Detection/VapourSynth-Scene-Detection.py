@@ -191,11 +191,19 @@ if True:
             else:
                 assert False, "Invalid `scene_detection_vapoursynth_method`. Please check your config inside `Progression-Boost.py`."
             if scene_detection_colour_range == "limited":
-                luma_scenecut = frame.props["LumaMin"] > 231.125 * 2 ** (scene_detection_bits - 8) or \
-                                frame.props["LumaMax"] < 19.875 * 2 ** (scene_detection_bits - 8)
+                if not luma_scenecut_prev:
+                    luma_scenecut = frame.props["LumaMin"] > 231.125 * 2 ** (scene_detection_bits - 8) or \
+                                    frame.props["LumaMax"] < 19.875 * 2 ** (scene_detection_bits - 8)
+                else:
+                    luma_scenecut = frame.props["LumaMin"] > 229.125 * 2 ** (scene_detection_bits - 8) or \
+                                    frame.props["LumaMax"] < 21.875 * 2 ** (scene_detection_bits - 8)
             else:
-                luma_scenecut = frame.props["LumaMin"] > 251.125 * 2 ** (scene_detection_bits - 8) or \
-                                frame.props["LumaMax"] < 3.875 * 2 ** (scene_detection_bits - 8)
+                if not luma_scenecut_prev:
+                    luma_scenecut = frame.props["LumaMin"] > 251.125 * 2 ** (scene_detection_bits - 8) or \
+                                    frame.props["LumaMax"] < 3.875 * 2 ** (scene_detection_bits - 8)
+                else:
+                    luma_scenecut = frame.props["LumaMin"] > 249.125 * 2 ** (scene_detection_bits - 8) or \
+                                    frame.props["LumaMax"] < 5.875 * 2 ** (scene_detection_bits - 8)
 
             if luma_scenecut and not luma_scenecut_prev:
                 diffs[current_frame] = frame.props["LumaDiff"] + 2.0
