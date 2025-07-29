@@ -23,6 +23,7 @@
 
 import argparse
 from collections.abc import Callable
+import copy
 from datetime import datetime
 import json
 import math
@@ -31,6 +32,7 @@ from numpy.random import default_rng
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 from time import time
 from typing import Optional
@@ -561,12 +563,12 @@ class DefaultZone:
 # Character Boost module as well.
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --tune 3 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --tune 3 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # ---------------------------------------------------------------------
@@ -583,7 +585,7 @@ class DefaultZone:
         return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" -y --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --no-defaults --video-params").split() + \
+              + f" -y --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --video-params").split() + \
                 [message]
 
 # These are the photon noise parameters for your final encode. These
@@ -602,6 +604,8 @@ class DefaultZone:
     final_photon_noise_height = None
     final_photon_noise_width = None
     final_chroma_noise = False
+
+# Zoning information: `probing_av1an_parameters` is not zoneable.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Once the test encodes finish, Progression Boost will start
@@ -1136,7 +1140,6 @@ for zone in zones:
 print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progression Boost started", end="\n")
 
 
-# Scene dectection
 scene_detection_scenes_file = scene_detection_temp_dir.joinpath("scenes.json")
 scene_detection_av1an_scenes_file = scene_detection_temp_dir.joinpath("av1an.scenes.json")
 scene_detection_diffs_file = scene_detection_temp_dir.joinpath("luma-diff.txt")
@@ -1147,13 +1150,19 @@ scene_detection_max_file = scene_detection_temp_dir.joinpath("luma-max.txt")
 scene_detection_diffs_available = False
 if resume and scene_detection_diffs_file.exists() and \
               scene_detection_average_file.exists() and \
-              scene_detection_min_file.exist() and \
-              scene_detection_max_file.exist():
+              scene_detection_min_file.exists() and \
+              scene_detection_max_file.exists():
     scene_detection_diffs = np.loadtxt(scene_detection_diffs_file, dtype=np.float32)
     scene_detection_average = np.loadtxt(scene_detection_average_file, dtype=np.float32)
     scene_detection_min = np.loadtxt(scene_detection_min_file, dtype=np.float32)
     scene_detection_max = np.loadtxt(scene_detection_max_file, dtype=np.float32)
     scene_detection_diffs_available = True
+
+
+frame_rjust_digits = math.floor(np.log10(zone_default.source_clip.num_frames)) + 1
+frame_print = lambda frame: f"Frame {frame}"
+frame_rjust = lambda frame: str(frame).rjust(frame_rjust_digits)
+frame_scene_print = lambda start_frame, end_frame: f"Scene [{frame_rjust(start_frame)}:{frame_rjust(end_frame)}]"
 
 
 if not resume or not scene_detection_scenes_file.exists():
@@ -1190,9 +1199,9 @@ if not resume or not scene_detection_scenes_file.exists():
             scene_detection_av1an_force_keyframes.append(str(zone["start_frame"]))
         command = [
             "av1an",
-            "--temp", str(scene_detection_temp_dir.joinpath("av1an.tmp")),
-            "-i", str(input_file),
-            "--scenes", str(scene_detection_av1an_scenes_file),
+            "--temp", scene_detection_temp_dir.joinpath("av1an.tmp"),
+            "-i", input_file,
+            "--scenes", scene_detection_av1an_scenes_file,
             *zone_default.scene_detection_av1an_parameters(),
             "--force-keyframes", ",".join(scene_detection_av1an_force_keyframes)
         ]
@@ -1215,12 +1224,12 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
         scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
         for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
-            print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
+            print(f"\r\033[K{frame_print(current_frame)} / Measuring frame luminance / {current_frame / (time() - start):.02f} fps", end="\r")
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
             scene_detection_average[current_frame] = frame.props["LumaAverage"]
             scene_detection_min[current_frame] = frame.props["LumaMin"]
             scene_detection_max[current_frame] = frame.props["LumaMax"]
-        print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
+        print(f"\r\033[K{frame_print(current_frame + 1)} / Frame luminance measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
         
         np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
         np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
@@ -1240,9 +1249,6 @@ if not resume or not scene_detection_scenes_file.exists():
             scene_detection_average = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
             scene_detection_min = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
             scene_detection_max = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
-
-        scene_detection_rjust_digits = math.floor(np.log10(zone_default.source_clip.num_frames)) + 1
-        scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits)
 
         scene_detection_clip_base = zone_default.source_clip
         scene_detection_bits = scene_detection_clip_base.format.bits_per_sample
@@ -1278,7 +1284,7 @@ if not resume or not scene_detection_scenes_file.exists():
                 start = time() - 0.000001
                 for offset_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
                     current_frame = zone["start_frame"] + offset_frame
-                    print(f"\r\033[KFrame {current_frame} / Detecting scenes / {offset_frame / (time() - start):.02f} fps", end="")
+                    print(f"\r\033[K{frame_print(current_frame)} / Detecting scenes / {offset_frame / (time() - start):.02f} fps", end="")
 
                     if not scene_detection_diffs_available:
                         scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
@@ -1314,7 +1320,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 zones_diffs[zone_i] = diffs
 
-        print(f"\r\033[KFrame {current_frame + 1} / VapourSynth based scene detection complete", end="\n")
+        print(f"\r\033[K{frame_print(current_frame + 1)} / VapourSynth based scene detection complete", end="\n")
 
     if scene_detection_has_external:
         with input_scenes_file.open("r") as input_scenes_f:
@@ -1354,18 +1360,19 @@ if not resume or not scene_detection_scenes_file.exists():
                 assert av1an_scene["start_frame"] < zone["end_frame"], "Unexpected result from av1an"
 
                 if av1an_scenes_start_copying:
-                    print(f"\r\033[KFrame [{scene_detection_rjust(av1an_scene["start_frame"])}:{scene_detection_rjust(av1an_scene["end_frame"])}] / Creating scenes", end="")
+                    print(f"\r\033[K{frame_scene_print(av1an_scene["start_frame"], av1an_scene["end_frame"])} / Creating scenes", end="")
                     scenes["scenes"].append(av1an_scene)
 
         elif zone["zone"].scene_detection_method == "external":
             external_scenes_start_copying = False
+            last_end_frame = None
             for external_scene in scene_detection_external_scenes["scenes"]:
                 assert "start_frame" in external_scene and "end_frame" in external_scene, "Invalid scenes file from `--input-scenes`"
 
                 if external_scene["start_frame"] >= zone["start_frame"]:
                     if not external_scenes_start_copying and external_scene["start_frame"] > zone["start_frame"]:
                         if not zone["zone"].metric_enable and external_scene["end_frame"] - zone["start_frame"] < 5:
-                            print(f"\r\033[KFrame [{scene_detection_rjust(zone["start_frame"])}:{scene_detection_rjust(external_scene["end_frame"])}] / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
+                            print(f"\r\033[K[{frame_scene_print(zone["start_frame"], external_scene["end_frame"])} / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
                 
                         scenes["scenes"].append({"start_frame": zone["start_frame"],
                                                  "end_frame": external_scene["start_frame"],
@@ -1374,15 +1381,20 @@ if not resume or not scene_detection_scenes_file.exists():
                     external_scenes_start_copying = True
 
                 if external_scenes_start_copying:
+                    if last_end_frame is not None:
+                        assert last_end_frame == external_scene["start_frame"], "Invalid scenes file from `--input-scenes`. Scenes file not continuous."
+                    last_end_frame = external_scene["end_frame"]
+                    assert external_scene["end_frame"] > external_scene["start_frame"], "Invalid scenes file from `--input-scenes`"
+
                     if external_scene["end_frame"] > zone["end_frame"]:
                         if not zone["zone"].metric_enable and zone["end_frame"] - external_scene["start_frame"] < 5:
-                            print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(zone["end_frame"])}] / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
-                        print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(zone["end_frame"])}] / Creating scenes", end="")
+                            print(f"\r\033[K{frame_scene_print(external_scene["start_frame"], zone["end_frame"])} / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
+                        print(f"\r\033[K{frame_scene_print(external_scene["start_frame"], zone["end_frame"])} / Creating scenes", end="")
                         scenes["scenes"].append({"start_frame": external_scene["start_frame"],
                                                  "end_frame": zone["end_frame"],
                                                  "zone_overrides": None})
                     else:
-                        print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(external_scene["end_frame"])}] / Creating scenes", end="")
+                        print(f"\r\033[K{frame_scene_print(external_scene["start_frame"], external_scene["end_frame"])} / Creating scenes", end="")
                         scenes["scenes"].append({"start_frame": external_scene["start_frame"],
                                                  "end_frame": external_scene["end_frame"],
                                                  "zone_overrides": None})
@@ -1401,7 +1413,7 @@ if not resume or not scene_detection_scenes_file.exists():
             great_diffs_sort = np.argsort(great_diffs, stable=True)[::-1]
 
             def scene_detection_split_scene(start_frame, end_frame):
-                print(f"\r\033[KFrame [{scene_detection_rjust(start_frame + zone["start_frame"])}:{scene_detection_rjust(end_frame + zone["start_frame"])}] / Creating scenes", end="")
+                print(f"\r\033[K{frame_scene_print(start_frame + zone["start_frame"], end_frame + zone["start_frame"])} / Creating scenes", end="")
 
                 if end_frame - start_frame <= zone["zone"].scene_detection_target_split or \
                    end_frame - start_frame < 2 * zone["zone"].scene_detection_min_scene_len:
@@ -1476,7 +1488,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                          "end_frame": start_frames[i + 1] + zone["start_frame"],
                                          "zone_overrides": None})
 
-    print(f"\r\033[KFrame [{scenes["scenes"][-1]["start_frame"]}:{scenes["scenes"][-1]["end_frame"]}] / Scene creation complete", end="\n")
+    print(f"\r\033[K{frame_scene_print(scenes["scenes"][-1]["start_frame"], scenes["scenes"][-1]["end_frame"])} / Scene creation complete", end="\n")
 
     with scene_detection_scenes_file.open("w") as scenes_f:
         json.dump(scenes, scenes_f, cls=NumpyEncoder)
@@ -1491,74 +1503,147 @@ if not resume or not scene_detection_scenes_file.exists():
     if scene_detection_perform_vapoursynth:
         print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Scene detection finished", end="\n")
 
+    for dir_ in [progression_boost_temp_dir, character_boost_temp_dir]:
+        shutil.rmtree(dir_, ignore_errors=True)
+        dir_.mkdir(parents=True, exist_ok=True)
 else:
     with scene_detection_scenes_file.open("r") as scenes_f:
         scenes = json.load(scenes_f)
 
 
-raise SystemExit(0)
+for zone in zones:
+    if zone["zone"].metric_enable:
+        metric_has_metric = True
+        break
+else:
+    metric_has_metric = False
+for zone in zones:
+    if zone["zone"].character_enable:
+        character_has_character = True
+        break
+else:
+    character_has_character = False
 
 
+zone_scenes = copy.deepcopy(scenes)
+zone_head = 0
+for zone_scene in zone_scenes["scenes"]:
+    if resume:
+        assert zone_scene["start_frame"] <= zones[zone_head]["end_frame"], "Scene detection scenes misaligned with zones. Try run Progression Boost fresh without `--resume`. If this issue persists, Please report this to the repository including this entire error message."
+    else:
+        assert zone_scene["start_frame"] <= zones[zone_head]["end_frame"], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+    if zone_scene["start_frame"] == zones[zone_head]["end_frame"]:
+        zone_head += 1
+
+    zone_scene["zone"] = zones[zone_head]["zone"]
+
+    zone_scene["zone_overrides"] = {
+        "encoder": "svt_av1",
+        "passes": 1,
+        "extra_splits_len": zone_scene["zone"].scene_detection_extra_split,
+        "min_scene_len": zone_scene["zone"].scene_detection_min_scene_len
+    }
 
 
-
-# During the first probe
-if not scene_detection_diffs_available:
-    scene_detection_measure_frame_luma()
-
+scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
+scene_rjust = lambda scene: str(scene).rjust(scene_rjust_digits, "0")
+scene_frame_print = lambda scene: f"Scene {scene_rjust(scene)} Frame [{frame_rjust(scenes["scenes"][scene]["start_frame"])}:{frame_rjust(scenes["scenes"][scene]["end_frame"])}]"
 
 
+dc = np.array([
+    4,    9,    10,   13,   15,   17,   20,   22,   25,   28,   31,   34,   37,   40,   43,   47,   50,   53,   57,
+    60,   64,   68,   71,   75,   78,   82,   86,   90,   93,   97,   101,  105,  109,  113,  116,  120,  124,  128,
+    132,  136,  140,  143,  147,  151,  155,  159,  163,  166,  170,  174,  178,  182,  185,  189,  193,  197,  200,
+    204,  208,  212,  215,  219,  223,  226,  230,  233,  237,  241,  244,  248,  251,  255,  259,  262,  266,  269,
+    273,  276,  280,  283,  287,  290,  293,  297,  300,  304,  307,  310,  314,  317,  321,  324,  327,  331,  334,
+    337,  343,  350,  356,  362,  369,  375,  381,  387,  394,  400,  406,  412,  418,  424,  430,  436,  442,  448,
+    454,  460,  466,  472,  478,  484,  490,  499,  507,  516,  525,  533,  542,  550,  559,  567,  576,  584,  592,
+    601,  609,  617,  625,  634,  644,  655,  666,  676,  687,  698,  708,  718,  729,  739,  749,  759,  770,  782,
+    795,  807,  819,  831,  844,  856,  868,  880,  891,  906,  920,  933,  947,  961,  975,  988,  1001, 1015, 1030,
+    1045, 1061, 1076, 1090, 1105, 1120, 1137, 1153, 1170, 1186, 1202, 1218, 1236, 1253, 1271, 1288, 1306, 1323, 1342,
+    1361, 1379, 1398, 1416, 1436, 1456, 1476, 1496, 1516, 1537, 1559, 1580, 1601, 1624, 1647, 1670, 1692, 1717, 1741,
+    1766, 1791, 1817, 1844, 1871, 1900, 1929, 1958, 1990, 2021, 2054, 2088, 2123, 2159, 2197, 2236, 2276, 2319, 2363,
+    2410, 2458, 2508, 2561, 2616, 2675, 2737, 2802, 2871, 2944, 3020, 3102, 3188, 3280, 3375, 3478, 3586, 3702, 3823,
+    3953, 4089, 4236, 4394, 4559, 4737, 4929, 5130, 5347
+])
 
-# Testing
-for n, crf in enumerate(testing_crfs):
-    if not resume or not temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists():
-        temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").unlink(missing_ok=True)
-        temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").unlink(missing_ok=True)
 
-        # If you want to use a different encoder than SVT-AV1 derived ones, modify here. This is not tested and may have additional issues.
+if metric_has_metric:
+    def probing_perform_probing(probing_tmp_dir, probing_scenes_file, probing_output_file, probing_output_file_lwi):
+        probing_output_file.unlink(missing_ok=True)
+        probing_output_file_lwi.unlink(missing_ok=True)
+
         command = [
             "av1an",
-            "--temp", str(temp_dir.joinpath(f"test-encode-{n:0>2}.tmp")),
+            "--temp", probing_tmp_dir,
             "--keep"
         ]
         if resume:
             command += ["--resume"]
         command += [
-            "-i", str(testing_input_file),
-            "-o", str(temp_dir.joinpath(f"test-encode-{n:0>2}.mkv")),
-            "--scenes", str(scene_detection_scenes_file),
-            *testing_av1an_parameters.split(),
-            "--video-params", f"--crf {crf:.2f} {testing_dynamic_parameters(crf)} {testing_parameters}"
+            "-i", probing_input_file
         ]
-        if testing_input_vspipe_args is not None:
-            command += ["--vspipe-args"] + testing_input_vspipe_args
-        try:
-            subprocess.run(command, text=True, check=True)
-        except subprocess.CalledProcessError:
-            traceback.print_exc()
-        assert temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").exists()
+        if probing_input_vspipe_args is not None:
+            command += ["--vspipe-args"] + probing_input_vspipe_args
+        command += [
+            "-o", probing_output_file,
+            "--scenes", probing_scenes_file,
+            *zone_default.probing_av1an_parameters(f"[K[0m[1;3m> Progression Boost [0m[3m{probing_output_file.stem}[0m[1;3m <[0m")
+        ]
+        return subprocess.Popen(command, text=True)
+    
+    probing_first_tmp_dir = progression_boost_temp_dir / f"probe-encode-first.tmp"
+    probing_first_scenes_file = progression_boost_temp_dir / f"probe-encode-first.scenes.json"
+    probing_first_output_file = progression_boost_temp_dir / f"probe-encode-first.mkv"
+    probing_first_output_file_lwi = progression_boost_temp_dir / f"probe-encode-first.lwi"
+    probing_first_result_file = progression_boost_temp_dir / f"probe-encode-first.result.json"
+
+    if not resume or not probing_first_result_file.exists() or not probing_output_file.exists():
+        probing_first_perform_encode = True
+    else:
+        probing_first_perform_encode = False
+    if not resume or not probing_first_result_file.exists():
+        probing_first_perform_metric = True
+    else:
+        probing_first_perform_metric = False
+
+    if probing_first_perform_encode:
+        probing_first_scenes = {}
+        probing_first_scenes["scenes"] = []
+        total_frames = 0
+        for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+            if zone_scene["zone"].metric_enable:
+                total_frames += zone_scene["end_frame"] - zone_scene["start_frame"]
+                probing_scene = {
+                    "start_frame": zone_scene["start_frame"],
+                    "end_frame": zone_scene["end_frame"],
+                    "zone_overrides": copy.copy(zone_scene["zone_overrides"])
+                }
+                probing_scene["zone_overrides"]["video_params"] = [
+                    "--crf", "24",
+                    "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
+                    *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
+                ]
+                probing_scene["zone_overrides"]["photon_noise"] = None
+                probing_scene["zone_overrides"]["photon_noise_height"] = None
+                probing_scene["zone_overrides"]["photon_noise_width"] = None
+                probing_scene["zone_overrides"]["chroma_noise"] = False
+                probing_first_scenes["scenes"].append(probing_scene)
+        probing_first_scenes["frames"] = total_frames
+                
+        with probing_first_scenes_file.open("w") as probing_scenes_f:
+            json.dump(probing_first_scenes, probing_scenes_f, cls=NumpyEncoder)
+
+        probing_first_process = probing_perform_probing(probing_first_tmp_dir, probing_first_scenes_file, probing_first_output_file, probing_first_output_file_lwi)
+    
+
+if not scene_detection_diffs_available:
+    scene_detection_measure_frame_luma()
 
 
-# Metric
-if zones_file:
-    zones_f = zones_file.open("w")
+if character_has_character:
+    import vsmlrt
 
-# Ding
-metric_iterate_crfs = np.append(testing_crfs, [final_max_crf, final_min_crf])
-metric_reporting_crf = final_min_crf + 6.00
-
-metric_scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
-metric_scene_rjust = lambda scene: str(scene).rjust(metric_scene_rjust_digits, "0")
-metric_frame_rjust_digits = math.floor(np.log10(metric_reference.num_frames)) + 1
-metric_frame_rjust = lambda frame: str(frame).rjust(metric_frame_rjust_digits)
-metric_scene_frame_print = lambda scene, start_frame, end_frame: f"Scene {metric_scene_rjust(scene)} Frame [{metric_frame_rjust(start_frame)}:{metric_frame_rjust(end_frame)}]"
-
-metric_clips = [metric_reference] + \
-               [core.lsmas.LWLibavSource(temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").expanduser().resolve(),
-                                         cachefile=temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").expanduser().resolve()) for n in range(len(testing_crfs))]
-metric_clips = metric_process(metric_clips)
-
-if character_enable:
     character_clip = zone_default.source_clip
 
     character_block_width = math.ceil(character_clip.width / 64)
@@ -1577,6 +1662,85 @@ x[-1,-1] x[-1,0] x[-1,1] x[0,-1] x[0,0] x[0,1] x[1,-1] x[1,0] x[1,1] + + + + + +
 avg@ x > avg@ x ? r!
 r@ 1 < r@ 1 ? r!
 r@ -1 > r@ -1 ?""")
+
+    def character_calculate_character(scene_n):
+        character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
+
+        if not resume or not character_map_file:
+            character_map = np.empty(((scenes["scenes"][scene_n]["end_frame"] - scenes["scenes"][scene_n]["start_frame"]) // 8, character_block_width * character_block_height), dtype=np.float32)
+
+            clip = character_clip[scenes["scenes"][scene_n]["start_frame"]]
+            for frame_i in range(1, character_map.shape[0]):
+                clip += (character_clip[scenes["scenes"][scene_n]["start_frame"] + frame_i * 8])
+
+            for frame_i, frame in enumerate(clip.frames(backlog=48)):
+                character_map[frame_i] = np.array(frame[0], dtype=np.float32).reshape((-1,))
+
+            np.save(character_map_file, character_map)
+
+    character_head = 0
+
+if metric_has_metric and probing_first_perform_encode \
+   and character_has_character:
+    for character_n in range(character_head, len(scenes["scenes"])):
+        if zone_scenes["scenes"][character_n]["zone"].character_enable:
+            character_head = character_n
+
+            if probing_first_process.poll() is not None:
+                print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation paused", end="\n")
+                break
+
+            print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation", end="")
+            character_calculate_character(character_n)
+    else:
+        character_head = len(scenes["scenes"])
+        print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete", end="\n")
+
+
+probing_first_process.wait()
+assert probing_first_output_file.exists()
+
+probing_result = copy.deepcopy(scenes)
+# Select frames before kyaraboo?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+if character_has_character:
+    for character_n in range(character_head, len(scenes["scenes"])):
+        if zone_scenes["scenes"][character_n]["zone"].character_enable:
+            character_head = character_n
+
+            print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation", end="")
+            character_calculate_character(character_n)
+    else:
+        character_head = len(scenes["scenes"])
+        print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete", end="\n")
+
+
+raise SystemExit(0)
+
+
+
+
+metric_iterate_crfs = np.append(testing_crfs, [final_max_crf, final_min_crf])
+metric_reporting_crf = final_min_crf + 6.00
+
+metric_clips = [metric_reference] + \
+               [core.lsmas.LWLibavSource(temp_dir.joinpath(f"test-encode-{n:0>2}.mkv").expanduser().resolve(),
+                                         cachefile=temp_dir.joinpath(f"test-encode-{n:0>2}.lwi").expanduser().resolve()) for n in range(len(testing_crfs))]
+metric_clips = metric_process(metric_clips)
 
 start = time() - 0.000001
 for i, scene in enumerate(scenes["scenes"]):
