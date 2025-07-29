@@ -24,8 +24,6 @@
 import argparse
 from collections.abc import Callable
 from datetime import datetime
-from functools import partial
-from itertools import islice
 import json
 import math
 import numpy as np
@@ -40,15 +38,15 @@ import traceback
 import vapoursynth as vs
 from vapoursynth import core
 
+if platform.system() == "Windows":
+    os.system("")
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
             return int(obj)
         else:
             return super(NumpyEncoder, self).default(obj)
-
-if platform.system() == "Windows":
-    os.system("")
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
@@ -69,6 +67,7 @@ probing_input_file = args.encode_input
 if probing_input_file is None:
     probing_input_file = input_file
 probing_input_vspipe_args = args.encode_vspipe_args
+input_scenes_file = args.input_scenes
 scenes_file = args.output_scenes
 roi_maps_dir = args.output_roi_maps
 zones_file = args.zones
@@ -299,23 +298,23 @@ class DefaultZone:
     scene_detection_vapoursynth_range = "limited".lower()
     # scene detection_vapoursynth_range = "full".lower()
 
+# On this note, in case in some works the complex scenes are only in
+# the OP and ED but not in the main episode, we've created a zone spec
+# for this exact situation. Once you've read through the guide and
+# understand how to use zones, you can set VapourSynth based scene
+# detection here as  default and then use the builtin_av1an zone for OP
+# and ED.
+
 # You can also provide your own scene detection via `--input-scenes`.
-# `--input-scenes` will always override the `scene_detection_method`
-# set above, and will always skip scene detection. Optionally, here
-# is an option you can specify, where Progression Boost will raise an
-# error if an `--input-scenes` is not specified:
-    # scene_detection_method = "skip".lower()
+# You must uncomment the above two options and uncomment this option
+# for it to work.
+    # scene_detection_method = "external".lower()
 
-# Also, in case in some works the complex scenes are only in the OP and
-# ED but not in the main episode, we've created a zone spec for exactly
-# this situation. Once you've read through the guide and understand how
-# to use zones, you can set VapourSynth based scene detection here as 
-# default and then use the provided zone for OP and ED.
-
-# Zoning information: `scene_detection_method` is zoneable, which means
-# you can mix av1an based scene detection with VapourSynth based scene
-# detection. However, `scene_detection_av1an_parameters` is not
-# zoneable. There will only be one av1an scene detection pass.
+# Zoning information: all three `scene_detection_method` is zoneable,
+# which means you can mix av1an based scene detection with VapourSynth
+# based scene detection, as well as external scene detection fed from
+# `--input-scenes`. However, `scene_detection_av1an_parameters` is not
+# zoneable. There would only be one av1an scene detection pass.
 # ---------------------------------------------------------------------
 # Specify the desired scene length for scene detection. The result from
 # this scene detection will be used both for test encodes and the final
@@ -425,6 +424,16 @@ class DefaultZone:
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
     metric_min_crf = 8.00
+# Our first probe will be happening at `--crf 24.00`. If the quality of
+# the scene is worse than `metric_target`, we will perform our second
+# probe at a better `--crf`. In very rare and strange scenarios, this
+# second probe performed at better `--crf` could receive an even worse
+# score than the first probe performed at worse `--crf`. It could be
+# due to some weirdness in the encoder or the metric. In this case
+# we want to have a fallback `--crf` to use. Set this fallback `--crf`
+# here.
+    def metric_unreliable_model_fallback_crf(self):
+        return self.metric_min_crf + 3.00
 
 # Above are the clamp from the nature of this boosting method, but
 # there are also additional factors to consider depending on your
@@ -1072,17 +1081,29 @@ if frame_head != zone_default.source_clip.num_frames:
     zones.append({"start_frame": frame_head,
                   "end_frame": zone_default.source_clip.num_frames,
                   "zone": zones_spec["default"]})
+    
+for zone in zones:
+    if zone["zone"].scene_detection_method == "external":
+        if not input_scenes_file:
+            parser.print_usage()
+            print("Progression Boost: error: the following argument is required when `scene_detection_method` is set to `\"external\"` in zones: --input-scenes")
+            raise SystemExit(2)
+        
+        break
+else:
+    if input_scenes_file:
+        print("Progression Boost: warn: the following argument is provided but there are no zones where `scene_detection_method` is set to `\"external\"`: --input-scenes")
 
 for zone in zones:
     if zone["zone"].character_enable:
         if not roi_maps_dir:
             parser.print_usage()
-            print("Progression Boost: error: the following arguments is required when Character Boost is enabled: --output-roi-maps")
+            print("Progression Boost: error: the following argument is required when Character Boost is enabled: --output-roi-maps")
             raise SystemExit(2)
         roi_maps_dir.mkdir(parents=True, exist_ok=True)
 
-        character_backend = zone_default.character_get_backend
-        character_model = zone_default.character_get_model
+        character_backend = zone_default.character_get_backend()
+        character_model = zone_default.character_get_model()
 
         break
 
@@ -1136,21 +1157,30 @@ if resume and scene_detection_diffs_file.exists() and \
 
 
 if not resume or not scene_detection_scenes_file.exists():
-    scene_detection_perform_av1an = False
-    scene_detection_perform_vapoursynth = False
-    scene_detection_all_vapoursynth = False
     for zone in zones:
         if zone["zone"].scene_detection_method == "av1an":
             if not resume or not scene_detection_av1an_scenes_file.exists():
                 scene_detection_perform_av1an = True
+            else:
+                scene_detection_perform_av1an = False
+
+            scene_detection_has_av1an = True
             break
     else:
-        scene_detection_all_vapoursynth = True
+        scene_detection_has_av1an = False
+        scene_detection_perform_av1an = False
     for zone in zones:
         if zone["zone"].scene_detection_method == "vapoursynth":
             scene_detection_perform_vapoursynth = True
             break
-    assert scene_detection_perform_av1an or scene_detection_perform_vapoursynth, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+    else:
+        scene_detection_perform_vapoursynth = False
+    for zone in zones:
+        if zone["zone"].scene_detection_method == "external":
+            scene_detection_has_external = True
+            break
+    else:
+        scene_detection_has_external = False
 
     if scene_detection_perform_av1an:
         scene_detection_av1an_scenes_file.unlink(missing_ok=True)
@@ -1169,30 +1199,39 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_process = subprocess.Popen(command, text=True)
 
         
+    def scene_detection_measure_frame_luma():
+        global scene_detection_diffs
+        global scene_detection_average
+        global scene_detection_min
+        global scene_detection_max
+        global scene_detection_diffs_available
+
+        scene_detection_luma_clip = zone_default.source_clip
+        scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
+        
+        start = time() - 0.000001
+        scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+        scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+        scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+        scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+        for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
+            print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
+            scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
+            scene_detection_average[current_frame] = frame.props["LumaAverage"]
+            scene_detection_min[current_frame] = frame.props["LumaMin"]
+            scene_detection_max[current_frame] = frame.props["LumaMax"]
+        print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
+        
+        np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
+        np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
+        np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
+        np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
+        scene_detection_diffs_available = True
+
     if not scene_detection_diffs_available:
-        if not scene_detection_perform_vapoursynth or \
-           (scene_detection_perform_vapoursynth and not scene_detection_all_vapoursynth):
-            scene_detection_luma_clip = zone_default.source_clip
-            scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
-
-            start = time() - 0.000001
-            scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-            scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-            scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-            scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-            for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
-                print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
-                scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
-                scene_detection_average[current_frame] = frame.props["LumaAverage"]
-                scene_detection_min[current_frame] = frame.props["LumaMin"]
-                scene_detection_max[current_frame] = frame.props["LumaMax"]
-            print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
-
-            np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
-            np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
-            np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
-            np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
-            scene_detection_diffs_available = True
+        if scene_detection_perform_av1an or \
+           (scene_detection_perform_vapoursynth and not scene_detection_has_av1an and not scene_detection_has_external):
+            scene_detection_measure_frame_luma()
 
     
     if scene_detection_perform_vapoursynth:
@@ -1221,8 +1260,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
         zones_diffs = {}
         for zone_i, zone in enumerate(zones):
-            assert zone["zone"].scene_detection_method != "skip", "Invalid `scene_detection_method` \"skip\". \"skip\" is not zoneable."
-            assert zone["zone"].scene_detection_method in ["av1an", "vapoursynth"], "Invalid `scene_detection_method`. Please check your config inside `Progression-Boost.py`."
+            assert zone["zone"].scene_detection_method in ["av1an", "vapoursynth", "external"], "Invalid `scene_detection_method`. Please check your config inside `Progression-Boost.py`."
 
             if zone["zone"].scene_detection_method == "vapoursynth":
                 assert zone["zone"].scene_detection_vapoursynth_method in ["wwxd", "wwxd_scxvid"], "Invalid `scene_detection_vapoursynth_method`. Please check your config inside `Progression-Boost.py`."
@@ -1278,139 +1316,177 @@ if not resume or not scene_detection_scenes_file.exists():
 
         print(f"\r\033[KFrame {current_frame + 1} / VapourSynth based scene detection complete", end="\n")
 
+    if scene_detection_has_external:
+        with input_scenes_file.open("r") as input_scenes_f:
+            try:
+                scene_detection_external_scenes = json.load(input_scenes_f)
+            except:
+                raise ValueError("Invalid scenes file from `--input-scenes`")
+        assert "scenes" in scene_detection_external_scenes, "Invalid scenes file from `--input-scenes`"
+
 
     if scene_detection_perform_av1an:
         scene_detection_process.wait()
         if scene_detection_process.returncode != 0:
             raise subprocess.CalledProcessError
 
-        assert scene_detection_av1an_scenes_file.exists(), "Unexpected result from av1an."
+        assert scene_detection_av1an_scenes_file.exists(), "Unexpected result from av1an"
 
-    if scene_detection_av1an_scenes_file.exists():
+    if scene_detection_has_av1an:
         with scene_detection_av1an_scenes_file.open("r") as av1an_scenes_f:
             scene_detection_av1an_scenes = json.load(av1an_scenes_f)
-        assert scene_detection_av1an_scenes["frames"] == zone_default.source_clip.num_frames, "Unexpected result from av1an."
-
-    if not scene_detection_perform_vapoursynth:
-        scenes = scene_detection_av1an_scenes
-        with scene_detection_scenes_file.open("w") as scenes_f:
-            json.dump(scenes, scenes_f, cls=NumpyEncoder)
+        assert scene_detection_av1an_scenes["frames"] == zone_default.source_clip.num_frames, "Unexpected result from av1an"
+        assert "scenes" in scene_detection_av1an_scenes, "Unexpected result from av1an"
 
 
-    if scene_detection_perform_vapoursynth:
-        scenes = {}
-        scenes["frames"] = zone_default.source_clip.num_frames
-        scenes["scenes"] = []
-        for zone_i, zone in enumerate(zones):
-            if zone["zone"].scene_detection_method == "av1an":
-                av1an_scenes_start_copying = False
-                for av1an_scene in scene_detection_av1an_scenes["scenes"]:
-                    if av1an_scene["start_frame"] == zone["start_frame"]:
-                        av1an_scenes_start_copying = True
-                    assert (av1an_scene["start_frame"] >= zone["start_frame"]) == av1an_scenes_start_copying, "Unexpected result from av1an."
-                    if av1an_scene["start_frame"] == zone["end_frame"]:
-                        break
-                    assert av1an_scene["start_frame"] < zone["end_frame"], "Unexpected result from av1an."
+    scenes = {}
+    scenes["frames"] = zone_default.source_clip.num_frames
+    scenes["scenes"] = []
+    for zone_i, zone in enumerate(zones):
+        if zone["zone"].scene_detection_method == "av1an":
+            av1an_scenes_start_copying = False
+            for av1an_scene in scene_detection_av1an_scenes["scenes"]:
+                if av1an_scene["start_frame"] == zone["start_frame"]:
+                    av1an_scenes_start_copying = True
+                assert (av1an_scene["start_frame"] >= zone["start_frame"]) == av1an_scenes_start_copying, "Unexpected result from av1an"
+                if av1an_scene["start_frame"] == zone["end_frame"]:
+                    break
+                assert av1an_scene["start_frame"] < zone["end_frame"], "Unexpected result from av1an"
 
-                    if av1an_scenes_start_copying:
-                        print(f"\r\033[KFrame [{scene_detection_rjust(av1an_scene["start_frame"])}:{scene_detection_rjust(av1an_scene["end_frame"])}] / Creating scenes", end="")
-                        scenes["scenes"].append(av1an_scene)
+                if av1an_scenes_start_copying:
+                    print(f"\r\033[KFrame [{scene_detection_rjust(av1an_scene["start_frame"])}:{scene_detection_rjust(av1an_scene["end_frame"])}] / Creating scenes", end="")
+                    scenes["scenes"].append(av1an_scene)
 
-            elif zone["zone"].scene_detection_method == "vapoursynth":
-                diffs = zones_diffs[zone_i]
+        elif zone["zone"].scene_detection_method == "external":
+            external_scenes_start_copying = False
+            for external_scene in scene_detection_external_scenes["scenes"]:
+                assert "start_frame" in external_scene and "end_frame" in external_scene, "Invalid scenes file from `--input-scenes`"
 
-                diffs_sort = np.argsort(diffs, stable=True)[::-1]
-                great_diffs = diffs.copy()
-                great_diffs[great_diffs < 1.0] = 0
-                great_diffs_sort = np.argsort(great_diffs, stable=True)[::-1]
+                if external_scene["start_frame"] >= zone["start_frame"]:
+                    if not external_scenes_start_copying and external_scene["start_frame"] > zone["start_frame"]:
+                        if not zone["zone"].metric_enable and external_scene["end_frame"] - zone["start_frame"] < 5:
+                            print(f"\r\033[KFrame [{scene_detection_rjust(zone["start_frame"])}:{scene_detection_rjust(external_scene["end_frame"])}] / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
+                
+                        scenes["scenes"].append({"start_frame": zone["start_frame"],
+                                                 "end_frame": external_scene["start_frame"],
+                                                 "zone_overrides": None})
+                                                 
+                    external_scenes_start_copying = True
 
-                def scene_detection_split_scene(start_frame, end_frame):
-                    print(f"\r\033[KFrame [{scene_detection_rjust(start_frame + zone["start_frame"])}:{scene_detection_rjust(end_frame + zone["start_frame"])}] / Creating scenes", end="")
+                if external_scenes_start_copying:
+                    if external_scene["end_frame"] > zone["end_frame"]:
+                        if not zone["zone"].metric_enable and zone["end_frame"] - external_scene["start_frame"] < 5:
+                            print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(zone["end_frame"])}] / A scene from `--input-scenes` is cut off by zone boundary into a scene shorter than 5 frames. As Progression Boost module is disabled for the zone, this scene might get poorly encoded.", end="\n")
+                        print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(zone["end_frame"])}] / Creating scenes", end="")
+                        scenes["scenes"].append({"start_frame": external_scene["start_frame"],
+                                                 "end_frame": zone["end_frame"],
+                                                 "zone_overrides": None})
+                    else:
+                        print(f"\r\033[KFrame [{scene_detection_rjust(external_scene["start_frame"])}:{scene_detection_rjust(external_scene["end_frame"])}] / Creating scenes", end="")
+                        scenes["scenes"].append({"start_frame": external_scene["start_frame"],
+                                                 "end_frame": external_scene["end_frame"],
+                                                 "zone_overrides": None})
 
-                    if end_frame - start_frame <= zone["zone"].scene_detection_target_split or \
-                       end_frame - start_frame < 2 * zone["zone"].scene_detection_min_scene_len:
-                        return [start_frame]
+                if external_scene["end_frame"] >= zone["end_frame"]:
+                    break
+            else:
+                raise ValueError("Invalid scenes file from `--input-scenes`. There are no scenes in the scenes file that reach the end of the zone")
 
-                    if end_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split:
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.16:
-                                break
-                            if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
-                               current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split:
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+        elif zone["zone"].scene_detection_method == "vapoursynth":
+            diffs = zones_diffs[zone_i]
 
-                    if end_frame - start_frame <= zone["zone"].scene_detection_extra_split:
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.16:
-                                break
-                            if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                               (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split):
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+            diffs_sort = np.argsort(diffs, stable=True)[::-1]
+            great_diffs = diffs.copy()
+            great_diffs[great_diffs < 1.0] = 0
+            great_diffs_sort = np.argsort(great_diffs, stable=True)[::-1]
 
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.16:
-                                return [start_frame]
-                            if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len:
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+            def scene_detection_split_scene(start_frame, end_frame):
+                print(f"\r\033[KFrame [{scene_detection_rjust(start_frame + zone["start_frame"])}:{scene_detection_rjust(end_frame + zone["start_frame"])}] / Creating scenes", end="")
 
-                    else: # end_frame - start_frame > zone["zone"].scene_detection_extra_split
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.12:
-                                break
-                            if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                               math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                               math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                               math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.15):
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+                if end_frame - start_frame <= zone["zone"].scene_detection_target_split or \
+                   end_frame - start_frame < 2 * zone["zone"].scene_detection_min_scene_len:
+                    return [start_frame]
 
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.16:
-                                break
-                            if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                               (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split):
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+                if end_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split:
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.16:
+                            break
+                        if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
+                           current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split:
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-                        for current_frame in great_diffs_sort:
-                            if great_diffs[current_frame] < 1.16:
-                                break
-                            if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len:
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+                if end_frame - start_frame <= zone["zone"].scene_detection_extra_split:
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.16:
+                            break
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split):
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-                        for current_frame in diffs_sort:
-                            if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                               math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                               math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                               math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
-                                return scene_detection_split_scene(start_frame, current_frame) + \
-                                       scene_detection_split_scene(current_frame, end_frame)
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.16:
+                            return [start_frame]
+                        if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len:
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-                    assert False, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+                else: # end_frame - start_frame > zone["zone"].scene_detection_extra_split
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.12:
+                            break
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.15):
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-                start_frames = scene_detection_split_scene(0, len(diffs))
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.16:
+                            break
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split):
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-                start_frames += [zone["end_frame"] - zone["start_frame"]]
-                for i in range(len(start_frames) - 1):
-                    scenes["scenes"].append({"start_frame": start_frames[i] + zone["start_frame"],
-                                             "end_frame": start_frames[i + 1] + zone["start_frame"],
-                                             "zone_overrides": None})
+                    for current_frame in great_diffs_sort:
+                        if great_diffs[current_frame] < 1.16:
+                            break
+                        if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len:
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-        print(f"\r\033[KFrame [{scenes["scenes"][-1]["start_frame"]}:{scenes["scenes"][-1]["end_frame"]}] / Scene creation complete", end="\n")
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
 
-        with scene_detection_scenes_file.open("w") as scenes_f:
-            json.dump(scenes, scenes_f, cls=NumpyEncoder)
+                assert False, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
 
-        if not scene_detection_diffs_available:
-            np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
-            np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
-            np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
-            np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
-            scene_detection_diffs_available = True
+            start_frames = scene_detection_split_scene(0, len(diffs))
+
+            start_frames += [zone["end_frame"] - zone["start_frame"]]
+            for i in range(len(start_frames) - 1):
+                scenes["scenes"].append({"start_frame": start_frames[i] + zone["start_frame"],
+                                         "end_frame": start_frames[i + 1] + zone["start_frame"],
+                                         "zone_overrides": None})
+
+    print(f"\r\033[KFrame [{scenes["scenes"][-1]["start_frame"]}:{scenes["scenes"][-1]["end_frame"]}] / Scene creation complete", end="\n")
+
+    with scene_detection_scenes_file.open("w") as scenes_f:
+        json.dump(scenes, scenes_f, cls=NumpyEncoder)
+
+    if not scene_detection_diffs_available:
+        np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
+        np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
+        np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
+        np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
+        scene_detection_diffs_available = True
 
     if scene_detection_perform_vapoursynth:
         print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Scene detection finished", end="\n")
