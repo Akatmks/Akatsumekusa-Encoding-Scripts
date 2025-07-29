@@ -1168,66 +1168,43 @@ if not resume or not scene_detection_scenes_file.exists():
         ]
         scene_detection_process = subprocess.Popen(command, text=True)
 
-
-    def scene_detection_measure_frame_luma():
-        global scene_detection_diffs
-        global scene_detection_average
-        global scene_detection_min
-        global scene_detection_max
-        global scene_detection_diffs_available
-
-        scene_detection_luma_clip = zone_default.source_clip
-        scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
-        
-        start = time() - 0.000001
-        scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-        scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-        scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-        scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
-        for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
-            print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
-            scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
-            scene_detection_average[current_frame] = frame.props["LumaAverage"]
-            scene_detection_min[current_frame] = frame.props["LumaMin"]
-            scene_detection_max[current_frame] = frame.props["LumaMax"]
-        print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
-        
-        np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
-        np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
-        np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
-        np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
-        scene_detection_diffs_available = True
         
     if not scene_detection_diffs_available:
-        if scene_detection_perform_vapoursynth:
-            if not scene_detection_all_vapoursynth:
-                scene_detection_measure_frame_luma()
-            else:
-                scene_detection_diffs = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
-                scene_detection_average = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
-                scene_detection_min = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
-                scene_detection_max = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
+        if not scene_detection_perform_vapoursynth or \
+           (scene_detection_perform_vapoursynth and not scene_detection_all_vapoursynth):
+            scene_detection_luma_clip = zone_default.source_clip
+            scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
 
+            start = time() - 0.000001
+            scene_detection_diffs = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_average = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
+            for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
+                print(f"\r\033[KFrame {current_frame} / Measuring frame luma / {current_frame / (time() - start):.02f} fps", end="\r")
+                scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
+                scene_detection_average[current_frame] = frame.props["LumaAverage"]
+                scene_detection_min[current_frame] = frame.props["LumaMin"]
+                scene_detection_max[current_frame] = frame.props["LumaMax"]
+            print(f"\r\033[KFrame {current_frame + 1} / Frame luma measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
 
-    if scene_detection_perform_av1an:
-        scene_detection_process.wait()
-        if scene_detection_process.returncode != 0:
-            raise subprocess.CalledProcessError
+            np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
+            np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
+            np.savetxt(scene_detection_min_file, scene_detection_min, fmt="%.9f")
+            np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
+            scene_detection_diffs_available = True
 
-        assert scene_detection_av1an_scenes_file.exists(), "Unexpected result from av1an."
-
-    if scene_detection_av1an_scenes_file.exists():
-        with scene_detection_av1an_scenes_file.open("r") as av1an_scenes_f:
-            scene_detection_av1an_scenes = json.load(av1an_scenes_f)
-        assert scene_detection_av1an_scenes["frames"] == zone_default.source_clip.num_frames, "Unexpected result from av1an."
-
-    if not scene_detection_perform_vapoursynth:
-        scenes = scene_detection_av1an_scenes
-        with scene_detection_scenes_file.open("w") as scenes_f:
-            json.dump(scenes, scenes_f, cls=NumpyEncoder)
-
-
+    
     if scene_detection_perform_vapoursynth:
+        if not scene_detection_diffs_available:
+            scene_detection_diffs = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
+            scene_detection_average = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
+            scene_detection_min = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
+            scene_detection_max = np.empty((zone_default.source_clip.num_frames,), dtype=np.float32)
+
+        scene_detection_rjust_digits = math.floor(np.log10(zone_default.source_clip.num_frames)) + 1
+        scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits)
+
         scene_detection_clip_base = zone_default.source_clip
         scene_detection_bits = scene_detection_clip_base.format.bits_per_sample
 
@@ -1242,35 +1219,12 @@ if not resume or not scene_detection_scenes_file.exists():
             scene_detection_clip_base = scene_detection_clip_base.resize.Point(width=target_width, height=target_height, src_top=src_top, src_height=src_height,
                                                                                format=vs.YUV420P8, dither_type="none")
 
-        scene_detection_rjust_digits = math.floor(np.log10(zone_default.source_clip.num_frames)) + 1
-        scene_detection_rjust = lambda frame: str(frame).rjust(scene_detection_rjust_digits)
-
-        scenes = {}
-        scenes["frames"] = zone_default.source_clip.num_frames
-        scenes["scenes"] = []
-        print(f"\n\n", end="")
-        for zone in zones:
+        zones_diffs = {}
+        for zone_i, zone in enumerate(zones):
+            assert zone["zone"].scene_detection_method != "skip", "Invalid `scene_detection_method` \"skip\". \"skip\" is not zoneable."
             assert zone["zone"].scene_detection_method in ["av1an", "vapoursynth"], "Invalid `scene_detection_method`. Please check your config inside `Progression-Boost.py`."
 
-            print(f"\r\033[A\033[A", end="")
-
-            if zone["zone"].scene_detection_method == "av1an":
-                print(f"\r\033[KFrame {zone["end_frame"]} / Detecting scenes", end="\n")
-                av1an_scenes_start_copying = False
-                for av1an_scene in scene_detection_av1an_scenes["scenes"]:
-                    if av1an_scene["start_frame"] == zone["start_frame"]:
-                        av1an_scenes_start_copying = True
-                    assert (av1an_scene["start_frame"] >= zone["start_frame"]) == av1an_scenes_start_copying, "Unexpected result from av1an."
-                    if av1an_scene["start_frame"] == zone["end_frame"]:
-                        break
-                    assert av1an_scene["start_frame"] < zone["end_frame"], "Unexpected result from av1an."
-
-                    if av1an_scenes_start_copying:
-                        print(f"\r\033[KFrame [{scene_detection_rjust(av1an_scene["start_frame"])}:{scene_detection_rjust(av1an_scene["end_frame"])}] / Creating scenes", end="")
-                        scenes["scenes"].append(av1an_scene)
-                print(f"\n", end="")
-
-            elif zone["zone"].scene_detection_method == "vapoursynth":
+            if zone["zone"].scene_detection_method == "vapoursynth":
                 assert zone["zone"].scene_detection_vapoursynth_method in ["wwxd", "wwxd_scxvid"], "Invalid `scene_detection_vapoursynth_method`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_vapoursynth_range in ["limited", "full"], "Invalid `scene_detection_vapoursynth_range`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_extra_split >= zone["zone"].scene_detection_min_scene_len * 2, "`scene_detection_method` `vapoursynth` does not support `scene_detection_extra_split` to be smaller than 2 times `scene_detection_min_scene_len`."
@@ -1320,7 +1274,50 @@ if not resume or not scene_detection_scenes_file.exists():
 
                     luma_scenecut_prev = luma_scenecut
 
-                print("\n", end="")
+                zones_diffs[zone_i] = diffs
+
+        print(f"\r\033[KFrame {current_frame + 1} / VapourSynth based scene detection complete", end="\n")
+
+
+    if scene_detection_perform_av1an:
+        scene_detection_process.wait()
+        if scene_detection_process.returncode != 0:
+            raise subprocess.CalledProcessError
+
+        assert scene_detection_av1an_scenes_file.exists(), "Unexpected result from av1an."
+
+    if scene_detection_av1an_scenes_file.exists():
+        with scene_detection_av1an_scenes_file.open("r") as av1an_scenes_f:
+            scene_detection_av1an_scenes = json.load(av1an_scenes_f)
+        assert scene_detection_av1an_scenes["frames"] == zone_default.source_clip.num_frames, "Unexpected result from av1an."
+
+    if not scene_detection_perform_vapoursynth:
+        scenes = scene_detection_av1an_scenes
+        with scene_detection_scenes_file.open("w") as scenes_f:
+            json.dump(scenes, scenes_f, cls=NumpyEncoder)
+
+
+    if scene_detection_perform_vapoursynth:
+        scenes = {}
+        scenes["frames"] = zone_default.source_clip.num_frames
+        scenes["scenes"] = []
+        for zone_i, zone in enumerate(zones):
+            if zone["zone"].scene_detection_method == "av1an":
+                av1an_scenes_start_copying = False
+                for av1an_scene in scene_detection_av1an_scenes["scenes"]:
+                    if av1an_scene["start_frame"] == zone["start_frame"]:
+                        av1an_scenes_start_copying = True
+                    assert (av1an_scene["start_frame"] >= zone["start_frame"]) == av1an_scenes_start_copying, "Unexpected result from av1an."
+                    if av1an_scene["start_frame"] == zone["end_frame"]:
+                        break
+                    assert av1an_scene["start_frame"] < zone["end_frame"], "Unexpected result from av1an."
+
+                    if av1an_scenes_start_copying:
+                        print(f"\r\033[KFrame [{scene_detection_rjust(av1an_scene["start_frame"])}:{scene_detection_rjust(av1an_scene["end_frame"])}] / Creating scenes", end="")
+                        scenes["scenes"].append(av1an_scene)
+
+            elif zone["zone"].scene_detection_method == "vapoursynth":
+                diffs = zones_diffs[zone_i]
 
                 diffs_sort = np.argsort(diffs, stable=True)[::-1]
                 great_diffs = diffs.copy()
@@ -1397,16 +1394,12 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 start_frames = scene_detection_split_scene(0, len(diffs))
 
-                start_frames += [scene_detection_clip.num_frames]
+                start_frames += [zone["end_frame"] - zone["start_frame"]]
                 for i in range(len(start_frames) - 1):
                     scenes["scenes"].append({"start_frame": start_frames[i] + zone["start_frame"],
                                              "end_frame": start_frames[i + 1] + zone["start_frame"],
                                              "zone_overrides": None})
-                print(f"\n", end="")
 
-        print(f"\r\033[A\033[A", end="")
-        assert zone_default.source_clip.num_frames == scenes["scenes"][-1]["end_frame"], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
-        print(f"\r\033[KFrame {zone_default.source_clip.num_frames} / Scene detection complete", end="\n")
         print(f"\r\033[KFrame [{scenes["scenes"][-1]["start_frame"]}:{scenes["scenes"][-1]["end_frame"]}] / Scene creation complete", end="\n")
 
         with scene_detection_scenes_file.open("w") as scenes_f:
