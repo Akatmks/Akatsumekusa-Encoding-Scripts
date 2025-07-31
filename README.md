@@ -2,6 +2,8 @@
 
 # Progression Boost
 
+> New version using only 2 probe encodes coming soon! The new version will be much faster and more capable → [new](../../tree/new) (Not complete yet)  
+
 ### Introduction
 
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their autoboost, and BoatsMcGee and their Normal-Boost that makes this script possible.
