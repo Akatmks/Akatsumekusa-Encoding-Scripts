@@ -25,6 +25,7 @@ import argparse
 from collections.abc import Callable
 import copy
 from datetime import datetime
+from functools import partial
 import json
 import math
 import numpy as np
@@ -44,11 +45,13 @@ if platform.system() == "Windows":
     os.system("")
 
 class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
+    def default(self, object):
+        if isinstance(object, np.generic):
+            return object.item()
+        if isinstance(object, np.ndarray):
+            return object.tolist()
         else:
-            return super(NumpyEncoder, self).default(obj)
+            return super(NumpyEncoder, self).default(object)
 
 parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
@@ -585,7 +588,7 @@ class DefaultZone:
         return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" -y --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --video-params").split() + \
+              + f" --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --video-params").split() + \
                 [message]
 
 # These are the photon noise parameters for your final encode. These
@@ -675,26 +678,19 @@ class DefaultZone:
 # FFVship is a standalone external program, while VapourSynth method
 # supports vship and vszip.
 
-# FFVship is only available if you've not applied filtering via
-# `--encode-input`, and you don't plan to apply additional filtering
-# before calculating metric. FFVship is faster than using vship in
-# VapourSynth.
-# Enable FFVship by commenting the line for VapourSynth below and
-# uncommenting the line below.
-    metric_method = "ffvship".lower()
-
 # If you want to use VapourSynth based methods for calculating metrics,
-# comment the line above for FFVship and uncomment the line below.
-    # metric_method = "vapoursynth".lower()
+# comment the line three paragraphs below for FFVship and uncomment the
+# line below for VapourSynth.
+    metric_method = "vapoursynth".lower()
 #
 # For VapourSynth based metric calculation, if you've applied filtering
-# via `--encode-input`, you can match it and apply the same filtering
-# here:
+# via `--encode-input`, make sure you match it and apply the same
+# filtering here:
     metric_reference = source_clip
 #
 # For VapourSynth based metric calculation, this function allows you to
 # perform some additional filtering before calculating metrics.
-    def metric_process(self, clips: list[vs.VideoNode]) -> list[vs.VideoNode]:
+    def metric_process(self, clip: vs.VideoNode) -> vs.VideoNode:
 # First, here is a hack if you want higher speed calculating metrics.
 # What about cropping the clip from 1080p to 900p or 720p? This is
 # tested to have been working very well, producing very similar final
@@ -704,17 +700,38 @@ class DefaultZone:
 # cropped compare. This may not may not be preferrable. If you want to
 # enable cropping, uncomment the lines below to crop the clip to 900p
 # before comparing.
-    #     for i in range(len(clips)):
-    #         clips[i] = clips[i].std.Crop(left=160, right=160, top=90, bottom=90)
+        # clip = clip.std.Crop(left=160, right=160, top=90, bottom=90)
 # If you want some other processing before calculating metrics, you can
 # implement it here.
-        return clips
+        return clip
+        
+# FFVship is only available if you've not applied filtering via
+# `--encode-input`, and you don't plan to apply additional filtering
+# before calculating metric. As of right now with FFVship version 3.0.2
+# prerelease, FFVship is slower than vship, so vship is selected as the
+# default for all presets.
+# If you want to use FFVship, enable it by commenting the line above
+# for VapourSynth and uncommenting the line below.
+    # metric_method = "ffvship".lower()
+# Specify extra FFVship parameters. You can specify `--threads`,
+# `--gpu-threads`, `--gpu-id` or other operation related options. You
+# must not specify any source or encoded related options, any frame
+# selection related options, or any metric related options. Metric
+# related options will be available in the next section of the guide.
+    metric_ffvship_extra_parameters = []
+#
+# To avoid accidentally selecting the FFVship option when providing
+# additional filtering, Progression Boost will refuse to run when
+# `--encode-input` is provided. However, you can force it to continue
+# by settings this to True:
+    metric_continue_filtered_with_ffvship = False
 # ---------------------------------------------------------------------
 # What metric do you want to use?
 
 # To use Butteraugli 3Norm via FFVship or vship, uncomment the lines
 # below.
     # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = None
     # metric_ffvship_metric = lambda self, frame: frame[1]
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"]
@@ -723,6 +740,7 @@ class DefaultZone:
 # To use Butteraugli INFNorm via FFVship or vship, uncomment the lines
 # below.
     # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = None
     # metric_ffvship_metric = lambda self, frame: frame[2]
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_INFNorm"]
@@ -734,6 +752,7 @@ class DefaultZone:
 # the tiny spice of Butteraugli INFNorm patches some of the small
 # issues Butteraugli 3Norm missed.
     metric_ffvship_calculate = "Butteraugli"
+    metric_ffvship_intensity_target = None
     metric_ffvship_metric = lambda self, frame: frame[1] * 0.975 + frame[2] * 0.025
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] * 0.975 + frame.props["_BUTTERAUGLI_INFNorm"] * 0.025
@@ -859,6 +878,21 @@ class DefaultZone:
 # Of Interest) map as well as `--crf`. This utilises image segmentation
 # model to recognise the character in the scene, and selectively boost
 # the characters.
+#
+# Character Boost is immensely helpful in all anime and in all quality
+# targets.
+# In high quality encodes, a medium to aggressive Character Boost is
+# the only method that's able to save weak artlines, provided that
+# you've also set the best encoding parameters (`--max-32-tx-size 1
+# --qp-scale-compress-strength [somewhere around 3]
+# --tune [test the best option for your source]
+# --psy-rd [test the best value for your source, normally 3.5 ~ 4]`).
+# In lower quality targets, Character Boost can make sure you put your
+# limited bitrate into parts that actually matters - the characters,
+# and not the the background. Since flat character is actually easier
+# to encode than background with textures, you can achieve
+# significantly better watching experience with Character Boost.
+#
 # Enable character boosting by setting the line below to True.
     character_enable = True
 # ---------------------------------------------------------------------
@@ -880,7 +914,7 @@ class DefaultZone:
 # structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 5.00
+    character_max_roi_boost = 4.50
 # This second value is for the `--crf` based character boosting. It
 # boosts a scene depending on how much percentage of the screen is
 # occupied by characters.
@@ -892,9 +926,12 @@ class DefaultZone:
 # `15.00` here.
 #
 # The number here should be positive.
-    character_max_crf_boost = 4.00
+    character_max_crf_boost = 3.00
 # ---------------------------------------------------------------------
-# Select vs-mlrt backend for image segmentation model:
+# Select vs-mlrt backend for image segmentation model here. You should
+# always use `fp16=True`. The resolution required for Character Boost
+# is low and accuracies of one or two pixels doesn't matter at the
+# slightest.
     def character_get_backend(self):
         import vsmlrt
         return vsmlrt.Backend.TRT(fp16=True)
@@ -1012,11 +1049,11 @@ for zone_key in zones_spec:
 if zones_file:
     with zones_file.open("r") as zones_f:
         zones_string = zones_f.read()
-if zones_string is None:
+if zones_string == "":
     if zones_file:
-        print(f"\033[31mInput `--zones` is empty. Continuing with no zoning...\033[0m")
+        print(f"\r\033[K\033[31mInput `--zones` is empty. Continuing with no zoning...\033[0m")
     else:
-        print(f"\033[31mInput `--zones-string` is empty. Continuing with no zoning...\033[0m")
+        print(f"\r\033[K\033[31mInput `--zones-string` is empty. Continuing with no zoning...\033[0m")
 
 if zones_string is not None:
     zones_list = []
@@ -1053,13 +1090,13 @@ for item in zones_list:
     if item[0] < frame_head:
         raise ValueError(f"Repeating section [{item[0]}:{frame_head}] between input zones.")
     if item[0] > zone_default.source_clip.num_frames - 1:
-        print(f"Skipping zones with out of bound start_frame {item[0]}...")
+        print(f"\r\033[KSkipping zones with out of bound start_frame {item[0]}...", end="\n")
 
     if item[1] <= -2:
         raise ValueError(f"Invalid end_frame in the zones with value {item[1]}")
     if item[1] > zone_default.source_clip.num_frames:
-        print(f"\033[31mOut of bound end_frame in the zones with value {item[1]}. Clamp end_frame for the zone to {zone_default.source_clip.num_frames}...\033[0m")
-        print(f"Use `-1` as end_frame to silence this out of bound warning.")
+        print(f"\r\033[K\033[31mOut of bound end_frame in the zones with value {item[1]}. Clamp end_frame for the zone to {zone_default.source_clip.num_frames}...\033[0m", end="\n")
+        print(f"\r\033[KUse `-1` as end_frame to silence this out of bound warning.", end="\n")
         item[1] = zone_default.source_clip.num_frames
     if item[1] == -1:
         item[1] = zone_default.source_clip.num_frames
@@ -1089,25 +1126,38 @@ if frame_head != zone_default.source_clip.num_frames:
 for zone in zones:
     if zone["zone"].scene_detection_method == "external":
         if not input_scenes_file:
-            parser.print_usage()
-            print("Progression Boost: error: the following argument is required when `scene_detection_method` is set to `\"external\"` in zones: --input-scenes")
+            print("\r\033[K`scene_detection_method` is set to `\"external\"` in at least one of the active zones. `scene_detection_method` of `\"external\"` requires an external scene to be provided via `--input-scenes`. Missing the required `--input-scenes` parameter.", end="\n")
             raise SystemExit(2)
         
         break
 else:
     if input_scenes_file:
-        print("Progression Boost: warn: the following argument is provided but there are no zones where `scene_detection_method` is set to `\"external\"`: --input-scenes")
+        print("\r\033[KCommandline parameter `--input-scenes` is provided, but there are no active zones that are using it.", end="\n")
+
+for zone in zones:
+    if zone["zone"].metric_enable and zone["zone"].metric_method == "ffvship":
+        if probing_input_file != input_file:
+            if zone["zone"].metric_continue_filtered_with_ffvship:
+                print("\r\033[KYou've set a filtered source to be used for probe encodes via `--encode-input`, but in at least one active zone, `\"ffvship\"` is selected as `metric_method`. `metric_method` of `\"ffvship\"` does not support comparing filtered source against filtered probe encodes. By selecting `\"ffvship\"`, you might be comparing a filtered encode with unfiltered source, which will produce completly unusable metric scores.", end="\n")
+            else:
+                print("\r\033[KYou've set a filtered source to be used for probe encodes via `--encode-input`, but in at least one active zone, `\"ffvship\"` is selected as `metric_method`. `metric_method` of `\"ffvship\"` does not support comparing filtered source against filtered probe encodes. By selecting `\"ffvship\"`, you're now comparing a filtered encode with unfiltered source, which will produce completly unusable metric scores. You should switch to a VapourSynth based methods, and then copy in your filtering chain for `metric_reference`.", end="\n")
+                print("\r\033[KProgression Boost will quit now, but if you know what you're doing, you may let it continue by setting `metric_continue_filtered_with_ffvship` for the related zones.", end="\n")
+                raise SystemExit(2)
+
+        break
 
 for zone in zones:
     if zone["zone"].character_enable:
-        if not roi_maps_dir:
-            parser.print_usage()
-            print("Progression Boost: error: the following argument is required when Character Boost is enabled: --output-roi-maps")
-            raise SystemExit(2)
-        roi_maps_dir.mkdir(parents=True, exist_ok=True)
-
         character_backend = zone_default.character_get_backend()
         character_model = zone_default.character_get_model()
+
+        break
+for zone in zones:
+    if zone["zone"].character_enable and zone["zone"].character_max_roi_boost:
+        if not roi_maps_dir:
+            print("\r\033[KCharacter Boost is enabled in at least one active zone, but commandline parameter `--output-roi-map` is not provided.", end="\n")
+            raise SystemExit(2)
+        roi_maps_dir.mkdir(parents=True, exist_ok=True)
 
         break
 
@@ -1239,7 +1289,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if not scene_detection_diffs_available:
         if scene_detection_perform_av1an or \
-           (scene_detection_perform_vapoursynth and not scene_detection_has_av1an and not scene_detection_has_external):
+           not (scene_detection_perform_vapoursynth and not scene_detection_has_av1an and not scene_detection_has_external):
             scene_detection_measure_frame_luma()
 
     
@@ -1575,6 +1625,7 @@ if metric_has_metric:
 
         command = [
             "av1an",
+            "-y",
             "--temp", probing_tmp_dir,
             "--keep"
         ]
@@ -1596,49 +1647,170 @@ if metric_has_metric:
     probing_first_scenes_file = progression_boost_temp_dir / f"probe-encode-first.scenes.json"
     probing_first_output_file = progression_boost_temp_dir / f"probe-encode-first.mkv"
     probing_first_output_file_lwi = progression_boost_temp_dir / f"probe-encode-first.lwi"
-    probing_first_result_file = progression_boost_temp_dir / f"probe-encode-first.result.json"
+    
+    probing_second_tmp_dir = progression_boost_temp_dir / f"probe-encode-second.tmp"
+    probing_second_scenes_file = progression_boost_temp_dir / f"probe-encode-second.scenes.json"
+    probing_second_output_file = progression_boost_temp_dir / f"probe-encode-second.mkv"
+    probing_second_output_file_lwi = progression_boost_temp_dir / f"probe-encode-second.lwi"
 
-    if not resume or not probing_first_result_file.exists() or not probing_output_file.exists():
+    metric_result_file = progression_boost_temp_dir / f"result.json"
+
+    probing_first_perform_encode = False
+    probing_second_perform_encode = False
+
+    if metric_result_file.exists():
+        with metric_result_file.open("r") as result_f:
+            metric_result = json.load(result_f)
+    else:
+        metric_result = copy.deepcopy(scenes)
+
+    if not resume or not probing_first_output_file.exists():
         probing_first_perform_encode = True
-    else:
-        probing_first_perform_encode = False
-    if not resume or not probing_first_result_file.exists():
-        probing_first_perform_metric = True
-    else:
-        probing_first_perform_metric = False
 
     if probing_first_perform_encode:
-        probing_first_scenes = {}
-        probing_first_scenes["scenes"] = []
-        total_frames = 0
         for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             if zone_scene["zone"].metric_enable:
-                total_frames += zone_scene["end_frame"] - zone_scene["start_frame"]
-                probing_scene = {
-                    "start_frame": zone_scene["start_frame"],
-                    "end_frame": zone_scene["end_frame"],
-                    "zone_overrides": copy.copy(zone_scene["zone_overrides"])
-                }
-                probing_scene["zone_overrides"]["video_params"] = [
-                    "--crf", "24",
-                    "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
-                    *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
-                ]
-                probing_scene["zone_overrides"]["photon_noise"] = None
-                probing_scene["zone_overrides"]["photon_noise_height"] = None
-                probing_scene["zone_overrides"]["photon_noise_width"] = None
-                probing_scene["zone_overrides"]["chroma_noise"] = False
-                probing_first_scenes["scenes"].append(probing_scene)
-        probing_first_scenes["frames"] = total_frames
-                
-        with probing_first_scenes_file.open("w") as probing_scenes_f:
-            json.dump(probing_first_scenes, probing_scenes_f, cls=NumpyEncoder)
+                if "first_score" in metric_result["scenes"][scene_n]:
+                    del metric_result["scenes"][scene_n]["first_score"]
 
-        probing_first_process = probing_perform_probing(probing_first_tmp_dir, probing_first_scenes_file, probing_first_output_file, probing_first_output_file_lwi)
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if "first_score" not in metric_result["scenes"][scene_n]:
+                probing_second_perform_encode = True
+                break
+
+    if not resume or not probing_second_output_file.exists():
+        probing_second_perform_encode = True
+
+    if probing_second_perform_encode:
+        for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+            if zone_scene["zone"].metric_enable:
+                if "second_score" in metric_result["scenes"][scene_n]:
+                    del metric_result["scenes"][scene_n]["second_score"]
+
+    with metric_result_file.open("w") as metric_result_f:
+        json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
+
+if metric_has_metric and probing_first_perform_encode:
+    probing_first_scenes = {}
+    probing_first_scenes["scenes"] = []
+    total_frames = 0
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            metric_result["scenes"][scene_n]["first_qstep"] = 343
+
+            total_frames += zone_scene["end_frame"] - zone_scene["start_frame"]
+            probing_scene = {
+                "start_frame": zone_scene["start_frame"],
+                "end_frame": zone_scene["end_frame"],
+                "zone_overrides": copy.copy(zone_scene["zone_overrides"])
+            }
+            probing_scene["zone_overrides"]["video_params"] = [
+                "--crf", str(np.searchsorted(dc, (metric_result["scenes"][scene_n]["first_qstep"])) / 4),
+                "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
+                *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
+            ]
+            probing_scene["zone_overrides"]["photon_noise"] = None
+            probing_scene["zone_overrides"]["photon_noise_height"] = None
+            probing_scene["zone_overrides"]["photon_noise_width"] = None
+            probing_scene["zone_overrides"]["chroma_noise"] = False
+            probing_first_scenes["scenes"].append(probing_scene)
+    probing_first_scenes["frames"] = total_frames
+    probing_first_scenes["split_scenes"] = probing_first_scenes["scenes"]
+            
+    with probing_first_scenes_file.open("w") as probing_scenes_f:
+        json.dump(probing_first_scenes, probing_scenes_f, cls=NumpyEncoder)
+
+    probing_first_process = probing_perform_probing(probing_first_tmp_dir, probing_first_scenes_file, probing_first_output_file, probing_first_output_file_lwi)
     
 
 if not scene_detection_diffs_available:
     scene_detection_measure_frame_luma()
+
+
+if metric_has_metric:
+    start = time() - 0.000001
+    start_count = -1
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if "frames" not in metric_result["scenes"][scene_n]:
+                start_count += 1
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames / {start_count / (time() - start):.02f} scenes per second", end="")
+
+                rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
+            
+                # These frames are offset from `scene["start_frame"] + 1` and that's why they are offfset, not offset
+                offfset_frames = []
+                
+                scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
+                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
+                picked = 0
+                for offfset_frame in scene_diffs_sort:
+                    if picked >= zone_scene["zone"].metric_highest_diff_frames:
+                        break
+                    to_continue = False
+                    for existing_frame in offfset_frames:
+                        if np.abs(existing_frame - offfset_frame) < zone_scene["zone"].metric_highest_diff_min_separation:
+                            to_continue = True
+                            break
+                    if to_continue:
+                        continue
+                    offfset_frames.append(offfset_frame)
+                    picked += 1
+                
+                if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
+                    offfset_frames.append(zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
+            
+                scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
+                scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
+                scene_diffs_upper_bracket_ = np.argwhere(scene_diffs > scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                scene_diffs_lower_bracket_ = np.argwhere(scene_diffs <= scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                scene_diffs_upper_bracket = np.empty_like(scene_diffs_upper_bracket_)
+                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[:math.ceil(scene_diffs_upper_bracket_.shape[0] / 2)]))
+                scene_diffs_upper_bracket[::2] = scene_diffs_upper_bracket__
+                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[-math.floor(scene_diffs_upper_bracket_.shape[0] / 2):]))
+                scene_diffs_upper_bracket[1::2] = scene_diffs_upper_bracket__
+                scene_diffs_lower_bracket = np.empty_like(scene_diffs_lower_bracket_)
+                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[:math.ceil(scene_diffs_lower_bracket_.shape[0] / 2)]))
+                scene_diffs_lower_bracket[::2] = scene_diffs_lower_bracket__
+                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[-math.floor(scene_diffs_lower_bracket_.shape[0] / 2):]))
+                scene_diffs_lower_bracket[1::2] = scene_diffs_lower_bracket__
+            
+                picked = 0
+                for offfset_frame in scene_diffs_upper_bracket:
+                    if picked >= zone_scene["zone"].metric_upper_diff_bracket_frames:
+                        break
+                    if offfset_frame in offfset_frames:
+                        continue
+                    offfset_frames.append(offfset_frame)
+                    picked += 1
+                
+                if picked < zone_scene["zone"].metric_upper_diff_bracket_fallback_frames:
+                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames + zone_scene["zone"].metric_upper_diff_bracket_fallback_frames - picked
+                else:
+                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
+            
+                if zone_scene["zone"].metric_first_frame >= 1:
+                    offfset_frames.append(-1)
+            
+                picked = 0
+                for offfset_frame in scene_diffs_lower_bracket:
+                    if picked >= to_pick:
+                        break
+                    to_continue = False
+                    for existing_frame in offfset_frames:
+                        if np.abs(existing_frame - offfset_frame) < zone_scene["zone"].metric_lower_diff_bracket_min_separation:
+                            to_continue = True
+                            break
+                    if to_continue:
+                        continue
+                    offfset_frames.append(offfset_frame)
+                    picked += 1
+                    
+                metric_result["scenes"][scene_n]["frames"] = np.sort(offfset_frames) + 1
+
+    if start_count != -1:
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
 
 
 if character_has_character:
@@ -1663,73 +1835,311 @@ avg@ x > avg@ x ? r!
 r@ 1 < r@ 1 ? r!
 r@ -1 > r@ -1 ?""")
 
-    def character_calculate_character(scene_n):
-        character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
+    def character_calculate_character(character_map_file, scene_n):
+        diffs = scene_detection_diffs[scenes["scenes"][scene_n]["start_frame"]:scenes["scenes"][scene_n]["end_frame"]]
+        frames = np.zeros((math.ceil(diffs.shape[0] / 32) * 32 + 1,), dtype=bool)
 
-        if not resume or not character_map_file:
-            character_map = np.empty(((scenes["scenes"][scene_n]["end_frame"] - scenes["scenes"][scene_n]["start_frame"]) // 8, character_block_width * character_block_height), dtype=np.float32)
+        frames[0] = True
+        for frame, diff in enumerate(diffs):
+            if diff >= 0.0012:
+                frames[[math.floor(frame / 4) * 4, math.ceil(frame / 4) * 4]] = True
+                frames[[math.floor(frame / 8) * 8, math.ceil(frame / 8) * 8]] = True
+                frames[[math.floor(frame / 16) * 16, math.ceil(frame / 16) * 16]] = True
+                frames[[math.floor(frame / 32) * 32, math.ceil(frame / 32) * 32]] = True
 
-            clip = character_clip[scenes["scenes"][scene_n]["start_frame"]]
-            for frame_i in range(1, character_map.shape[0]):
-                clip += (character_clip[scenes["scenes"][scene_n]["start_frame"] + frame_i * 8])
+        character_map = np.full(((scenes["scenes"][scene_n]["end_frame"] - scenes["scenes"][scene_n]["start_frame"]) // 4, character_block_width * character_block_height),
+                                np.nan, dtype=np.float32)
 
-            for frame_i, frame in enumerate(clip.frames(backlog=48)):
-                character_map[frame_i] = np.array(frame[0], dtype=np.float32).reshape((-1,))
+        clip = character_clip[int(scenes["scenes"][scene_n]["start_frame"])]
+        clip_map = [0]
+        for i in range(1, character_map.shape[0]):
+            if frames[i * 4]:
+                clip += character_clip[int(scenes["scenes"][scene_n]["start_frame"] + i * 4)]
+                clip_map.append(i)
 
-            np.save(character_map_file, character_map)
+        for i, frame in enumerate(clip.frames(backlog=48)):
+            character_map[clip_map[i]] = np.array(frame[0], dtype=np.float32).reshape((-1,))
 
-    character_head = 0
+        np.save(character_map_file, character_map)
 
-if metric_has_metric and probing_first_perform_encode \
-   and character_has_character:
-    for character_n in range(character_head, len(scenes["scenes"])):
+    character_precalc = 0
+
+if metric_has_metric and probing_first_perform_encode and character_has_character:
+    start = time() - 0.000001
+    start_count = -1
+    for character_n in range(0, len(scenes["scenes"])):
         if zone_scenes["scenes"][character_n]["zone"].character_enable:
-            character_head = character_n
+            character_precalc = character_n
 
             if probing_first_process.poll() is not None:
-                print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation paused", end="\n")
+                print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation paused / {start_count / (time() - start):.02f} scenes per second", end="\n")
                 break
 
-            print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation", end="")
-            character_calculate_character(character_n)
+            character_map_file = character_boost_temp_dir / f"character-{scene_rjust(character_n)}.npy"
+            if not resume or not character_map_file.exists():
+                start_count += 1
+                print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation / {start_count / (time() - start):.02f} scenes per second", end="")
+
+                character_calculate_character(character_map_file, character_n)
     else:
-        character_head = len(scenes["scenes"])
-        print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete", end="\n")
+        character_precalc = len(scenes["scenes"])
+        if start_count != -1:
+            print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
 
 
-probing_first_process.wait()
-assert probing_first_output_file.exists()
+if metric_has_metric and probing_first_perform_encode:
+    probing_first_process.wait()
+    assert probing_first_output_file.exists()
 
-probing_result = copy.deepcopy(scenes)
-# Select frames before kyaraboo?
+if metric_has_metric:
+    for zone in zones:
+        if zone_scene["zone"].metric_enable and zone["zone"].metric_method == "vapoursynth":
+            metric_method_has_vapoursynth = True
+            break
+    else:
+        metric_method_has_vapoursynth = False
+    for zone in zones:
+        if zone_scene["zone"].metric_enable and zone["zone"].metric_method == "ffvship":
+            metric_method_has_ffvship = True
+            break
+    else:
+        metric_method_has_ffvship = False
+
+    if metric_method_has_vapoursynth:
+        metric_processed_reference = {}
+        
+        metric_first = core.lsmas.LWLibavSource(probing_first_output_file.expanduser().resolve(),
+                                                cachefile=probing_first_output_file_lwi.expanduser().resolve())
+        metric_processed_first = {}
+        metric_first_metric_clips = {}
+
+    if metric_method_has_ffvship:
+        metric_ffvship_output_file = progression_boost_temp_dir / "metric-ffvship.json"
+
+    start = time() - 0.000001
+    start_count = -1
+    probing_frame_head = 0
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if "first_score" not in metric_result["scenes"][scene_n]:
+                start_count += 1
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.02f} scenes per second", end="")
+    
+                assert zone_scene["zone"].metric_method in ["ffvship", "vapoursynth"]
+    
+                reference_offset = zone_scene["start_frame"] - probing_frame_head
+                if zone_scene["zone"].metric_method == "vapoursynth":
+                    if zone_scene["zone"] not in metric_processed_reference:
+                        metric_processed_reference[zone_scene["zone"]] = zone_scene["zone"].metric_process(zone_scene["zone"].metric_reference)
+                    if zone_scene["zone"] not in metric_processed_first:
+                        metric_processed_first[zone_scene["zone"]] = zone_scene["zone"].metric_process(metric_first)
+    
+                    if (zone_scene["zone"], reference_offset) not in metric_first_metric_clips:
+                        metric_first_metric_clips[(zone_scene["zone"], reference_offset)] = zone_scene["zone"].metric_vapoursynth_calculate(metric_processed_reference[zone_scene["zone"]][reference_offset:], metric_processed_first[zone_scene["zone"]])
+        
+                    clip = metric_first_metric_clips[(zone_scene["zone"], reference_offset)][int(metric_result["scenes"][scene_n]["frames"][0] + probing_frame_head)]
+                    for frame in metric_result["scenes"][scene_n]["frames"][1:]:
+                        clip += metric_first_metric_clips[(zone_scene["zone"], reference_offset)][int(frame + probing_frame_head)]
+        
+                    scores = [zone_scene["zone"].metric_vapoursynth_metric(frame) for frame in clip.frames(backlog=48)]
+                    
+                elif zone_scene["zone"].metric_method == "ffvship":
+                    metric_ffvship_output_file.unlink(missing_ok=True)
+
+                    command = [
+                        "FFVship",
+                        "--source", input_file,
+                        "--encoded", probing_first_output_file,
+                        "--metric", zone_scene["zone"].metric_ffvship_calculate
+                    ]
+                    if zone_scene["zone"].metric_ffvship_calculate == "Butteraugli" and zone_scene["zone"].metric_ffvship_intensity_target is not None:
+                        command += ["--intensity-target", str(zone_scene["zone"].metric_ffvship_intensity_target)]
+                    command += [
+                        "--json", metric_ffvship_output_file,
+                        "--source-indices", ",".join([str(frame) for frame in (metric_result["scenes"][scene_n]["frames"] + zone_scene["start_frame"])]),
+                        "--encoded-offset", str(-reference_offset),
+                        *zone_scene["zone"].metric_ffvship_extra_parameters
+                    ]
+                    subprocess.run(command, text=True, stdout=subprocess.DEVNULL)
+                    assert metric_ffvship_output_file.exists()
+
+                    with metric_ffvship_output_file.open("r") as metric_output_f:
+                        scores = json.load(metric_output_f)
+                    scores = [zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores]
+                
+                try:
+                    metric_result["scenes"][scene_n]["first_score"] = zone_scene["zone"].metric_summarise(scores)
+                except UnreliableSummarisationError as e:
+                    print(f"\r\033[K{scene_frame_print(scene_n)} / Unreliable summarisation / {str(e)}")
+                    metric_result["scenes"][scene_n]["first_score"] = e.score
+
+            probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
+
+            with metric_result_file.open("w") as metric_result_f:
+                json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
+
+    if start_count != -1:
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
 
 
+if metric_has_metric and probing_second_perform_encode:
+    probing_second_scenes = {}
+    probing_second_scenes["scenes"] = []
+    total_frames = 0
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if zone_scene["zone"].metric_better_metric(metric_result["scenes"][scene_n]["first_score"], zone_scene["zone"].metric_target):
+                metric_result["scenes"][scene_n]["second_qstep"] = 891
+            else:
+                metric_result["scenes"][scene_n]["second_qstep"] = 185
 
+            total_frames += zone_scene["end_frame"] - zone_scene["start_frame"]
+            probing_scene = {
+                "start_frame": zone_scene["start_frame"],
+                "end_frame": zone_scene["end_frame"],
+                "zone_overrides": copy.copy(zone_scene["zone_overrides"])
+            }
+            probing_scene["zone_overrides"]["video_params"] = [
+                "--crf", str(np.searchsorted(dc, (metric_result["scenes"][scene_n]["second_qstep"])) / 4),
+                "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
+                *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
+            ]
+            probing_scene["zone_overrides"]["photon_noise"] = None
+            probing_scene["zone_overrides"]["photon_noise_height"] = None
+            probing_scene["zone_overrides"]["photon_noise_width"] = None
+            probing_scene["zone_overrides"]["chroma_noise"] = False
+            probing_second_scenes["scenes"].append(probing_scene)
+    probing_second_scenes["frames"] = total_frames
+    probing_second_scenes["split_scenes"] = probing_second_scenes["scenes"]
+            
+    with probing_second_scenes_file.open("w") as probing_scenes_f:
+        json.dump(probing_second_scenes, probing_scenes_f, cls=NumpyEncoder)
 
-
-
-
-
-
-
-
-
-
+    probing_second_process = probing_perform_probing(probing_second_tmp_dir, probing_second_scenes_file, probing_second_output_file, probing_second_output_file_lwi)
 
 
 if character_has_character:
-    for character_n in range(character_head, len(scenes["scenes"])):
+    start = time() - 0.000001
+    start_count = -1
+    for character_n in range(character_precalc, len(scenes["scenes"])):
         if zone_scenes["scenes"][character_n]["zone"].character_enable:
-            character_head = character_n
+            character_map_file = character_boost_temp_dir / f"character-{scene_rjust(character_n)}.npy"
+            if not resume or not character_map_file.exists():
+                start_count += 1
+                print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation / {start_count / (time() - start):.02f} scenes per second", end="")
 
-            print(f"\r\033[K{scene_frame_print(character_n)} / Performing character segmentation", end="")
-            character_calculate_character(character_n)
+                character_calculate_character(character_map_file, character_n)
     else:
-        character_head = len(scenes["scenes"])
-        print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete", end="\n")
+        if start_count != -1:
+            if character_precalc == 0:
+                print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+            elif character_precalc != len(scenes["scenes"]):
+                print(f"\r\033[K{scene_frame_print(character_n)} / Character segmentation complete", end="\n")
+
+
+if metric_has_metric and probing_second_perform_encode:
+    probing_second_process.wait()
+    assert probing_second_output_file.exists()
+
+if metric_has_metric:
+    if metric_method_has_vapoursynth:
+        metric_processed_reference = {}
+        
+        metric_second = core.lsmas.LWLibavSource(probing_second_output_file.expanduser().resolve(),
+                                                 cachefile=probing_second_output_file_lwi.expanduser().resolve())
+        metric_processed_second = {}
+        metric_second_metric_clips = {}
+
+    start = time() - 0.000001
+    start_count = -1
+    probing_frame_head = 0
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if "second_score" not in metric_result["scenes"][scene_n]:
+                start_count += 1
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.02f} scenes per second", end="")
+    
+                assert zone_scene["zone"].metric_method in ["ffvship", "vapoursynth"]
+    
+                reference_offset = zone_scene["start_frame"] - probing_frame_head
+                if zone_scene["zone"].metric_method == "vapoursynth":
+                    if zone_scene["zone"] not in metric_processed_reference:
+                        metric_processed_reference[zone_scene["zone"]] = zone_scene["zone"].metric_process(zone_scene["zone"].metric_reference)
+                    if zone_scene["zone"] not in metric_processed_second:
+                        metric_processed_second[zone_scene["zone"]] = zone_scene["zone"].metric_process(metric_second)
+    
+                    if (zone_scene["zone"], reference_offset) not in metric_second_metric_clips:
+                        metric_second_metric_clips[(zone_scene["zone"], reference_offset)] = zone_scene["zone"].metric_vapoursynth_calculate(metric_processed_reference[zone_scene["zone"]][reference_offset:], metric_processed_second[zone_scene["zone"]])
+        
+                    clip = metric_second_metric_clips[(zone_scene["zone"], reference_offset)][int(metric_result["scenes"][scene_n]["frames"][0] + probing_frame_head)]
+                    for frame in metric_result["scenes"][scene_n]["frames"][1:]:
+                        clip += metric_second_metric_clips[(zone_scene["zone"], reference_offset)][int(frame + probing_frame_head)]
+        
+                    scores = [zone_scene["zone"].metric_vapoursynth_metric(frame) for frame in clip.frames(backlog=48)]
+                    
+                elif zone_scene["zone"].metric_method == "ffvship":
+                    metric_ffvship_output_file.unlink(missing_ok=True)
+
+                    command = [
+                        "FFVship",
+                        "--source", input_file,
+                        "--encoded", probing_second_output_file,
+                        "--metric", zone_scene["zone"].metric_ffvship_calculate
+                    ]
+                    if zone_scene["zone"].metric_ffvship_calculate == "Butteraugli" and zone_scene["zone"].metric_ffvship_intensity_target is not None:
+                        command += ["--intensity-target", str(zone_scene["zone"].metric_ffvship_intensity_target)]
+                    command += [
+                        "--json", metric_ffvship_output_file,
+                        "--source-indices", ",".join([str(frame) for frame in (metric_result["scenes"][scene_n]["frames"] + zone_scene["start_frame"])]),
+                        "--encoded-offset", str(-reference_offset),
+                        *zone_scene["zone"].metric_ffvship_extra_parameters
+                    ]
+                    subprocess.run(command, text=True, stdout=subprocess.DEVNULL)
+                    assert metric_ffvship_output_file.exists()
+
+                    with metric_ffvship_output_file.open("r") as metric_output_f:
+                        scores = json.load(metric_output_f)
+                    scores = [zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores]
+                
+                try:
+                    metric_result["scenes"][scene_n]["second_score"] = zone_scene["zone"].metric_summarise(scores)
+                except UnreliableSummarisationError as e:
+                    print(f"\r\033[K{scene_frame_print(scene_n)} / Unreliable summarisation / {str(e)}")
+                    metric_result["scenes"][scene_n]["second_score"] = e.score
+
+            probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
+
+            with metric_result_file.open("w") as metric_result_f:
+                json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
+
+    if start_count != -1:
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+
+
+
+
+
+
+# 0.90 32
+# 0.70 16
+# 0.50  8
+# 0.45  4
 
 
 raise SystemExit(0)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1744,7 +2154,7 @@ metric_clips = metric_process(metric_clips)
 
 start = time() - 0.000001
 for i, scene in enumerate(scenes["scenes"]):
-    print(f"\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Calculating boost / {i / (time() - start):.02f} scenes per second", end="\r")
+    print(f"\r\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Calculating boost / {i / (time() - start):.02f} scenes per second", end="")
     printing = False
 
     rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
@@ -1971,16 +2381,6 @@ if scenes_file:
     with scenes_file.open("w") as scenes_f:
         json.dump(scenes, scenes_f, cls=NumpyEncoder)
 print(f"\033[K{metric_scene_frame_print(i, scene["start_frame"], scene["end_frame"])} / Boost calculation complete / {(i + 1) / (time() - start):.02f} scenes per second")
-
-
-
-
-
-
-
-
-
-
 
 
 
