@@ -66,7 +66,7 @@ group.add_argument("--zones", type=Path, help="Zones file for Progression Boost.
 group.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
 parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output scenes file with file extension replaced by „.boost.tmp“)")
 parser.add_argument("-r", "--resume", action="store_true", help="Resume from the temporary folder. By enabling this option, Progression Boost will reuse finished or unfinished testing encodes. This should be disabled should the parameters for test encode be changed")
-parser.add_argument("--verbose", action="count", default=0, help="Report how each module of Progression Boost boosts the scenes")
+parser.add_argument("-v", "--verbose", action="count", default=0, help="Report more details of Progression Boost. This parameter can be specified up to 2 times")
 args = parser.parse_args()
 input_file = args.input
 probing_input_file = args.encode_input
@@ -200,6 +200,14 @@ class DefaultZone:
 # zoneable, but you can write VapourSynth code to `core.std.Splice` it
 # yourself. Make sure you do the same for `--encode-input` and final
 # encode as well.
+# ---------------------------------------------------------------------
+# We highly recommend using a SVT-AV1 derived encoder that supports
+# quarterstep `--crf`, which includes all the major forks from
+# SVT-AV1-PSY, such as svt-av1-psyex, 5fish/SVT-AV1-PSY, and
+# SVT-AV1-HDR. However, if you don't have that luxury, and your encoder
+# reported unrecognised `--crf`, you can disable this at the expense of
+# precision.
+    quarterstep_crf = True
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -594,7 +602,7 @@ class DefaultZone:
         return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" --chunk-method {self.source_provider} --encoder svt-av1 --concat mkvmerge --force --video-params").split() + \
+              + f" --chunk-method {self.source_provider} --encoder svt-av1 --audio-params -an --concat mkvmerge --force --video-params").split() + \
                 [message]
 
 # These are the photon noise parameters for your final encode. These
@@ -623,36 +631,51 @@ class DefaultZone:
 # When calculating metric, we don't need to calculate it for every
 # single frame. It's very common for anime to have 1 frame of animation
 # every 2 to 3 frames. It's not only meaningless trying to calculate
-# repeating frames, it's actually dangerous because it will dilute the
-# data and make the few bad frames less arithmetically significant.
+# repeating frames, it's actually very dangerous because it will dilute
+# the data and make the few bad frames less arithmetically significant.
 #
-# We will first pick a few frames with the highest diffs. These are the
-# frames that are most likely to be bad. However, the fact that this
-# disproportionately picks the bad frames means it would not be very
-# representative if you're using a mean-based method to summarise the
-# data later. Keep the number of frames picked here at a modest amount
-# if you're using a mean-based method. If you're using a percentile-
-# based method to boost the worst frames, you can consider picking half
-# of the frames you're measuring here. Although do note that this way
-# the percentile you're measuring no longer represents the percentile
-# of the whole scene, but just the percentile of the frames you pick.
+# First, we have two methods to selectively pick the frames that are
+# most likely to be bad out. This is to make sure that we don't
+# actually miss these frames.
+# You may have realised that since we're disproportionately picks the
+# bad frames, the eventual mean or percentile we will calculate is no
+# longer the real mean or percentile across the video, but just the
+# mean or percentile of the frames we've picked. How aggressive we pick
+# these frames also affects how aggressive the eventual boost would be.
+# If you're using a mean-based method to summarise the data later, keep
+# the number of frames picked here at a modest amount, such as one
+# third of the total amount of frames picked. If you're using a
+# percentile-based method to boost the worst frames, you can consider
+# picking half of the frames you're measuring here. However, under no
+# circumstance should you pick 0 frames here.
+#
+# The first method to pick the likely bad frame is to measure how much
+# difference there are between the frame and the frame before it.
     metric_highest_diff_frames = 8
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
     metric_highest_diff_min_separation = 4
+# The second method to pick the likely bad frame is to calculate the
+# raw pixel by pixel difference between the source and the first probe
+# encode. This is the most rudimentary of metric, but it works
+# surprisingly well.
+    metric_highest_probing_diff_frames = 4
 #
-# Then we will separate the frames into two brackets at 2 times MAD but
-# based on the 40th percentile instead of mean value. The lower bracket
-# are most likely be repeating frames that are the same as their
-# previous frames, and the upper bracket are most likely to be frames
-# we want to measure.
+# After that, we now use a randomiser to select frames across the whole
+# scene. It's common for anime to have 1 new frame followed by 2 to 4
+# repeating frame that are exactly the same as the frame before.
+# To adapt to this frakn arrangement, we separate the frames into two
+# brackets at 2 times MAD but based on the 40th percentile instead of
+# median value. The lower bracket are most likely be repeating frames,
+# and the upper bracket are most likely to be frames we want to
+# measure.
 # A good starting point for a mean-based method is to measure 6 and 3
 # frames respectively from each bracket. If you have the computing
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 16
+    metric_upper_diff_bracket_frames = 12
     metric_lower_diff_bracket_frames = 0
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
@@ -663,7 +686,7 @@ class DefaultZone:
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 10
+    metric_upper_diff_bracket_fallback_frames = 8
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
@@ -735,45 +758,63 @@ class DefaultZone:
 
 # To use Butteraugli 3Norm via FFVship or vship, uncomment the lines
 # below.
+    # metric_better = np.less
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"]
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = None
     # metric_ffvship_metric = lambda self, frame: frame[1]
-    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"]
-    # metric_better = np.less
 
-# To use Butteraugli INFNorm via FFVship or vship, uncomment the lines
-# below.
+# Butteraugli 3Norm takes the average score over the whole frame, and
+# it will not reflect if only a tiny fraction of the frame is bad. This
+# is especially damaging in scenes where the majority of the background
+# is still and has good quality, and only the character is moving and
+# is encoded badly. 3Norm alone won't be able to reflect how bad the
+# character is, which is where INFNorm comes in. INFNorm on its own is
+# very, very sensitive, and we would not recommend using INFNorm
+# directly even aiming for the highest quality targets. Instead we
+# offers the following two options.
+# The first one only mixes in INFNorm score if INFNorm score is more
+# than 10 times the 3Norm score. This is more suitable for regular
+# medium quality boosting.
+    # metric_better = np.less
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # def metric_vapoursynth_metric(self, frame):
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.024 - frame.props["_BUTTERAUGLI_3Norm"] * 0.24
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = None
-    # metric_ffvship_metric = lambda self, frame: frame[2]
-    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_INFNorm"]
-    # metric_better = np.less
+    # def metric_ffvship_metric(self, frame):
+    #     adjustment = frame[2] * 0.024 - frame[1] * 0.24
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame[1] + adjustment
 
-# During testing, we found that Butteraugli 3Norm with a tiny spice of
-# Butteraugli INFNorm performs very well when targeting high quality
-# targets. Butteraugli 3Norm ensures a good baseline measurement, while
-# the tiny spice of Butteraugli INFNorm patches some of the small
-# issues Butteraugli 3Norm missed.
+# The second option always mixes in 2.6% INFNorm on top of 3Norm score
+# and is suitable for the highest quality boosting targets.
+    metric_better = np.less
+    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.026
     metric_ffvship_calculate = "Butteraugli"
     metric_ffvship_intensity_target = None
-    metric_ffvship_metric = lambda self, frame: frame[1] * 0.975 + frame[2] * 0.025
-    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] * 0.975 + frame.props["_BUTTERAUGLI_INFNorm"] * 0.025
-    metric_better = np.less
+    metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.026
 
-# To use SSIMU2 via FFVship or vship, uncomment the lines below.
-    # metric_ffvship_calculate = "SSIMULACRA2"
-    # metric_ffvship_metric = lambda self, frame: frame[0]
+# Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
+# very sensitive to fine details, but it is faster, and is good enough
+# for medium and low quality encodes. To use SSIMU2 via FFVship or
+# vship, uncomment the lines below.
+    # metric_better = np.greater
     # metric_vapoursynth_calculate = core.vship.SSIMULACRA2
     # metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
-    # metric_better = np.greater
+    # metric_ffvship_calculate = "SSIMULACRA2"
+    # metric_ffvship_metric = lambda self, frame: frame[0]
 
 # To use SSIMU2 via vszip, uncomment the lines below.
+    # metric_better = np.greater
     # metric_vapoursynth_calculate = core.vszip.SSIMULACRA2
     # metric_vapoursynth_metric = lambda self, frame: frame.props["SSIMULACRA2"]
-    # metric_better = np.greater
 # ---------------------------------------------------------------------
 # After calcuating metric for frames, we summarise the quality for each
 # scene into a single value. There are three common way for this.
@@ -943,7 +984,7 @@ class DefaultZone:
 # consistency, and then hyperboost character here.
 #
 # The number here should be positive.
-    character_max_crf_boost = 2.50
+    character_max_crf_boost = 3.00
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
@@ -956,7 +997,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.50
+    character_max_motion_crf_boost = 4.00
 # ---------------------------------------------------------------------
 # Select vs-mlrt backend for image segmentation model here. You should
 # always use `fp16=True`. The resolution required for Character Boost
@@ -1313,12 +1354,12 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_min = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
         scene_detection_max = np.empty((scene_detection_luma_clip.num_frames,), dtype=np.float32)
         for current_frame, frame in enumerate(scene_detection_luma_clip.frames(backlog=48)):
-            print(f"\r\033[K{frame_print(current_frame)} / Measuring frame luminance / {current_frame / (time() - start):.02f} fps", end="\r")
+            print(f"\r\033[K{frame_print(current_frame)} / Measuring frame luminance / {current_frame / (time() - start):.2f} fps", end="\r")
             scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
             scene_detection_average[current_frame] = frame.props["LumaAverage"]
             scene_detection_min[current_frame] = frame.props["LumaMin"]
             scene_detection_max[current_frame] = frame.props["LumaMax"]
-        print(f"\r\033[K{frame_print(current_frame + 1)} / Frame luminance measurement complete / {(current_frame + 1) / (time() - start):.02f} fps", end="\n")
+        print(f"\r\033[K{frame_print(current_frame + 1)} / Frame luminance measurement complete / {(current_frame + 1) / (time() - start):.2f} fps", end="\n")
         
         np.savetxt(scene_detection_diffs_file, scene_detection_diffs, fmt="%.9f")
         np.savetxt(scene_detection_average_file, scene_detection_average, fmt="%.9f")
@@ -1373,7 +1414,7 @@ if not resume or not scene_detection_scenes_file.exists():
                 start = time() - 0.000001
                 for offset_frame, frame in enumerate(scene_detection_clip.frames(backlog=48)):
                     current_frame = zone["start_frame"] + offset_frame
-                    print(f"\r\033[K{frame_print(current_frame)} / Detecting scenes / {offset_frame / (time() - start):.02f} fps", end="")
+                    print(f"\r\033[K{frame_print(current_frame)} / Detecting scenes / {offset_frame / (time() - start):.2f} fps", end="")
 
                     if not scene_detection_diffs_available:
                         scene_detection_diffs[current_frame] = frame.props["LumaDiff"]
@@ -1393,7 +1434,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                         scene_detection_max[current_frame] < 3.875 * 2 ** (scene_detection_bits - 8)
 
                     if luma_scenecut or luma_scenecut_prev:
-                        diffs[offset_frame] = scene_detection_diffs[current_frame] + 1.18
+                        diffs[offset_frame] = scene_detection_diffs[current_frame] + 1.15
                     else:
                         diffs[offset_frame] = scene_detection_diffs[current_frame] + scene_detection_scenecut
 
@@ -1849,8 +1890,6 @@ for zone_scene in zone_scenes["scenes"]:
 # ██████  ██████  ██    ██ ██████  ██ ██ ██  ██ ██   ███ █████ █████   ██ ██████  ███████    ██    
 # ██      ██   ██ ██    ██ ██   ██ ██ ██  ██ ██ ██    ██       ██      ██ ██   ██      ██    ██    
 # ██      ██   ██  ██████  ██████  ██ ██   ████  ██████        ██      ██ ██   ██ ███████    ██    
-#
-# ANSI Regular FIGlet font
 
 
 scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
@@ -1964,10 +2003,17 @@ if metric_has_metric and probing_first_perform_encode:
                 "end_frame": zone_scene["end_frame"],
                 "zone_overrides": copy.copy(zone_scene["zone_overrides"])
             }
-            probing_scene["zone_overrides"]["video_params"] = [
-                "--crf", str((np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4),
-                "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
-                *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
+            if zone_scene["zone"].quarterstep_crf:
+                probing_scene["zone_overrides"]["video_params"] = [
+                    "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4:.2f}"
+                ]
+            else:
+                probing_scene["zone_overrides"]["video_params"] = [
+                    "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4:.0f}"
+                ]
+            probing_scene["zone_overrides"]["video_params"] += [
+                "--preset", f"{zone_scene["zone"].probing_preset}",
+                *zone_scene["zone"].probing_dynamic_parameters(crf=(np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4)
             ]
             probing_scene["zone_overrides"]["photon_noise"] = None
             probing_scene["zone_overrides"]["photon_noise_height"] = None
@@ -1995,7 +2041,7 @@ if metric_has_metric:
             if "frames" not in metric_result["scenes"][scene_n]:
                 start_count += 1
                 if verbose < 2:
-                    print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames / {start_count / (time() - start):.02f} scenes per second", end="")
+                    print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames / {start_count / (time() - start):.0f} scenes per second", end="")
                 if verbose >= 2:
                     print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames", end="")
 
@@ -2083,7 +2129,7 @@ if metric_has_metric:
         json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
 
     if start_count != -1:
-        print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection complete / {(start_count + 1) / (time() - start):.0f} scenes per second", end="\n")
 
 
 if character_has_character:
@@ -2159,19 +2205,19 @@ if metric_has_metric and probing_first_perform_encode and character_has_characte
             character_precalc = scene_n
 
             if probing_first_process.poll() is not None:
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation paused / {start_count / (time() - start):.02f} scenes per second", end="\n")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation paused / {start_count / (time() - start):.2f} scenes per second", end="\n")
                 break
 
             character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
             if not resume or not character_map_file.exists() or "kyara" not in character_kyara["scenes"][scene_n]:
                 start_count += 1
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Performing character segmentation / {start_count / (time() - start):.02f} scenes per second", end="")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Performing character segmentation / {start_count / (time() - start):.2f} scenes per second", end="")
 
                 character_calculate_character(character_map_file, scene_n)
     else:
         character_precalc = len(scenes["scenes"])
         if start_count != -1:
-            print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+            print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
 
 
 if metric_has_metric and probing_first_perform_encode:
@@ -2210,7 +2256,7 @@ if metric_has_metric:
         if zone_scene["zone"].metric_enable:
             if "first_score" not in metric_result["scenes"][scene_n]:
                 start_count += 1
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.02f} scenes per second", end="")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.2f} scenes per second", end="")
     
                 assert zone_scene["zone"].metric_method in ["ffvship", "vapoursynth"], "Invalid `metric_method`. Please check your config inside `Progression-Boost.py`."
     
@@ -2266,7 +2312,7 @@ if metric_has_metric:
                 json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
 
     if start_count != -1:
-        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
 
 
 # ██████  ██████   ██████  ██████  ██ ███    ██  ██████        ███████ ███████  ██████  ██████  ███    ██ ██████  
@@ -2274,8 +2320,6 @@ if metric_has_metric:
 # ██████  ██████  ██    ██ ██████  ██ ██ ██  ██ ██   ███ █████ ███████ █████   ██      ██    ██ ██ ██  ██ ██   ██ 
 # ██      ██   ██ ██    ██ ██   ██ ██ ██  ██ ██ ██    ██            ██ ██      ██      ██    ██ ██  ██ ██ ██   ██ 
 # ██      ██   ██  ██████  ██████  ██ ██   ████  ██████        ███████ ███████  ██████  ██████  ██   ████ ██████  
-#
-# ANSI Regular FIGlet font
 
 
 if metric_has_metric and probing_second_perform_encode:
@@ -2295,10 +2339,17 @@ if metric_has_metric and probing_second_perform_encode:
                 "end_frame": zone_scene["end_frame"],
                 "zone_overrides": copy.copy(zone_scene["zone_overrides"])
             }
-            probing_scene["zone_overrides"]["video_params"] = [
-                "--crf", str((np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4),
-                "--preset", str(zone_scenes["scenes"][scene_n]["zone"].probing_preset),
-                *zone_scenes["scenes"][scene_n]["zone"].probing_dynamic_parameters(crf=24)
+            if zone_scene["zone"].quarterstep_crf:
+                probing_scene["zone_overrides"]["video_params"] = [
+                    "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4:.2f}"
+                ]
+            else:
+                probing_scene["zone_overrides"]["video_params"] = [
+                    "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4:.0f}"
+                ]
+            probing_scene["zone_overrides"]["video_params"] += [
+                "--preset", f"{zone_scene["zone"].probing_preset}",
+                *zone_scene["zone"].probing_dynamic_parameters(crf=(np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4)
             ]
             probing_scene["zone_overrides"]["photon_noise"] = None
             probing_scene["zone_overrides"]["photon_noise_height"] = None
@@ -2322,13 +2373,13 @@ if character_has_character:
             character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
             if not resume or not character_map_file.exists() or "kyara" not in character_kyara["scenes"][scene_n]:
                 start_count += 1
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Performing character segmentation / {start_count / (time() - start):.02f} scenes per second", end="")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Performing character segmentation / {start_count / (time() - start):.2f} scenes per second", end="")
 
                 character_calculate_character(character_map_file, scene_n)
     else:
         if start_count != -1:
             if character_precalc == 0:
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
             elif character_precalc != len(scenes["scenes"]):
                 print(f"\r\033[K{scene_frame_print(scene_n)} / Character segmentation complete", end="\n")
 
@@ -2353,7 +2404,7 @@ if metric_has_metric:
         if zone_scene["zone"].metric_enable:
             if "second_score" not in metric_result["scenes"][scene_n]:
                 start_count += 1
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.02f} scenes per second", end="")
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.2f} scenes per second", end="")
     
                 reference_offset = zone_scene["start_frame"] - probing_frame_head
                 if zone_scene["zone"].metric_method == "vapoursynth":
@@ -2407,7 +2458,12 @@ if metric_has_metric:
                 json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
 
     if start_count != -1:
-        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.02f} scenes per second", end="\n")
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
+
+    if verbose >= 2:
+        for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+            if zone_scene["zone"].metric_enable:
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Metric result / first_qstep {metric_result["scenes"][scene_n]["first_qstep"]} / first_score {metric_result["scenes"][scene_n]["first_score"]:.3f} / second_qstep {metric_result["scenes"][scene_n]["second_qstep"]} / second_score {metric_result["scenes"][scene_n]["second_score"]:.3f}", end="\n")
 
 
 # ███████ ██ ███    ██  █████  ██      
@@ -2415,8 +2471,6 @@ if metric_has_metric:
 # █████   ██ ██ ██  ██ ███████ ██      
 # ██      ██ ██  ██ ██ ██   ██ ██      
 # ██      ██ ██   ████ ██   ██ ███████ 
-#
-# ANSI Regular FIGlet font
 
 
 final_scenes = copy.deepcopy(scenes)
@@ -2424,11 +2478,9 @@ final_crf_frames = np.zeros((10,), dtype=np.int32)
 start = time() - 0.000001
 for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     if verbose < 1:
-        print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating boost / {scene_n / (time() - start):.02f} scenes per second", end="")
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating boost / {scene_n / (time() - start):.0f} scenes per second", end="")
     if verbose >= 1:
-        if scene_n == 0:
-            print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating boost", end="\n")
-        print(f"\r\033[K{scene_frame_print(scene_n)} / `--crf` / ", end="")
+        print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating boost / --crf / ", end="", flush=True)
 
     if zone_scene["zone"].metric_enable:
         assert "first_qstep" in metric_result["scenes"][scene_n], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
@@ -2437,58 +2489,74 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         assert "second_score" in metric_result["scenes"][scene_n], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
 
         if verbose >= 1:
-            print(f"Progression Boost ", end="")
+            print(f"Progression Boost ", end="", flush=True)
 
-        def metric_linear():
+        def metric_linear(readjusting):
             fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]],
                                  [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
                                  1)
             qstep = fit(zone_scene["zone"].metric_target)
 
-            preset_crf = np.interp(qstep, dc, dc_X) / 4
-            preset_crf = np.clip(preset_crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
-            preset = zone_scene["zone"].metric_dynamic_preset(preset_crf)
-            if verbose >= 1:
-                print(f"original {preset_crf:.2f} / ", end="")
-
-            # if qstep > 343:
-            #     qstep = (qstep - 343) * PRESET_READJUSTMENT!!![preset] + 343 # TODO
             crf = np.interp(qstep, dc, dc_X) / 4
             crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
+            preset = zone_scene["zone"].metric_dynamic_preset(crf)
             if verbose >= 1:
-                print(f"readjusted {crf:.2f} / ", end="")
+                print(f"original {crf:>5.2f} / ", end="", flush=True)
+
+            if readjusting:
+                readjusted_second_score = metric_result["scenes"][scene_n]["second_score"]
+                if preset <= 5 and zone_scene["zone"].probing_preset >= 6:
+                    if preset <= -1:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.63
+                    elif preset <= 0:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.60
+                    elif preset <= 2:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.54
+                    else:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.30
+
+                fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], readjusted_second_score],
+                                     [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
+                                     1)
+                qstep = fit(zone_scene["zone"].metric_target)
+
+                crf = np.interp(qstep, dc, dc_X) / 4
+                crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
+
+            if verbose >= 1:
+                print(f"readjusted {crf:>5.2f} / ", end="", flush=True)
 
             return crf, preset
 
         if metric_result["scenes"][scene_n]["first_qstep"] < metric_result["scenes"][scene_n]["second_qstep"]:
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]):
-                crf, preset = metric_linear()
+                crf, preset = metric_linear(readjusting=True)
             else:
-                crf = np.interp(metric_result["scenes"][scene_n]["first_qstep"], dc, dc_X) / 4
+                crf = np.interp(np.mean([metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]]), dc, dc_X) / 4
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
                 preset = zone_scene["zone"].metric_dynamic_preset(crf)
                 if verbose >= 1:
-                    print(f"fallback {crf:.2f} / ", end="")
+                    print(f"fallback {crf:>5.2f} / ", end="", flush=True)
         else: # second_qstep < first_qstep
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["second_score"], metric_result["scenes"][scene_n]["first_score"]):
-                crf, preset = metric_linear()
+                crf, preset = metric_linear(readjusting=False)
             else:
                 crf = np.min([zone_scene["zone"].metric_unreliable_crf_fallback(), (np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4])
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
                 preset = zone_scene["zone"].metric_dynamic_preset(crf)
                 if verbose >= 1:
-                    print(f"fallback {crf:.2f} / ", end="")
+                    print(f"fallback {crf:>5.2f} / ", end="", flush=True)
         crf = zone_scene["zone"].metric_dynamic_crf(crf)
     else:
         crf = zone_scene["zone"].metric_disabled_crf
         crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
         preset = zone_scene["zone"].metric_dynamic_preset(crf)
         if verbose >= 1:
-            print(f"Starting {crf:.2f} / ", end="")
+            print(f"Starting {crf:>5.2f} / ", end="", flush=True)
 
     if zone_scene["zone"].character_enable:
         if verbose >= 1:
-            print(f"Character Boost ", end="")
+            print(f"Character Boost ", end="", flush=True)
 
         character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
 
@@ -2540,7 +2608,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                 line[1] += needed_offset
             crf -= needed_offset / 4
             if verbose >= 1:
-                print(f"ROI map {crf:.2f} / ", end="")
+                print(f"ROI map {crf:>5.2f} / ", end="", flush=True)
 
             roi_map_file = roi_maps_dir / f"roi-map-{scene_rjust(i)}.txt"
             with roi_map_file.open("w") as roi_map_f:
@@ -2554,7 +2622,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_hiritsu = 1.00
         crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
         if verbose >= 1:
-            print(f"`--crf` {crf:.2f} / ", end="")
+            print(f"--crf {crf:>5.2f} / ", end="", flush=True)
         
         character_diff = character_map[np.any(~np.isnan(character_map), axis=1)]
         character_diff = np.sum(np.diff(character_diff, axis=0)) / (character_map.shape[0] * character_map.shape[1])
@@ -2563,12 +2631,12 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_diff = 1.00
         crf -= zone_scene["zone"].character_max_motion_crf_boost * character_diff
         if verbose >= 1:
-            print(f"motion `--crf` {crf:.2f} / ", end="")
+            print(f"motion --crf {crf:>5.2f} / ", end="", flush=True)
 
     crf = np.max([crf, zone_scene["zone"].final_min_crf])
     crf = np.round(crf / 0.25) * 0.25
     if verbose >= 1:
-        print(f"Final {crf:.2f}", end="\n")
+        print(f"Final {f"{crf:>5.2f}" if zone_scene["zone"].quarterstep_crf else f"{crf:.0f}"}", end="\n", flush=True)
 
     final_crf_frames[np.min([math.floor(crf / 10), final_crf_frames.shape[0] - 1])] += zone_scene["end_frame"] - zone_scene["start_frame"]
 
@@ -2576,7 +2644,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         "encoder": "svt_av1",
         "passes": 1,
         "video_params": [
-            "--crf", f"{crf:.2f}",
+            "--crf", (f"{crf:.2f}" if zone_scene["zone"].quarterstep_crf else f"{crf:.0f}"),
             "--preset", f"{preset}",
             *zone_scene["zone"].final_dynamic_parameters(crf)
         ],
@@ -2596,16 +2664,14 @@ final_scenes["split_scenes"] = final_scenes["scenes"]
 with scenes_file.open("w") as scenes_f:
     json.dump(final_scenes, scenes_f, cls=NumpyEncoder)
 
-print(f"\r\033[K{scene_frame_print(scene_n)} / Boost calculation complete / {(scene_n + 1) / (time() - start):.02f} scenes per second", end="\n")
+print(f"\r\033[K{scene_frame_print(scene_n)} / Boost calculation complete / {(scene_n + 1) / (time() - start):.0f} scenes per second", end="\n")
 
 for section in range((nonzero_crf_frames := np.nonzero(final_crf_frames)[0])[0], nonzero_crf_frames[-1] + 1):
-    print(f"\r\033[KBoosting result", end="")
-    if section == 0:
-        print(f" / `--crf [ 0.00 ~  9.75]`: ", end="")
+    print(f"\r\033[KFrame [{frame_rjust(scenes["scenes"][0]["start_frame"])}:{frame_rjust(scenes["scenes"][-1]["end_frame"])}] / Boosting result", end="")
     if section == final_crf_frames.shape[0] - 1:
-        print(f" / `--crf  {section * 10:.2f}+`:         ", end="")
+        print(f" / --crf  {section * 10:.2f}+         ", end="")
     else:
-        print(f" / `--crf [{section * 10:.2f} ~ {(section + 1) * 10 - 0.25:.2f}]`: ", end="")
-    print(f"{final_crf_frames[section]} frames", end="\n")
+        print(f" / --crf [{section * 10:>5.2f} ~ {(section + 1) * 10 - 0.25:>5.2f}] ", end="")
+    print(f"{frame_rjust(final_crf_frames[section])} frames", end="\n")
 
 print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progression Boost finished", end="\n")
