@@ -53,9 +53,9 @@ Explanation for picking between Butteraugli and SSIMU2 is also available in the 
 
 Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`.  
 
-| Preset |
-| :-- |
-| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) |
+| Preset | Explained |
+| :-- | :-- |
+| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Scene Detection only. |
 
 ### Dependencies
 
