@@ -2,7 +2,7 @@
 
 # Progression Boost
 
-> *New version using only 2 probe encodes coming soon! The new version will be much faster and more capable → [new](../../tree/new) (Not complete yet)*  
+> *New version using only 2 probe encodes coming soon! The new version will be much faster and more capable → [master](../../tree/master) (Not complete yet)*  
 
 ### Introduction
 
