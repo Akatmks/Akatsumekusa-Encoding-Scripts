@@ -8,15 +8,15 @@
 
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# The guide and config starts approximately 50 lines below this. Start
+# The guide and config starts approximately 80 lines below this. Start
 # reading from there.
 #
-# Also, if you don't want to do a lot of tinkering and just want to get  # <<<<  Do you want a good result fast?  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# a good result fast (one that's better than av1an's                     # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
-# `--target-quality`!). You would only need to change about three        # <<<<  settings.  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# options below. Go down, and only read paragraphs that have arrows on   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# the right just like this very paragraph. There will be more guides     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# below to lead you!                                                     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# For the people that don't want too much tinkering and only want to     # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
+# adjust the most basic options and get a good result fast (one that's   # <<<<  guide and settings.  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# better than av1an's `--target-quality`!), you would only need to       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# change three options below. Go down, and only read paragraphs that     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# have arrows on the right just like this very paragraph. There will be  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# more guides below to lead you!                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -101,15 +101,28 @@ class UnreliableSummarisationError(Exception):
 
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# Before everything, the codes above are for commandline arguments.      # <<<<  Do you want a good result fast?  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# The commandline arguments are only for specifying inputs and outputs   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Before everything, the codes above are for commandline arguments.      # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
+# The commandline arguments are only for specifying inputs and outputs   # <<<<  guide and settings.  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # while all encoding settings need to be modified within the script      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # starting below.                                                        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # 
-# To run the script, use `python Progression-Boost.py --input 01.mkv     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# --output-scenes 01.scenes.json --temp 01.boost.tmp`, or read the help  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# for all commandline arguments using `python Progression-Boost.py       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# --help`.                                                               # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# To run the script, if you're using a preset with Character Boost, use  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ```sh
+# python Progression-Boost.py --input INPUT.mkv --output-scenes OUTPUT.scenes.json --output-roi-maps OUTPUT.roi-maps
+# ```
+# If you're not using Character Boost, omit the last part and use        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ```sh
+# python Progression-Boost.py --input INPUT.mkv --output-scenes OUTPUT.scenes.json
+# ```
+# Read the help for all commandline arguments using                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ```sh
+# python Progression-Boost.py --help
+# ```
+#
+# After you've run Progression Boost, run av1an for the final encode:    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ```sh
+# av1an -i INPUT.mkv -o OUTPUT.mkv --scenes OUTPUT.scenes.json --workers WORKERS
+# ```
 #
 # On this note, if you don't like anything you see anywhere in this
 # script, pull requests are always welcome.
@@ -120,15 +133,32 @@ class UnreliableSummarisationError(Exception):
 # presets. The difference is only the default value selected. Of course  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # as you continue reading, you can always adjust the values for your
 # needs.
+
+# Here are the guide to the most necessary settings.                     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
-# That's said, if you don't want a lot of tinkering, and you want to     # <<<<  Do you want a good result fast?  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# get a result fast, provided that you've selected a proper preset, the  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# only thing you would need to adjust is the following three variables.  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# Search for this in the file, set it to fit your needs, and you're      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# good to go!                                                            # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# * `testing_parameters`                                                 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# * `final_parameters`                                                   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# First, here are the settings for the encoder's encoding parameters.    # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
+# If you've selected one of the 8 presets with regular metric based      # <<<<  guide and settings for presets with regular metric based  <<<<
+# boosting, you need to adjust these 3 parameters:                       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `metric_dynamic_preset`                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `probing_dynamic_parameters`                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `final_dynamic_parameters`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# If you've selected the preset with Character Boost only or the Scene   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Detection preset, you need to adjust these 3 parameters:               # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `metric_disabled_crf`                                                # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `metric_dynamic_preset`                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `final_dynamic_parameters`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#
+# If you've selected one of the 8 presets with regular metric based      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# boosting, this is the only necessary parameter to adjust for metric:   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `metric_target`                                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#
+# Search for these keywords inside the file and you'll be right          # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# there. The <<< pattern on the right will also lead you to there.       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#
+# If you've selected any of the 5 presets with Character Boost, you can
+# of course leave Character Boost as is and it will do its job, but if
+# you want to adjust, search for `Section: Character Boost`, and you'll
+# be able to adjust there.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Progression Boost has three separate modules, Scene Detection,
@@ -316,7 +346,7 @@ class DefaultZone:
 # the OP and ED but not in the main episode, we've created a zone spec
 # for this exact situation. Once you've read through the guide and
 # understand how to use zones, you can set VapourSynth based scene
-# detection here as  default and then use the builtin_av1an zone for OP
+# detection here as default and then use the builtin_av1an zone for OP
 # and ED.
 
 # You can also provide your own scene detection via `--input-scenes`.
@@ -477,12 +507,12 @@ class DefaultZone:
 # before this function and there are no clamps after this function.
         return crf
 
-# At last, if you've disabled this Progression Boost module, and you
-# only want Character Boost, set a base `--crf` here. This value has no
-# effect if Progression Boost module is enabled.
+# At last, if you've disabled this Progression Boost module, and you     # <<<<  Adjust this if you're using the Character Boost only or  <<<<<
+# only want Character Boost, set a base `--crf` here. This value has no  # <<<<  Scene Detection preset that skips metric based boosting.  <<<<
+# effect if Progression Boost module is enabled.                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # This `--crf` value will also be clamped by `metric_min_crf` and
-# `metric_max_crf`.
+# `metric_max_crf`.                                                      # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     metric_disabled_crf = 28.00
 
 # Although we already clamp once for Progression Boost module above,
@@ -517,9 +547,9 @@ class DefaultZone:
 # waste time on boosting.
     probing_preset = 7
 
-# We'll now set the `--preset` for the output scenes file for our
-# eventual final encode. Put your `--preset` after the `return` below,
-# and you'll be good to go.
+# We'll now set the `--preset` for the output scenes file for our        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# eventual final encode. Put your `--preset` after the `return` below,   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# and you'll be good to go.                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # Some of us may prefer using a mix of different `--preset`s, either
 # because some of our parameters will be safer at slower `--preset`
@@ -535,34 +565,34 @@ class DefaultZone:
 # `metric_min_crf`. The `--crf` this function receives here will be
 # very different from the eventual output. You can use `--resume` and
 # `--verbose` to test out the right threshold for your dynamic
-# `--preset`.
+# `--preset`.                                                            # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def metric_dynamic_preset(self, crf: float) -> int:
         return 0
 # ---------------------------------------------------------------------
 # Third, every other parameters:
 
-# We've set `--crf` and `--preset`, and now we're setting all the
-# remaining parameters.
+# We've set `--crf` and `--preset`, and now we're setting all the        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# remaining parameters.                                                  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # 
-# For `final_dynamic_parameters`, use every parameters you plan to use
-# for your eventual final encode, but:
-#   Do not set `--crf` and `--preset` for `final_dynamic_parameters`,
-#   because we've already set it above.
-#   Do not set `-i` and `-b` and use the same parameters as you would
-#   feed into av1an `--video-params`.
-# For `probing_dynamic_parameters`, use the same parameters you as
-# `final_dynamic_parameters`, but:
-#   Do not set `--crf` and `--preset` for `probing_dynamic_parameters`,
-#   because we've already set it above.
-#   Do not set `-i` and `-b` and use the same parameters as you would
-#   feed into av1an `--video-params`.
-#   Set `--film-grain 0` for `probing_dynamic_parameters` if it is
-#   nonzero in `final_dynamic_parameters`. `--film-grain` is a
-#   generative process and we will get metric results that doesn't
-#   match our visual experience.
+# For `final_dynamic_parameters`, use every parameters you plan to use   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# for your eventual final encode, but:                                   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Do not set `--crf` and `--preset` for `final_dynamic_parameters`,    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   because we've already set it above.                                  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Do not set `-i` and `-b` and use the same parameters as you would    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   feed into av1an `--video-params`.                                    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# For `probing_dynamic_parameters`, use the same parameters you as       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# `final_dynamic_parameters`, but:                                       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Do not set `--crf` and `--preset` for `probing_dynamic_parameters`,  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   because we've already set it above.                                  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Do not set `-i` and `-b` and use the same parameters as you would    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   feed into av1an `--video-params`.                                    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Set `--film-grain 0` for `probing_dynamic_parameters` if it is       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   nonzero in `final_dynamic_parameters`. `--film-grain` is a           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   generative process and we will get metric results that doesn't       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   match our visual experience.                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
-# If you want to set a set of fixed parameters, fill it in directly
-# after the `return` token.
+# If you want to set a set of fixed parameters, fill it in directly      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# after the `return` token.                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # These two functions also support using dynamic parameters for both
 # testing and final encodes. A common usage of using dynamic parameters
 # is when we're using very high `--psy-rd` values such as
@@ -577,7 +607,7 @@ class DefaultZone:
 # of `metric_` prefix, which means the `--crf` this function receives
 # not only includes `--crf` result from this Progression Boost module
 # after `metric_dynamic_crf`, but also the `--crf` boosts in the next
-# Character Boost module as well.
+# Character Boost module as well.                                        # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qm-min 8 --chroma-qm-min 10
@@ -911,8 +941,8 @@ class DefaultZone:
 # quality we're aiming at.                                               # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # Specify the target quality using the variable below.                   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
-# Note that Progression Boost can only create the model based on test    # <<<<  These three parameters are all you need to get a good  <<<<<<<
-# encodes performed at `--preset 7` by default. You will get much        # <<<<  result fast, but you are recommended to have a look at  <<<<<<
+# Note that Progression Boost can only create the model based on test    # <<<<  These parameters are all you need to get a result you <<<<<<<<
+# encodes performed at `--preset 7` by default. You will get much        # <<<<  want fast, but you are recommended to have a look at  <<<<<<<<
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
@@ -1051,7 +1081,7 @@ class BuiltinExampleZone(DefaultZone):
                   --film-grain 12 --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # Let's use a different `--preset` for final encode:
-    def final_dynamic_preset(self, crf: float) -> int:
+    def metric_dynamic_preset(self, crf: float) -> int:
         return -1
 # Change the number of frames measured:
     metric_highest_diff_frames = 5
@@ -2431,6 +2461,8 @@ if metric_has_metric:
             if "second_score" not in metric_result["scenes"][scene_n]:
                 start_count += 1
                 print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.2f} scenes per second", end="")
+
+                assert "frames" in metric_result["scenes"][scene_n], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
     
                 reference_offset = zone_scene["start_frame"] - probing_frame_head
                 if zone_scene["zone"].metric_method == "vapoursynth":

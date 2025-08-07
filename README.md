@@ -4,39 +4,74 @@
 
 ### Introduction
 
-Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their autoboost, and BoatsMcGee and their Normal-Boost that makes this script possible.
+Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their Auto-Boost, and BoatsMcGee and their Normal-Boost that makes this script possible.
 
-Constant quality? Eliminating bad frames? Whatever your target is, Progression Boost gets you covered.  
-Progression Boost is a flexible boosting script that runs faster and gives better result than av1an's `--target-quality`. It works in the same idea as Ironclad's grav1an using polynomial regression, and can be easily configured to target different quality targets and more.  
+Constant quality? Eliminating bad frames? Better birate allocation? Better character? Whatever your target is, Progression Boost gets you covered.  
+Progression Boost is a flexible boosting script that runs faster and gives better result than av1an's `--target-quality`. It comes with readytouse preset that you can try directly, but it can also be configured to target totally different targets and more.  
 
-### Usage
+### Download
 
-As a starting point, Progression Boost offers multiple presets with different quality targets. You can choose one that's closer to what you want to achieve with your encode, and then modify the config from that.  
+As a starting point, Progression Boost offers multiple readytouse presets.  
+For users that don't want too much tinkering and just want to quickly get a good result – one that's even better than av1an's `--target-quality`, both qualitywise and timewise – you can just pick a preset depending on your target and you're ready to go. Any presets can be run directly and produce a decent result. However, you may also open the file in a text editor, and there are notes in the file guiding you to the most necessary configs to adjust – SVT-AV1 encoding parameters, and your target score.  
+For users that wants to fine tune the boosting, you can first download a preset that's closer to what you want to achieve, and then modify from that. After you've selected and downloaded a preset, open the file in a text editor. Inside the file, there are a very detailed and complete guide on how you can adjust the boosting.  
 
-For users that don't want too much tinkering and just want to quickly get a good result – one that's even better than av1an's `--target-quality`, both qualitywise and timewise – don't worry. There will be guides in the file specifically for this. Once you've picked the suitable preset for your target, you would only need to adjust three quick parameters in the files and you are good to go! Download a preset and follow the guide at the very top of the file.  
+#### Presets with Character Boost
+
+Character Boost is the crème de la crème of anime boosting. It's almost always necessary in high quality encodes, because there is not a single other way to preserve the weak character hair linearts that's very common in all kinds of anime. It's even more beneficial in lower quality encodes, because when we're limited by filesize, it's very important to spend the limited bitrate on characters which we care about instead of the background.  
+As long as you're encoding anime, and you have at the very least an entrylevel GPU such as a GTX 1060, you should always pick a preset with Character Boost.  
+
+Butteraugli based boosting is the primary boosting method for Progression Boost. The reason is that the whole frame score of metrics such as SSIMU2 are given based on the average quality across the frame. It's not exactly rare in long shots to have characters only occupying a small percentage of the scereen while the majority of the frame is background. Especially when the character is moving while the background is still, the characters might get encoded very poorly, and the metric would need to pick this up. Mean based metric such as SSIMU2 would often fail to recognise details like this. Instead Progression Boost's Butteraugli presets use a combination of Butteraugli 3Norm and INFNorm score to make sure to properly recognised these situations.
+You should always pick a Butteraugli based preset, unless you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Butteraugli-Max](../Preset-Butteraugli-3Norm-INFNorm-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
-| [Butteraugli-Root-Mean-Cube](../Preset-Butteraugli-3Norm-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting medium-high to high quality, focusing on quality consistency. |
-| [SSIMU2-15th-Percentile](../master/Progression-Boost/Progression-Boost.py) | Targeting medium to high quality, focusing on reducing bad frames. |
-| [SSIMU2-Harmonic-Mean](../Preset-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to high quality, focusing on quality consistency. |
-| [SSIMU2-Harmonic-Mean-<br />Dampening](../Preset-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality, maintaining a baseline consistency <br />while avoiding too much bloating. |
+| [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
+| [Character-Boost-Butteraugli-Root-Mean-Cube](../Preset-Character-Boost-Butteraugli-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting all quality levels from high to low quality, focusing on consistency. |
+| [Character-Boost-SSIMU2-Harmonic-Mean](../Preset-Character-Boost-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, focusing on speed and some quality consistency. |
+| [Character-Boost-SSIMU2-Harmonic-Mean-Dampening](../Preset-Character-Boost-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality levels, maintaining a baseline consistency while avoiding too much bloating. |
 
-After you've downloaded a preset, open the file in a text editor and follow the guide at the very top to adjust the config. The guide should be able to lead you through all the options for Progression Boost.  
+There is also a preset that completely disables metric based boosting and solely relies on Character Boosting. This is useful when the background is very complicated and takes unfathomable amount of bitrate. In this case we rely solely on Character Boost to maintain a good quality in characters.
 
-After you've adjusted the config for the encode, you need to install a few dependencies before you run Progression Boost:  
-* Progression Boost's Python dependencies are specified in [`requirements.txt`](Progression-Boost/requirements.txt) including `numpy` and `scipy`. You can install them using pip.  
-* Progression Bosot by default uses lsmas as video provider, but you can always switch to BestSource or other video providers in the config.  
-* Progression Boost supports all VapourSynth based metric calculation. All presets are set to use Vship by default, which can be installed from vsrepo (`vship_nvidia` or `vship_amd`) or AUR ([Cuda](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-cuda-git) or [AMD](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-amd-git)). However, if you can only use vszip, you can easily switch to it or any other VapourSynth based methods in the config. Search for `metric_calculate` in the file.  
-* Additionally, to ensure a better quality, all presets except for Preset-SSIMU2-Harmonic-Mean-Dampening by default use WWXD or Scxvid based scene detection methods. You would need to install them from vsrepo (`wwxd`, `scxvid`) or AUR ([WWXD](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git), [Scxvid](https://aur.archlinux.org/packages/vapoursynth-plugin-scxvid-git)). However, if you can't get them installed. Don't worry. This is totally optional, and you can always switch to av1an based scene detection in the config.  
-* If you want to test out the experimental feature character boosting, you would need to install additional dependencies vs-mlrt and akarin from vsrepo (`trt` or other suitable backend for vs-mlrt, `akarin`) or AUR ([trt](https://aur.archlinux.org/packages/vapoursynth-plugin-mlrt-trt-runtime-git) or other suitable runtime, [akarin](https://aur.archlinux.org/packages?K=vapoursynth-plugin-vsakarin)).
+| Preset | Quality Target Explained |
+| :-- | :-- |
+| [Character-Boost](../Preset-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
+
+#### Presets without Character Boost
+
+As explained above, you should always use Character Boost at all quality targets, unless you don't have a GPU equivalent to GTX 1060, or you can't set up vs-mlrt. Here are the presets without Character Boost.
+
+Explanation for picking between Butteraugli and SSIMU2 is also available in the last section. In short, you should always pick a Butteraugli based preset, unless you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
+
+| Preset | Quality Target Explained |
+| :-- | :-- |
+| [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
+| [Butteraugli-Root-Mean-Cube](../Preset-Butteraugli-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting all quality levels from high to low quality, focusing on consistency. |
+| [SSIMU2-Harmonic-Mean](../Preset-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, focusing on speed and some quality consistency. |
+| [SSIMU2-Harmonic-Mean-Dampening](../Preset-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality levels, maintaining a baseline consistency while avoiding too much bloating. |
+
+#### Scene Detection Presets
+
+Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`.  
+
+| Preset | Quality Target Explained |
+| :-- | :-- |
+| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Scene detection only. |
+
+### Dependencies
+
+Progression Boost has very few dependencies:  
+* Progression Boost is a script for av1an, and it outputs scenes.json in av1an format. You need to be using av1an to use Progression Boost.  
+* Progression Boost's requires `numpy` to work. You can install them using `python -m pip install numpy`.  
+* Progression Bosot by default uses lsmas as video provider, but you can easily switch to BestSource or other video providers in the file itself.  
+* Progression Boost supports all VapourSynth based metric calculation and FFVship. All presets are set to use Vship by default, which can be installed from vsrepo (`vship_nvidia` or `vship_amd`) or AUR ([Cuda](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-cuda-git) or [AMD](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-amd-git)). Vship is optimised a lot of Miss Moonlight and can even run on integrated GPU decently well. However, if you don't have that luxury and can only use vszip, you can easily switch to it or any other VapourSynth based methods easily in the config. Search for `metric_calculate` in the file.  
+* Additionally, to ensure a better quality, all presets except for Preset-Character-Boost-SSIMU2-Harmonic-Mean-Dampening and Preset-SSIMU2-Harmonic-Mean-Dampening by default use WWXD or Scxvid based scene detection methods. You would need to install them from vsrepo (`wwxd`, `scxvid`) or AUR ([WWXD](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git), [Scxvid](https://aur.archlinux.org/packages/vapoursynth-plugin-scxvid-git)). However, if you can't get them installed. Don't worry. This is totally optional, and you can always switch to av1an based scene detection in the config.  
+* At last, if you want to use Character Boost, you would to install vs-mlrt and akarin from vsrepo (`trt` or other suitable backend for vs-mlrt, `akarin`) or AUR ([trt](https://aur.archlinux.org/packages/vapoursynth-plugin-mlrt-trt-runtime-git) or other suitable runtime, [akarin](https://aur.archlinux.org/packages?K=vapoursynth-plugin-vsakarin)).  
+
+After you've set up the dependencies, you may run the file directly and it will produce a decent result. Or you can open the file in a text editor and adjust the config for your needs. For people that wants to quickly adjust, there's a note inside leading you to the most necessary configs. For the people that wants to fine tune the result, there're very detailed guides inside the file.  
 
 ### Note
 
 * This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
-
-* Progression Boost will encode the video multiple times until it can build a polynomial model. If you prefer a faster option that only encodes the video once and boost using a „magic number“, try Miss Moonlight's Lav1e or Trix's autoboost.  
 
 # Dispatch Server
 
