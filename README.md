@@ -55,7 +55,7 @@ Progression Boost has a great scene detection system. This scene detection may b
 
 | Preset | Explained |
 | :-- | :-- |
-| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Scene Detection only. |
+| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Only performing Scene Detection for fixed `--crf` encoding. |
 
 ### Dependencies
 
