@@ -47,7 +47,7 @@ Explanation for picking between Butteraugli and SSIMU2 is also available in the 
 | [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
 | [Butteraugli-Root-Mean-Cube](../Preset-Butteraugli-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting all quality levels from high to low quality, focusing on consistency. |
 | [SSIMU2-Harmonic-Mean](../Preset-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, focusing on speed and some quality consistency. |
-| [SSIMU2-Harmonic-Mean-<br />Dampening](../Preset-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality levels, maintaining a baseline consistency while avoiding too much bloating. |
+| [SSIMU2-Harmonic-Mean-<br />Dampening](../Preset-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality levels, maintaining a baseline consistency<br />while avoiding too much bloating. |
 
 #### Scene Detection Presets
 
