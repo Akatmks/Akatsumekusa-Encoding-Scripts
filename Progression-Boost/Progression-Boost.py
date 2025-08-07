@@ -511,11 +511,11 @@ class DefaultZone:
 # the overheads take more time than the actual encoding, you can select
 # a slower `--preset`.
 # However, don't use slower `--preset` thinking it may be safer, the
-# default `--preset 7` or at most `--preset 6` is safe enough. Boosting
-# should never take more than one third of the entire encoding time. If
-# you have more time, you should use a slower `--preset` for final
-# encoding pass and don't waste time on boosting.
-    probing_preset = 6
+# default `--preset 7` is safe enough. Boosting  should never take more
+# than one third of the entire encoding time. If you have more time,
+# you should use a slower `--preset` for final encoding pass and don't
+# waste time on boosting.
+    probing_preset = 7
 
 # We'll now set the `--preset` for the output scenes file for our
 # eventual final encode. Put your `--preset` after the `return` below,
@@ -637,21 +637,22 @@ class DefaultZone:
 # First, we have two methods to selectively pick the frames that are
 # most likely to be bad out. This is to make sure that we don't
 # actually miss these frames.
-# You may have realised that since we're disproportionately picks the
-# bad frames, the eventual mean or percentile we will calculate is no
-# longer the real mean or percentile across the video, but just the
-# mean or percentile of the frames we've picked. How aggressive we pick
-# these frames also affects how aggressive the eventual boost would be.
+# Since we're disproportionately picks the bad frames, the eventual mean
+# or percentile we will calculate is no longer the real mean or
+# percentile across the video, but just the mean or percentile of the
+# frames we've picked. How aggressive we pick these frames also affects
+# how aggressive the eventual boost would be.
 # If you're using a mean-based method to summarise the data later, keep
 # the number of frames picked here at a modest amount, such as one
 # third of the total amount of frames picked. If you're using a
 # percentile-based method to boost the worst frames, you can consider
-# picking half of the frames you're measuring here. However, under no
-# circumstance should you pick 0 frames here.
+# picking half of the frames you're measuring here.
+# However, under no circumstance should you not pick any frames from at
+# least one of these methods.
 #
 # The first method to pick the likely bad frame is to measure how much
 # difference there are between the frame and the frame before it.
-    metric_highest_diff_frames = 8
+    metric_highest_diff_frames = 6
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
@@ -659,8 +660,13 @@ class DefaultZone:
 # The second method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
-# surprisingly well.
-    metric_highest_probing_diff_frames = 4
+# surprisingly well, even better than PSNR and XPSNR alike. However,
+# this method is extremely slow due to that it has to decode every
+# frame in the scene. We only recommend using this method in the
+# slowest and highest quality situations. For other cases, if you want
+# to be safer, you should measure more frames in such as
+# `metric_highest_diff_frames`.
+    metric_highest_probing_diff_frames = 6
 #
 # After that, we now use a randomiser to select frames across the whole
 # scene. It's common for anime to have 1 new frame followed by 2 to 4
@@ -714,7 +720,7 @@ class DefaultZone:
 # For VapourSynth based metric calculation, if you've applied filtering
 # via `--encode-input`, make sure you match it and apply the same
 # filtering here:
-    metric_reference = source_clip
+    metric_reference = source_clip.resize.Bicubic(filter_param_a=0.0, filter_param_b=0.0, format=vs.YUV420P10)
 #
 # For VapourSynth based metric calculation, this function allows you to
 # perform some additional filtering before calculating metrics.
@@ -780,14 +786,14 @@ class DefaultZone:
     # metric_better = np.less
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # def metric_vapoursynth_metric(self, frame):
-    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.024 - frame.props["_BUTTERAUGLI_3Norm"] * 0.24
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = None
     # def metric_ffvship_metric(self, frame):
-    #     adjustment = frame[2] * 0.024 - frame[1] * 0.24
+    #     adjustment = frame[2] * 0.030 - frame[1] * 0.30
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame[1] + adjustment
@@ -796,10 +802,10 @@ class DefaultZone:
 # and is suitable for the highest quality boosting targets.
     metric_better = np.less
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.026
+    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.027
     metric_ffvship_calculate = "Butteraugli"
     metric_ffvship_intensity_target = None
-    metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.026
+    metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.027
 
 # Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
 # very sensitive to fine details, but it is faster, and is good enough
@@ -910,7 +916,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.620
+    metric_target = 0.800
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -1214,6 +1220,12 @@ for zone in zones:
                 print("\r\033[KYou've set a filtered source to be used for probe encodes via `--encode-input`, but in at least one active zone, `\"ffvship\"` is selected as `metric_method`. `metric_method` of `\"ffvship\"` does not support comparing filtered source against filtered probe encodes. By selecting `\"ffvship\"`, you're now comparing a filtered encode with unfiltered source, which will produce completly unusable metric scores. You should switch to a VapourSynth based methods, and then copy in your filtering chain for `metric_reference`.", end="\n")
                 print("\r\033[KProgression Boost will quit now, but if you know what you're doing, you may let it continue by setting `metric_continue_filtered_with_ffvship` for the related zones.", end="\n")
                 raise SystemExit(2)
+
+        break
+
+for zone in zones:
+    if zone["zone"].metric_enable and zone["zone"].probing_preset < 6:
+        print("\r\033[KProbing with slower `--preset` than `--preset 6` is not tested, and Progression Boost's `--preset` readjustment feature may not work properly. Using slower `--preset` than `--preset 7` does not yield any meaningful improvements, and you should use `--preset 7` instead.", end="\n")
 
         break
 
@@ -2033,105 +2045,6 @@ if not scene_detection_diffs_available:
     scene_detection_measure_frame_luma()
 
 
-if metric_has_metric:
-    start = time() - 0.000001
-    start_count = -1
-    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
-        if zone_scene["zone"].metric_enable:
-            if "frames" not in metric_result["scenes"][scene_n]:
-                start_count += 1
-                if verbose < 2:
-                    print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames / {start_count / (time() - start):.0f} scenes per second", end="")
-                if verbose >= 2:
-                    print(f"\r\033[K{scene_frame_print(scene_n)} / Selecting frames", end="")
-
-                rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
-            
-                # These frames are offset from `scene["start_frame"] + 1` and that's why they are offfset, not offset
-                offfset_frames = np.array([], dtype=np.int32)
-                
-                scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
-                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
-                picked = 0
-                if verbose >= 2:
-                    print(f" / highest diff", end="")
-                for offfset_frame in scene_diffs_sort:
-                    if picked >= zone_scene["zone"].metric_highest_diff_frames:
-                        break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_highest_diff_min_separation:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 2:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="")
-                
-                if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
-                    offfset_frames = np.append(offfset_frames, zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
-                    if verbose >= 2:
-                        print(f" / last {zone_scene["end_frame"] - 1}", end="")
-            
-                scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
-                scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
-                scene_diffs_upper_bracket_ = np.argwhere(scene_diffs > scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
-                scene_diffs_lower_bracket_ = np.argwhere(scene_diffs <= scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
-                scene_diffs_upper_bracket = np.empty_like(scene_diffs_upper_bracket_)
-                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[:math.ceil(scene_diffs_upper_bracket_.shape[0] / 2)]))
-                scene_diffs_upper_bracket[::2] = scene_diffs_upper_bracket__
-                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[-math.floor(scene_diffs_upper_bracket_.shape[0] / 2):]))
-                scene_diffs_upper_bracket[1::2] = scene_diffs_upper_bracket__
-                scene_diffs_lower_bracket = np.empty_like(scene_diffs_lower_bracket_)
-                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[:math.ceil(scene_diffs_lower_bracket_.shape[0] / 2)]))
-                scene_diffs_lower_bracket[::2] = scene_diffs_lower_bracket__
-                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[-math.floor(scene_diffs_lower_bracket_.shape[0] / 2):]))
-                scene_diffs_lower_bracket[1::2] = scene_diffs_lower_bracket__
-            
-                picked = 0
-                if verbose >= 2:
-                    print(f" / upper bracket", end="")
-                for offfset_frame in scene_diffs_upper_bracket:
-                    if picked >= zone_scene["zone"].metric_upper_diff_bracket_frames:
-                        break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 2:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="")
-                
-                if picked < zone_scene["zone"].metric_upper_diff_bracket_fallback_frames:
-                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames + zone_scene["zone"].metric_upper_diff_bracket_fallback_frames - picked
-                else:
-                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
-            
-                if zone_scene["zone"].metric_first_frame >= 1:
-                    offfset_frames = np.append(offfset_frames, -1)
-                    if verbose >= 2:
-                        print(f" / first {zone_scene["start_frame"]}", end="")
-            
-                picked = 0
-                if verbose >= 2:
-                    print(f" / lower bracket", end="")
-                for offfset_frame in scene_diffs_lower_bracket:
-                    if picked >= to_pick:
-                        break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 2:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="")
-
-                print(f"", end="\n")
-                    
-                metric_result["scenes"][scene_n]["frames"] = np.sort(offfset_frames) + 1
-
-    with metric_result_file.open("w") as metric_result_f:
-        json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
-
-    if start_count != -1:
-        print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection complete / {(start_count + 1) / (time() - start):.0f} scenes per second", end="\n")
-
-
 if character_has_character:
     character_file = character_boost_temp_dir / "kyara.json"
 
@@ -2224,6 +2137,7 @@ if metric_has_metric and probing_first_perform_encode:
     probing_first_process.wait()
     assert probing_first_output_file.exists()
 
+
 if metric_has_metric:
     for zone in zones:
         if zone_scene["zone"].metric_enable and zone["zone"].metric_method == "vapoursynth":
@@ -2238,12 +2152,13 @@ if metric_has_metric:
     else:
         metric_method_has_ffvship = False
 
+    metric_processed_reference = {}
+    metric_first = core.lsmas.LWLibavSource(probing_first_output_file.expanduser().resolve(),
+                                            cachefile=probing_first_output_file_lwi.expanduser().resolve())
+    metric_processed_first = {}
+
+    metric_diff_clips = {}
     if metric_method_has_vapoursynth:
-        metric_processed_reference = {}
-        
-        metric_first = core.lsmas.LWLibavSource(probing_first_output_file.expanduser().resolve(),
-                                                cachefile=probing_first_output_file_lwi.expanduser().resolve())
-        metric_processed_first = {}
         metric_first_metric_clips = {}
 
     if metric_method_has_ffvship:
@@ -2259,14 +2174,124 @@ if metric_has_metric:
                 print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating metric / {start_count / (time() - start):.2f} scenes per second", end="")
     
                 assert zone_scene["zone"].metric_method in ["ffvship", "vapoursynth"], "Invalid `metric_method`. Please check your config inside `Progression-Boost.py`."
-    
-                reference_offset = zone_scene["start_frame"] - probing_frame_head
+
+            if zone_scene["zone"] not in metric_processed_reference:
+                metric_processed_reference[zone_scene["zone"]] = zone_scene["zone"].metric_process(zone_scene["zone"].metric_reference)
+            if zone_scene["zone"] not in metric_processed_first:
+                metric_processed_first[zone_scene["zone"]] = zone_scene["zone"].metric_process(metric_first)
+                
+            reference_offset = zone_scene["start_frame"] - probing_frame_head
+
+
+            if "frames" not in metric_result["scenes"][scene_n]:
+                if verbose >= 2:
+                    print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection", end="", flush=True)
+
+                rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
+            
+                # These frames are offset from `scene["start_frame"] + 1` and that's why they are offfset, not offset
+                offfset_frames = np.array([], dtype=np.int32)
+                
+                scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
+                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
+                picked = 0
+                if verbose >= 2:
+                    print(f" / highest diff", end="", flush=True)
+                for offfset_frame in scene_diffs_sort:
+                    if picked >= zone_scene["zone"].metric_highest_diff_frames:
+                        break
+                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_highest_diff_min_separation:
+                        continue
+                    offfset_frames = np.append(offfset_frames, offfset_frame)
+                    picked += 1
+                    if verbose >= 2:
+                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+
+                if zone_scene["zone"].metric_highest_probing_diff_frames:
+                    if (zone_scene["zone"], reference_offset) not in metric_diff_clips:
+                        metric_diff_clips[(zone_scene["zone"], reference_offset)] = core.std.PlaneStats(metric_processed_reference[zone_scene["zone"]][reference_offset:],
+                                                                                                        metric_processed_first[zone_scene["zone"]],
+                                                                                                        prop="Encode")
+                    clip = metric_diff_clips[(zone_scene["zone"], reference_offset)][probing_frame_head:probing_frame_head + zone_scene["end_frame"] - zone_scene["start_frame"]]
+                    encode_diffs = [frame.props["EncodeDiff"] for frame in clip.frames(backlog=48)]
+                    encode_diffs_sort = np.argsort(encode_diffs, stable=True)[::-1]
+                    picked = 0
+                    if verbose >= 2:
+                        print(f" / highest probing diff", end="", flush=True)
+                    for frame in encode_diffs_sort:
+                        if picked >= zone_scene["zone"].metric_highest_probing_diff_frames:
+                            break
+                        if frame - 1 in offfset_frames:
+                            continue
+                        offfset_frames = np.append(offfset_frames, frame - 1)
+                        picked += 1
+                        if verbose >= 2:
+                            print(f" {zone_scene["start_frame"] + frame}", end="", flush=True)
+                
+                if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
+                    offfset_frames = np.append(offfset_frames, zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
+                    if verbose >= 2:
+                        print(f" / last {zone_scene["end_frame"] - 1}", end="", flush=True)
+            
+                scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
+                scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
+                scene_diffs_upper_bracket_ = np.argwhere(scene_diffs > scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                scene_diffs_lower_bracket_ = np.argwhere(scene_diffs <= scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                scene_diffs_upper_bracket = np.empty_like(scene_diffs_upper_bracket_)
+                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[:math.ceil(scene_diffs_upper_bracket_.shape[0] / 2)]))
+                scene_diffs_upper_bracket[::2] = scene_diffs_upper_bracket__
+                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[-math.floor(scene_diffs_upper_bracket_.shape[0] / 2):]))
+                scene_diffs_upper_bracket[1::2] = scene_diffs_upper_bracket__
+                scene_diffs_lower_bracket = np.empty_like(scene_diffs_lower_bracket_)
+                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[:math.ceil(scene_diffs_lower_bracket_.shape[0] / 2)]))
+                scene_diffs_lower_bracket[::2] = scene_diffs_lower_bracket__
+                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[-math.floor(scene_diffs_lower_bracket_.shape[0] / 2):]))
+                scene_diffs_lower_bracket[1::2] = scene_diffs_lower_bracket__
+            
+                picked = 0
+                if verbose >= 2:
+                    print(f" / upper bracket", end="", flush=True)
+                for offfset_frame in scene_diffs_upper_bracket:
+                    if picked >= zone_scene["zone"].metric_upper_diff_bracket_frames:
+                        break
+                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
+                        continue
+                    offfset_frames = np.append(offfset_frames, offfset_frame)
+                    picked += 1
+                    if verbose >= 2:
+                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+                
+                if picked < zone_scene["zone"].metric_upper_diff_bracket_fallback_frames:
+                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames + zone_scene["zone"].metric_upper_diff_bracket_fallback_frames - picked
+                else:
+                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
+            
+                if zone_scene["zone"].metric_first_frame >= 1:
+                    offfset_frames = np.append(offfset_frames, -1)
+                    if verbose >= 2:
+                        print(f" / first {zone_scene["start_frame"]}", end="", flush=True)
+            
+                picked = 0
+                if verbose >= 2:
+                    print(f" / lower bracket", end="", flush=True)
+                for offfset_frame in scene_diffs_lower_bracket:
+                    if picked >= to_pick:
+                        break
+                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
+                        continue
+                    offfset_frames = np.append(offfset_frames, offfset_frame)
+                    picked += 1
+                    if verbose >= 2:
+                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+
+                if verbose >= 2:
+                    print(f"", end="\n", flush=True)
+                    
+                metric_result["scenes"][scene_n]["frames"] = np.sort(offfset_frames) + 1
+
+
+            if "first_score" not in metric_result["scenes"][scene_n]:
                 if zone_scene["zone"].metric_method == "vapoursynth":
-                    if zone_scene["zone"] not in metric_processed_reference:
-                        metric_processed_reference[zone_scene["zone"]] = zone_scene["zone"].metric_process(zone_scene["zone"].metric_reference)
-                    if zone_scene["zone"] not in metric_processed_first:
-                        metric_processed_first[zone_scene["zone"]] = zone_scene["zone"].metric_process(metric_first)
-    
                     if (zone_scene["zone"], reference_offset) not in metric_first_metric_clips:
                         metric_first_metric_clips[(zone_scene["zone"], reference_offset)] = zone_scene["zone"].metric_vapoursynth_calculate(metric_processed_reference[zone_scene["zone"]][reference_offset:], metric_processed_first[zone_scene["zone"]])
         
@@ -2305,6 +2330,7 @@ if metric_has_metric:
                 except UnreliableSummarisationError as e:
                     print(f"\r\033[K{scene_frame_print(scene_n)} / Unreliable summarisation / {str(e)}")
                     metric_result["scenes"][scene_n]["first_score"] = e.score
+
 
             probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
 
@@ -2505,15 +2531,27 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
             if readjusting:
                 readjusted_second_score = metric_result["scenes"][scene_n]["second_score"]
-                if preset <= 5 and zone_scene["zone"].probing_preset >= 6:
+                if zone_scene["zone"].probing_preset >= 6:
                     if preset <= -1:
                         readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.63
                     elif preset <= 0:
                         readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.60
                     elif preset <= 2:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.54
-                    else:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.51
+                    elif preset <= 5:
                         readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.30
+                elif zone_scene["zone"].probing_preset >= 5:
+                    if preset <= -1:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.33
+                    elif preset <= 0:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.30
+                    elif preset <= 2:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.21
+                elif zone_scene["zone"].probing_preset >= 3:
+                    if preset <= 0:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.15
+                    elif preset <= 2:
+                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.12
 
                 fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], readjusted_second_score],
                                      [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
