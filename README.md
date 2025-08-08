@@ -25,7 +25,7 @@ You should always pick a Butteraugli based preset, unless you're performing your
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Character-Boost-Butteraugli-Max](../master/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
+| [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
 | [Character-Boost-Butteraugli-<br />Root-Mean-Cube](../Preset-Character-Boost-Butteraugli-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting all quality range, focusing on quality consistency. |
 | [Character-Boost-SSIMU2-<br />Harmonic-Mean](../Preset-Character-Boost-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, slightly faster while delivering<br />decent quality consistency. |
 | [Character-Boost-SSIMU2-<br />Harmonic-Mean-Dampening](../Preset-Character-Boost-SSIMU2-Harmonic-Mean-Dampening/Progression-Boost/Progression-Boost.py) | Targeting lower quality levels, maintaining a baseline consistency<br />while avoiding too much bloating. |
