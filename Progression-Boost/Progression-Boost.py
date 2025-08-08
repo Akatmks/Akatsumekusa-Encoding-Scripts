@@ -610,12 +610,12 @@ class DefaultZone:
 # Character Boost module as well.                                        # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qm-min 8 --chroma-qm-min 10
+                  --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qm-min 8 --chroma-qm-min 10
+                  --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # ---------------------------------------------------------------------
@@ -1077,7 +1077,7 @@ class BuiltinExampleZone(DefaultZone):
 # Let's first apply some `--film-grian` because why not:
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qp-min 8 --chroma-qp-min 10
+                  --tune 3 --luminance-qp-bias 12 --qp-min 8 --chroma-qp-min 10
                   --film-grain 12 --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # Let's use a different `--preset` for final encode:
