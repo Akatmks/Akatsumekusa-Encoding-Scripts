@@ -467,7 +467,7 @@ class DefaultZone:
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 8.00
+    metric_min_crf = 10.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
@@ -520,7 +520,7 @@ class DefaultZone:
 # clamp this one last time.
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
-    final_min_crf = 6.50
+    final_min_crf = 8.50
 # ---------------------------------------------------------------------
 # Second, `--preset`:
 
@@ -610,12 +610,12 @@ class DefaultZone:
 # Character Boost module as well.                                        # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
+                  --tune 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
+                  --tune 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # ---------------------------------------------------------------------
@@ -813,20 +813,20 @@ class DefaultZone:
 # The first one only mixes in INFNorm score if INFNorm score is more
 # than 10 times the 3Norm score. This is more suitable for regular
 # medium quality boosting.
-    metric_better = np.less
-    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
-        if adjustment < 0:
-            adjustment = 0
-        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
-    metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = None
-    def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.030 - frame[1] * 0.30
-        if adjustment < 0:
-            adjustment = 0
-        return frame[1] + adjustment
+    # metric_better = np.less
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # def metric_vapoursynth_metric(self, frame):
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = None
+    # def metric_ffvship_metric(self, frame):
+    #     adjustment = frame[2] * 0.030 - frame[1] * 0.30
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame[1] + adjustment
 
 # The second option always mixes in 2.6% INFNorm on top of 3Norm score
 # and is suitable for the highest quality boosting targets.
@@ -841,11 +841,11 @@ class DefaultZone:
 # very sensitive to fine details, but it is faster, and is good enough
 # for medium and low quality encodes. To use SSIMU2 via FFVship or
 # vship, uncomment the lines below.
-    # metric_better = np.greater
-    # metric_vapoursynth_calculate = core.vship.SSIMULACRA2
-    # metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
-    # metric_ffvship_calculate = "SSIMULACRA2"
-    # metric_ffvship_metric = lambda self, frame: frame[0]
+    metric_better = np.greater
+    metric_vapoursynth_calculate = core.vship.SSIMULACRA2
+    metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
+    metric_ffvship_calculate = "SSIMULACRA2"
+    metric_ffvship_metric = lambda self, frame: frame[0]
 
 # To use SSIMU2 via vszip, uncomment the lines below.
     # metric_better = np.greater
@@ -912,20 +912,20 @@ class DefaultZone:
 #
 # To use the harmonic mean method, comment the lines above for the
 # percentile method, and uncomment the lines below.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     if np.any((small := scores < 15)):
-    #         scores[small] = 15
-    #         raise UnreliableSummarisationError(scores.shape[0] / np.sum(1 / scores), f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
-    #     else:
-    #         return scores.shape[0] / np.sum(1 / scores)
+    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+        if np.any((small := scores < 15)):
+            scores[small] = 15
+            raise UnreliableSummarisationError(scores.shape[0] / np.sum(1 / scores), f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
+        else:
+            return scores.shape[0] / np.sum(1 / scores)
 
 # For Butteraugli 3Norm score, root mean cube is suggested by Miss
 # Moonlight and tested to have good overall boosting result.
 #
 # To use the root mean cube method, comment the lines above for the
 # percentile method, and uncomment the two lines below.
-    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-        return np.mean(scores ** 3) ** (1 / 3)
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     return np.mean(scores ** 3) ** (1 / 3)
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
@@ -946,7 +946,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.950
+    metric_target = 82.000
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
