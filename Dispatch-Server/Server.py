@@ -135,7 +135,7 @@ class QueueService(Service):
         self.last_contact_first_in_queue = time_ns()
 
     def locked_check_first_in_queue(self, tid):
-        if self.queue[0] == tid:
+        if len(self.queue) >= 1 and self.queue[0] == tid:
             self.locked_reset_first_in_queue()
         else:
             if self.last_contact_first_in_queue < time_ns() - 10000000000:
@@ -156,7 +156,7 @@ class QueueService(Service):
         with self.lock:
             self.locked_check_first_in_queue(tid)
 
-            if self.queue[0] == tid or tid not in self.queue:
+            if len(self.queue) == 0 or self.queue[0] == tid or tid not in self.queue:
                 self.locked_clean_reserve()
 
                 free = nvmlDeviceGetMemoryInfo(handle).free - required_vram * len(self.released_reserve)
