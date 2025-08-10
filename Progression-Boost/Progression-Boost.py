@@ -764,7 +764,7 @@ class DefaultZone:
 # cropped compare. This may not may not be preferrable. If you want to
 # enable cropping, uncomment the lines below to crop the clip to 900p
 # before comparing.
-        # clip = clip.std.Crop(left=160, right=160, top=90, bottom=90)
+        clip = clip.std.Crop(left=160, right=160, top=90, bottom=90)
 # If you want some other processing before calculating metrics, you can
 # implement it here.
         return clip
