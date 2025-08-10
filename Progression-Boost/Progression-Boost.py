@@ -976,7 +976,7 @@ class DefaultZone:
 # significantly better watching experience with Character Boost.
 #
 # Enable character boosting by setting the line below to True.
-    character_enable = True
+    character_enable = False
 # ---------------------------------------------------------------------
 # Set how aggressive character boosting should be.
 
