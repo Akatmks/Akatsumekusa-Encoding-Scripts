@@ -333,8 +333,8 @@ class DefaultZone:
     scene_detection_method = "vapoursynth".lower()
 # Select which VapourSynth based methods you're going to use for scene
 # detection
-    scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
-    # scene_detection_vapoursynth_method = "wwxd".lower() # Fast
+    # scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
+    scene_detection_vapoursynth_method = "wwxd".lower() # Fast
 #
 # For VapourSynth based scene detection to work, make sure you selected
 # the correct colour range depending on your source, whether it is
@@ -363,7 +363,7 @@ class DefaultZone:
 # Specify the desired scene length for scene detection. The result from
 # this scene detection will be used both for test encodes and the final
 # encodes.
-    scene_detection_extra_split = 192
+    scene_detection_extra_split = 264
     scene_detection_min_scene_len = 12
 # The next setting is only used if VapourSynth based scene detection
 # method is selected.
@@ -384,7 +384,7 @@ class DefaultZone:
 # If you are using Character Boost, you should set this number lower to
 # maybe 33. If you are not going to enable Character Boost, the default
 # 60 would be fine.
-    scene_detection_target_split = 33
+    scene_detection_target_split = 49
 
 # Zoning information: `scene_detection_extra_split` and
 # `scene_detection_min_scene_len` are only zoneable if you use
@@ -460,7 +460,7 @@ class DefaultZone:
 # If you've adjusted the script to select more frames than the default
 # of your downloaded Progression Boost Preset, you can try
 # `--crf 60.00` here, but `--crf 50.00` should also be fine.
-    metric_max_crf = 40.00
+    metric_max_crf = 50.00
 # For the minimum `--crf` value, the precision of this boosting method
 # deteriorates at very low `--crf` values. And also unless you're
 # willing to spend 10% of your entire episode in a single 6 second
@@ -567,7 +567,7 @@ class DefaultZone:
 # `--verbose` to test out the right threshold for your dynamic
 # `--preset`.                                                            # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def metric_dynamic_preset(self, crf: float) -> int:
-        return 0
+        return 2
 # ---------------------------------------------------------------------
 # Third, every other parameters:
 
@@ -682,11 +682,11 @@ class DefaultZone:
 #
 # The first method to pick the likely bad frame is to measure how much
 # difference there are between the frame and the frame before it.
-    metric_highest_diff_frames = 6
+    metric_highest_diff_frames = 3
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
-    metric_highest_diff_min_separation = 4
+    metric_highest_diff_min_separation = 6
 # The second method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
@@ -696,7 +696,7 @@ class DefaultZone:
 # slowest and highest quality situations. For other cases, if you want
 # to be safer, you should measure more frames in such as
 # `metric_highest_diff_frames`.
-    metric_highest_probing_diff_frames = 6
+    metric_highest_probing_diff_frames = 0
 #
 # After that, we now use a randomiser to select frames across the whole
 # scene. It's common for anime to have 1 new frame followed by 2 to 4
@@ -711,8 +711,8 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 12
-    metric_lower_diff_bracket_frames = 0
+    metric_upper_diff_bracket_frames = 6
+    metric_lower_diff_bracket_frames = 3
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
@@ -722,7 +722,7 @@ class DefaultZone:
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 8
+    metric_upper_diff_bracket_fallback_frames = 4
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
@@ -813,29 +813,29 @@ class DefaultZone:
 # The first one only mixes in INFNorm score if INFNorm score is more
 # than 10 times the 3Norm score. This is more suitable for regular
 # medium quality boosting.
-    # metric_better = np.less
-    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    # def metric_vapoursynth_metric(self, frame):
-    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
-    #     if adjustment < 0:
-    #         adjustment = 0
-    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
-    # metric_ffvship_calculate = "Butteraugli"
-    # metric_ffvship_intensity_target = None
-    # def metric_ffvship_metric(self, frame):
-    #     adjustment = frame[2] * 0.030 - frame[1] * 0.30
-    #     if adjustment < 0:
-    #         adjustment = 0
-    #     return frame[1] + adjustment
+    metric_better = np.less
+    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    def metric_vapoursynth_metric(self, frame):
+        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
+        if adjustment < 0:
+            adjustment = 0
+        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
+    metric_ffvship_calculate = "Butteraugli"
+    metric_ffvship_intensity_target = None
+    def metric_ffvship_metric(self, frame):
+        adjustment = frame[2] * 0.030 - frame[1] * 0.30
+        if adjustment < 0:
+            adjustment = 0
+        return frame[1] + adjustment
 
 # The second option always mixes in 2.6% INFNorm on top of 3Norm score
 # and is suitable for the highest quality boosting targets.
-    metric_better = np.less
-    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.027
-    metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = None
-    metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.027
+    # metric_better = np.less
+    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.027
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = None
+    # metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.027
 
 # Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
 # very sensitive to fine details, but it is faster, and is good enough
@@ -892,8 +892,8 @@ class DefaultZone:
 # prevent random bad frames from slipping through.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
     #     return np.min(scores)
-    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-        return np.max(scores)
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     return np.max(scores)
 
 # The second method is to calculate a mean value for the whole scene.
 # For SSIMU2 score, harmonic mean is studied by Miss Moonlight to have
@@ -924,8 +924,8 @@ class DefaultZone:
 #
 # To use the root mean cube method, comment the lines above for the
 # percentile method, and uncomment the two lines below.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     return np.mean(scores ** 3) ** (1 / 3)
+    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+        return np.mean(scores ** 3) ** (1 / 3)
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
@@ -946,7 +946,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.800
+    metric_target = 0.950
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -998,7 +998,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 5.00
+    character_max_roi_boost = 5.50
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1033,7 +1033,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.00
+    character_max_motion_crf_boost = 4.50
 # ---------------------------------------------------------------------
 # Select vs-mlrt backend for image segmentation model here. You should
 # always use `fp16=True`. The resolution required for Character Boost
