@@ -611,12 +611,12 @@ class DefaultZone:
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 0 --psy-rd 1.0 --spy-rd 0
+                  --complex-hvs 0 --psy-rd 2.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
+                  --complex-hvs 1 --psy-rd 2.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # ---------------------------------------------------------------------
 # At last, av1an parameters:
@@ -711,7 +711,7 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 12
+    metric_upper_diff_bracket_frames = 8
     metric_lower_diff_bracket_frames = 0
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
@@ -722,7 +722,7 @@ class DefaultZone:
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 8
+    metric_upper_diff_bracket_fallback_frames = 6
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
@@ -946,7 +946,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.800
+    metric_target = 0.850
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -998,7 +998,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 5.00
+    character_max_roi_boost = 6.50
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1033,7 +1033,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.00
+    character_max_motion_crf_boost = 4.50
 # ---------------------------------------------------------------------
 # Select vs-mlrt backend for image segmentation model here. You should
 # always use `fp16=True`. The resolution required for Character Boost
