@@ -682,11 +682,11 @@ class DefaultZone:
 #
 # The first method to pick the likely bad frame is to measure how much
 # difference there are between the frame and the frame before it.
-    metric_highest_diff_frames = 3
+    metric_highest_diff_frames = 4
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
-    metric_highest_diff_min_separation = 6
+    metric_highest_diff_min_separation = 4
 # The second method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
