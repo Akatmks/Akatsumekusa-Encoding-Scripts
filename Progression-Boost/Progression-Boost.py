@@ -696,7 +696,7 @@ class DefaultZone:
 # slowest and highest quality situations. For other cases, if you want
 # to be safer, you should measure more frames in such as
 # `metric_highest_diff_frames`.
-    metric_highest_probing_diff_frames = 6
+    metric_highest_probing_diff_frames = 8
 #
 # After that, we now use a randomiser to select frames across the whole
 # scene. It's common for anime to have 1 new frame followed by 2 to 4
