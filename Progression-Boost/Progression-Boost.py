@@ -682,7 +682,7 @@ class DefaultZone:
 #
 # The first method to pick the likely bad frame is to measure how much
 # difference there are between the frame and the frame before it.
-    metric_highest_diff_frames = 5
+    metric_highest_diff_frames = 4
 # We will avoid selecting frames too close to each other to avoid
 # picking all the frames from, let's say, a fade at the start or the
 # end of the scene.
@@ -711,7 +711,7 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 7
+    metric_upper_diff_bracket_frames = 6
     metric_lower_diff_bracket_frames = 3
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
