@@ -23,13 +23,15 @@ As long as you're encoding anime, and you have at the very least an entrylevel G
 Butteraugli based boosting is the primary boosting method for Progression Boost. The reason is that the whole frame score of metrics such as SSIMU2 are given based on the average quality across the frame. It's not exactly rare in extreme long shots to have characters only occupying a small percentage of the scereen while the majority of the frame is background. Especially when the character is moving while the background is still, the characters might get encoded very poorly. Mean based metric such as SSIMU2 would often fail to pick this up and represent it in the final score. To solve this, Progression Boost's Butteraugli presets use a combination of Butteraugli 3Norm and INFNorm score to make sure to we recognised these issues in the frame.  
 You should always pick a Butteraugli based preset, unless you're stuck with Intel's integrated  GPU (AMD is fine though), or you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
 
+You may noticed the two „Mean“ based presets. They are not simple arthritic mean. They are Harmonic Mean and Root Mean Cube argumented by Min or Max respectively. They should deliver the quality consistency of a mean based method while avoiding bad frames like that of a percentile based method.  
+
 | Preset | Quality Target Explained |
 | :-- | :-- |
 | [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
-| [Character-Boost-Butteraugli-<br />Root-Mean-Cube](../master/Progression-Boost/Progression-Boost.py) | Targeting all quality targets, focusing on quality consistency. |
-| [Character-Boost-SSIMU2-<br />Harmonic-Mean](../Preset-Character-Boost-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
+| [Character-Boost-Butteraugli-Mean](../master/Progression-Boost/Progression-Boost.py) | Targeting all quality targets, focusing on quality consistency. |
+| [Character-Boost-SSIMU2-Mean](../Preset-Character-Boost-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
-There is also a preset that completely disables metric based boosting and solely relies on Character Boosting. This is useful when the background is very complicated and takes unfathomable amount of bitrate. In this case we rely solely on Character Boost to maintain a good quality in characters.
+There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is useful when the background of the source is very complicated and would take unfathomable amount of bitrate with normal metric based boosting. In this case can throw away the background, but rely on Character Boost to still achieve a pristine quality for characters.  
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
@@ -44,16 +46,16 @@ Explanation for picking between Butteraugli and SSIMU2 is also available in the 
 | Preset | Quality Target Explained |
 | :-- | :-- |
 | [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
-| [Butteraugli-Root-Mean-Cube](../Preset-Butteraugli-Root-Mean-Cube/Progression-Boost/Progression-Boost.py) | Targeting all quality range, focusing on quality consistency. |
-| [SSIMU2-Harmonic-Mean](../Preset-SSIMU2-Harmonic-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, slightly faster while delivering<br />decent quality consistency. |
+| [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting all quality range, focusing on quality consistency. |
+| [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 #### Scene Detection Presets
 
-Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`. You can use the standalone [VapourSynth Scene Detection](#vapoursynth-scene-detection) script for this, and this preset is for if you want to mix Progression Boost's scene detection with av1an's scene detection.  
+Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`. This preset supports mixing Progression Boost's scene detection with av1an's scene detection via Progression Boost's zoning feature. But if you want to use Progression Boost's scene detection throughout the encode, you can use the easiertouse standalone [VapourSynth Scene Detection](#vapoursynth-scene-detection) script.  
 
 | Preset | Explained |
 | :-- | :-- |
-| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Only performing Scene Detection for fixed `--crf` encoding. |
+| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Performing Scene Detection for fixed `--crf` encoding. |
 
 ### Dependencies
 
