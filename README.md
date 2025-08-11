@@ -7,7 +7,7 @@
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their Auto-Boost, and BoatsMcGee and their Normal-Boost that makes this script possible.
 
 Constant quality? Eliminating bad frames? Better character? Better birate allocation? Whatever your target is, Progression Boost gets you covered.  
-Progression Boost is a fast, safe, and featurerich boosting script. It comes with readytouse preset that you can try directly, but it can also be configured to target unique quality targets and more.  
+Progression Boost is a fast, safe, and featurerich boosting script. It comes with readytouse presets that you can try directly, but it can also be configured to target unique quality targets and more.  
 
 ## Download
 
@@ -42,7 +42,7 @@ There is also a preset that disables metric based boosting and solely relies on 
 
 As explained above, you should always use Character Boost at all quality targets, unless you don't have a GPU equivalent to GTX 1060, or you can't set up vs-mlrt. And here are the presets without Character Boost.  
 
-Explanation for picking between Butteraugli and SSIMU2, as well as explanation for the „Mean“ based presets below are also available in the last section. In short, you should always pick a Butteraugli based preset, unless you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible. And the mean based methods here deliver the quality consistency of a mean based method, while in the same time avoiding bad frames like that of a percentile based method.  
+Explanation for picking between Butteraugli and SSIMU2, as well as explanation for the „Mean“ based presets below are also available in the last section. In short, you should always pick a Butteraugli based preset, unless you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible. And the mean based methods here deliver the quality consistency of a mean based method, while in the same time they avoid bad frames like that of a percentile based method.  
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
