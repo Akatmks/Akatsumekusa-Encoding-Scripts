@@ -2,20 +2,20 @@
 
 # Progression Boost
 
-### Introduction
+## Introduction
 
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their Auto-Boost, and BoatsMcGee and their Normal-Boost that makes this script possible.
 
 Constant quality? Eliminating bad frames? Better character? Better birate allocation? Whatever your target is, Progression Boost gets you covered.  
 Progression Boost is a fast, safe, and featurerich boosting script. It comes with readytouse preset that you can try directly, but it can also be configured to target unique quality targets and more.  
 
-### Download
+## Download
 
 As a starting point, Progression Boost offers multiple readytouse presets.  
 For users that don't want too much tinkering and just want to quickly get a good result, you can just pick a preset depending on your target and you're ready to go. Any presets can be run directly and produce a decent result. However, you may also open the file in a text editor, and there are notes in the file guiding you to the most necessary configs to adjust, such as the encoder's encoding parameters, and your target score.  
 For users that wants to fine tune the boosting, you can first download a preset that's closer to what you want to achieve, and then modify from that. After you've selected and downloaded a preset, open the file in a text editor. Inside the file, there are a very detailed and complete guide on how you can adjust the boosting.  
 
-#### Presets with Character Boost
+### Presets with Character Boost
 
 Character Boost is the crème de la crème of anime boosting. It's almost always necessary in high quality encodes, because there is not a single other way to preserve the weak character linearts that's very common in all kinds of anime. It's even more beneficial in lower quality encodes, because when filesize is the limitation, it's very important to spend the bitrate on characters which we care more about instead of the background.  
 As long as you're encoding anime, and you have at the very least an entrylevel GPU such as a GTX 1060, you should always pick a preset with Character Boost.  
@@ -38,7 +38,7 @@ There is also a preset that disables metric based boosting and solely relies on 
 | :-- | :-- |
 | [Character-Boost](../Preset-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
 
-#### Presets without Character Boost
+### Presets without Character Boost
 
 As explained above, you should always use Character Boost at all quality targets, unless you don't have a GPU equivalent to GTX 1060, or you can't set up vs-mlrt. And here are the presets without Character Boost.  
 
@@ -50,7 +50,7 @@ Explanation for picking between Butteraugli and SSIMU2, as well as explanation f
 | [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting the entire quality range, focusing on quality consistency. |
 | [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
-#### Scene Detection Presets
+### Scene Detection Presets
 
 Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`. This preset supports mixing Progression Boost's scene detection with av1an's scene detection via Progression Boost's zoning feature. But if you want just to use Progression Boost's scene detection throughout the entire encode, you can use the easiertouse standalone [VapourSynth Scene Detection](#vapoursynth-scene-detection) script.  
 
@@ -58,7 +58,7 @@ Progression Boost has a great scene detection system. This scene detection may b
 | :-- | :-- |
 | [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Performing Scene Detection for fixed `--crf` encoding. |
 
-### Dependencies
+## Dependencies
 
 Progression Boost has very few dependencies:  
 * Progression Boost is a script for av1an, and it outputs scenes.json in av1an format. You need to be using av1an to use Progression Boost.  
@@ -74,7 +74,7 @@ Progression Boost has very few dependencies:
 
 After you've set up the dependencies, you may run the file directly and it will produce a decent result. Or you can open the file in a text editor and adjust the config for your needs. For people that wants to quickly adjust, there's a note inside leading you to the most necessary configs. For the people that wants to fine tune the result, there're very detailed guides inside the file.  
 
-### Note
+## Note
 
 * This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
 
