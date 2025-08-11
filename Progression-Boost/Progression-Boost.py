@@ -729,7 +729,7 @@ class DefaultZone:
 # last frame from the previous scene and is irrelevant. In addition,
 # the first frame as the keyframe often has great quality. Do you want
 # to always include the first frame in metric calculation?
-    metric_first_frame = 0
+    metric_first_frame = 1
 #
 # Sometimes, sometimes SVT-AV1-PSY will encode the last frame of a
 # scene slightly worse than the rest of the frames. Do you want to
