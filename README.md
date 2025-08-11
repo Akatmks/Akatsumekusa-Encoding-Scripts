@@ -27,8 +27,8 @@ You may noticed the two „Mean“ based presets. They are not simple arthritic 
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
-| [Character-Boost-Butteraugli-Mean](../master/Progression-Boost/Progression-Boost.py) | Targeting all quality targets, focusing on quality consistency. |
+| [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on getting even the worst frame good. |
+| [Character-Boost-Butteraugli-Mean](../master/Progression-Boost/Progression-Boost.py) | Targeting the entire quality range, focusing on quality consistency. |
 | [Character-Boost-SSIMU2-Mean](../Preset-Character-Boost-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is useful when the background of the source is very complicated and would take unfathomable amount of bitrate with normal metric based boosting. In this case can throw away the background, but rely on Character Boost to still achieve a pristine quality for characters.  
@@ -45,9 +45,9 @@ Explanation for picking between Butteraugli and SSIMU2 is also available in the 
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting high quality, focusing on getting even the worst frame good. |
-| [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting all quality range, focusing on quality consistency. |
-| [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium quality levels, slightly faster while delivering<br />decent quality consistency. |
+| [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on getting even the worst frame good. |
+| [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting the entire quality range, focusing on quality consistency. |
+| [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 #### Scene Detection Presets
 
