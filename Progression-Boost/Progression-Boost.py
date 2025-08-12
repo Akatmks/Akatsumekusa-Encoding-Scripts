@@ -854,79 +854,82 @@ class DefaultZone:
     # metric_vapoursynth_metric = lambda self, frame: frame.props["SSIMULACRA2"]
 # ---------------------------------------------------------------------
 # After calcuating metric for frames, we summarise the quality for each
-# scene into a single value. There are three common way for this.
-# 
-# The first is the percentile method. The percentile method is better
-# at getting bad frames good.
-# With an aggressive observation such as observing 10th percentile or
-# lower, in tests, we have had the worst single frame to be within 3
-# to 4 SSIMU2 away from the mean. Compared to the normal 15 or more
-# without boosting, boosting using the percentile method ensures that
-# even the bad frames are decent.
-# A note is that if you want to get the best quality, you should also
-# increase the number of frames to measured specified above in order to
-# prevent random bad frames from slipping through.
-# When targeting lower quality targets, a looser observation such as
-# observing the 20th or the 30th percentile should also produce a decent
-# result.
-# 
-# Note that Progression Boost by default uses median-unbiased estimator
-# for calculating percentile, which is much more sensitive to extreme
-# values than linear estimator.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     percentile = 15
-    #     return np.percentile(scores, percentile, method="median_unbiased")
+# scene into a single value. There are two main ways for this in new
+# version of Progression Boost.
 
-# The percentile method is also tested on Butteraugli 3Norm score, use
-# 90th percentile instead of 10th, and 80th percentile instead of 20th,
-# and you are good to go.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     percentile = 80
-    #     return np.percentile(scores, percentile, method="median_unbiased")
-
-# The second method is even more aggressive than the first method, to
-# take the minimum or the maximum value from all the frames measured.
-# This is the default for the preset targeting the highest quality,
-# Preset-Butteraugli-3Norm-INFNorm-Max.
-# A note is that if you want to get the best quality, you should also
-# increase the number of frames to measured specified above in order to
-# prevent random bad frames from slipping through.
+# The first is to directly observe the min or the max score of frames
+# in the scene. This method is very aggressive, aiming at completely
+# eliminate bad frames. It's suitable for the highest quality targets
+# but may be too aggressive for medium or lower quality encodes.
+#
+# If you want to get the best quality, you should also increase the
+# number of frames measured in order to prevent bad frames from
+# slipping through.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
     #     return np.min(scores)
     def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
         return np.max(scores)
 
-# The second method is to calculate a mean value for the whole scene.
-# For SSIMU2 score, harmonic mean is studied by Miss Moonlight to have
-# good representation of realworld viewing experience, and ensures a
-# consistent quality thoughout the encode without bloating too much for
-# the worst frames.
-# In tests using harmonic mean method, we've observed very small
-# standard deviation of less than 2.000 in the final encode, compared to
-# a normal value of 3 to 4 without boosting.
+# The second method is more gentle and more suitable for general use.
+# The based of the second method is a mean based observation. And then
+# we will observe the min or max score of frames in the scene. If the
+# min or max score is tame and not specifically problematic, the mean
+# based observation is not modified. If the min or max score is
+# significant, we will offset the mean based observation to reflect on
+# this.
+# This method is aimed to achieve consistency in quality, aka, smallest
+# standard deviation, while also addressing the bad frames in a less
+# aggressive mannar than the first method. This method is suitable for
+# the entire quality range from high quality to lower quality.
 #
+# Specifically to calculate mean, we use harmonic mean to calculate
+# SSIMU2 score. This is studied by Miss Moonlight to have good
+# representation of realworld viewing experience.
 # There is a very rare edge case for harmonic mean, that when the score
 # for a single frame dropped too low, it can skew the whole mean value
 # to the point that scores for all other frames have essentially no
-# effects on the final score. For this reason, we cap the SSIMU2 score to
-# 10 before calculating harmonic mean. 
+# effects on the final score. For this reason, we cap the SSIMU2 score
+# to 15 before calculating harmonic mean.
+# For Butteraugli score, we use root mean cube. This is suggested by
+# Miss Moonlight and tested to have good overall boosting result.
 #
-# To use the harmonic mean method, comment the lines above for the
-# percentile method, and uncomment the lines below.
+# For SSIMU2 score, uncomment the lines below.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     unreliable_harmonic_mean = False
     #     if np.any((small := scores < 15)):
+    #         scores = scores.copy()
     #         scores[small] = 15
-    #         raise UnreliableSummarisationError(scores.shape[0] / np.sum(1 / scores), f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
+    #         unreliable_harmonic_mean = True
+    #
+    #     mean = scores.shape[0] / np.sum(1 / scores)
+    #
+    #     median = np.median(scores)
+    #     mad = np.median(np.abs(scores - median))
+    #     limit = median - mad * 3.0
+    #     overlimit = np.min(scores) - limit
+    #     if overlimit > 0:
+    #         overlimit = 0
+    #   
+    #     mean += overlimit
+    #       
+    #     if unreliable_harmonic_mean:
+    #         raise UnreliableSummarisationError(mean, f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
     #     else:
-    #         return scores.shape[0] / np.sum(1 / scores)
+    #         return mean
+# For Butteraugli 3Norm score, uncomment the lines below.
+    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+        mean = np.mean(scores ** 3) ** (1 / 3)
 
-# For Butteraugli 3Norm score, root mean cube is suggested by Miss
-# Moonlight and tested to have good overall boosting result.
-#
-# To use the root mean cube method, comment the lines above for the
-# percentile method, and uncomment the two lines below.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     return np.mean(scores ** 3) ** (1 / 3)
+        median = np.median(scores)
+        mad = np.median(np.abs(scores - median))
+        limit = median + mad * 3.0
+        overlimit = np.max(scores) - limit
+        if overlimit < 0:
+            overlimit = 0
+        
+        mean += overlimit
+
+        return mean
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
