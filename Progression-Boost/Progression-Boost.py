@@ -93,12 +93,6 @@ resume = args.resume
 verbose = args.verbose
 
 
-class UnreliableSummarisationError(Exception):
-    def __init__(self, score, message):
-        super().__init__(message)
-        self.score = score
-
-
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Before everything, the codes above are for commandline arguments.      # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
@@ -817,14 +811,14 @@ class DefaultZone:
     metric_better = np.less
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
+        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.027 - frame.props["_BUTTERAUGLI_3Norm"] * 0.27
         if adjustment < 0:
             adjustment = 0
         return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     metric_ffvship_calculate = "Butteraugli"
     metric_ffvship_intensity_target = None
     def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.030 - frame[1] * 0.30
+        adjustment = frame[2] * 0.027 - frame[1] * 0.27
         if adjustment < 0:
             adjustment = 0
         return frame[1] + adjustment
@@ -895,38 +889,53 @@ class DefaultZone:
 #
 # For SSIMU2 score, uncomment the lines below.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     unreliable_harmonic_mean = False
     #     if np.any((small := scores < 15)):
     #         scores = scores.copy()
     #         scores[small] = 15
-    #         unreliable_harmonic_mean = True
+    #         if verbose >= 1:
+    #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / Frames in this scene receive a metric score below 15 for test encodes.", end="\n")
     #
     #     mean = scores.shape[0] / np.sum(1 / scores)
     #
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
+    #
     #     limit = median - mad * 3.0
     #     overlimit = np.min(scores) - limit
+    #     for score_i in range(scores.shape[0] - 5 + 1):
+    #         i_limit = np.median(scores[score_i:score_i + 5]) - mad * 3.0
+    #         i_overlimit = np.min(scores[score_i:score_i + 5]) - i_limit
+    #         overlimit = np.min([overlimit, i_overlimit])
     #     if overlimit > 0:
     #         overlimit = 0
-    #   
+    #
+    #     if verbose >= 2:
+    #         if overlimit < 0:
+    #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean {mean:.3f} / adjusted mean {mean + overlimit:.3f}", end="\n")
+    #
     #     mean += overlimit
-    #       
-    #     if unreliable_harmonic_mean:
-    #         raise UnreliableSummarisationError(mean, f"Frames in this scene receive a metric score below 15 for test encodes. This may result in overboosting")
-    #     else:
-    #         return mean
+    #
+    #     return mean
 # For Butteraugli 3Norm score, uncomment the lines below.
     def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
         mean = np.mean(scores ** 3) ** (1 / 3)
 
         median = np.median(scores)
         mad = np.median(np.abs(scores - median))
+
         limit = median + mad * 3.0
         overlimit = np.max(scores) - limit
+        for score_i in range(scores.shape[0] - 5 + 1):
+            i_limit = np.median(scores[score_i:score_i + 5]) + mad * 3.0
+            i_overlimit = np.max(scores[score_i:score_i + 5]) - i_limit
+            overlimit = np.max([overlimit, i_overlimit])
         if overlimit < 0:
             overlimit = 0
         
+        if verbose >= 2:
+            if overlimit > 0:
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean {mean:.3f} / adjusted mean {mean + overlimit:.3f}", end="\n")
+
         mean += overlimit
 
         return mean
@@ -1480,7 +1489,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                         scene_detection_max[current_frame] < 3.875 * 2 ** (scene_detection_bits - 8)
 
                     if luma_scenecut or luma_scenecut_prev:
-                        diffs[offset_frame] = scene_detection_diffs[current_frame] + 1.15
+                        diffs[offset_frame] = scene_detection_diffs[current_frame] + 1.16
                     else:
                         diffs[offset_frame] = scene_detection_diffs[current_frame] + scene_detection_scenecut
 
@@ -1645,7 +1654,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 if end_frame - start_frame <= zone["zone"].scene_detection_extra_split:
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split) and \
@@ -1656,7 +1665,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split) and \
@@ -1667,7 +1676,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split) and \
@@ -1678,7 +1687,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split) and \
@@ -1689,7 +1698,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= zone["zone"].scene_detection_target_split or end_frame - current_frame <= zone["zone"].scene_detection_target_split):
@@ -1699,7 +1708,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.16:
                             if verbose >= 2:
                                 print(f" / branch complete", end="\n")
                             return [start_frame]
@@ -2027,6 +2036,7 @@ if metric_has_metric:
         if zone_scene["zone"].metric_enable:
             if "first_score" not in metric_result["scenes"][scene_n]:
                 probing_second_perform_encode = True
+                shutil.rmtree(probing_second_tmp_dir, ignore_errors=True)
                 break
 
     if not resume or not probing_second_output_file.exists():
@@ -2365,11 +2375,7 @@ if metric_has_metric:
                         scores = json.load(metric_output_f)
                     scores = np.array([zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores])
                 
-                try:
-                    metric_result["scenes"][scene_n]["first_score"] = zone_scene["zone"].metric_summarise(scores)
-                except UnreliableSummarisationError as e:
-                    print(f"\r\033[K{scene_frame_print(scene_n)} / Unreliable summarisation / {str(e)}")
-                    metric_result["scenes"][scene_n]["first_score"] = e.score
+                metric_result["scenes"][scene_n]["first_score"] = zone_scene["zone"].metric_summarise(scores)
 
 
             probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
@@ -2514,11 +2520,7 @@ if metric_has_metric:
                         scores = json.load(metric_output_f)
                     scores = np.array([zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores])
                 
-                try:
-                    metric_result["scenes"][scene_n]["second_score"] = zone_scene["zone"].metric_summarise(scores)
-                except UnreliableSummarisationError as e:
-                    print(f"\r\033[K{scene_frame_print(scene_n)} / Unreliable summarisation / {str(e)}")
-                    metric_result["scenes"][scene_n]["second_score"] = e.score
+                metric_result["scenes"][scene_n]["second_score"] = zone_scene["zone"].metric_summarise(scores)
 
             probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
 
