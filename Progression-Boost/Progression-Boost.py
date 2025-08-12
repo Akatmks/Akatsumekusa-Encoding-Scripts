@@ -922,10 +922,19 @@ class DefaultZone:
     #
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
+    #
     #     limit = median + mad * 3.0
     #     overlimit = np.max(scores) - limit
+    #     for score_i in range(scores.shape[0] - 5 + 1):
+    #         i_limit = np.median(scores[score_i:score_i + 5]) + mad * 3.0
+    #         i_overlimit = np.max(scores[score_i:score_i + 5]) - i_limit
+    #         overlimit = np.max([overlimit, i_overlimit])
     #     if overlimit < 0:
     #         overlimit = 0
+    #
+    #     if verbose >= 2:
+    #         if overlimit > 0:
+    #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean {mean:.3f} / adjusted mean {mean + overlimit:.3f}", end="\n")
     #
     #     mean += overlimit
     #
