@@ -2,7 +2,7 @@
 
 # Progression Boost
 
-> *This is the new version of Progression Boost **still in testing**. If you want something production ready, try out our [existing version](../../tree/old).*
+> *This is the new version of Progression Boost **still in testing**. You're welcome to try out the new version, but if you want something production ready, try out our [existing version](../../tree/old).*
 
 ## Introduction
 
