@@ -917,19 +917,19 @@ class DefaultZone:
     #     else:
     #         return mean
 # For Butteraugli 3Norm score, uncomment the lines below.
-    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-        mean = np.mean(scores ** 3) ** (1 / 3)
-
-        median = np.median(scores)
-        mad = np.median(np.abs(scores - median))
-        limit = median + mad * 3.0
-        overlimit = np.max(scores) - limit
-        if overlimit < 0:
-            overlimit = 0
-        
-        mean += overlimit
-
-        return mean
+    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    #     mean = np.mean(scores ** 3) ** (1 / 3)
+    #
+    #     median = np.median(scores)
+    #     mad = np.median(np.abs(scores - median))
+    #     limit = median + mad * 3.0
+    #     overlimit = np.max(scores) - limit
+    #     if overlimit < 0:
+    #         overlimit = 0
+    #
+    #     mean += overlimit
+    #
+    #     return mean
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
