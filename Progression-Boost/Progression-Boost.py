@@ -2692,11 +2692,11 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             if verbose >= 1:
                 print(f"ROI map {crf:>5.2f} / ", end="", flush=True)
 
-            roi_map_file = roi_maps_dir / f"roi-map-{scene_rjust(i)}.txt"
+            roi_map_file = roi_maps_dir / f"roi-map-{scene_rjust(scene_n)}.txt"
             with roi_map_file.open("w") as roi_map_f:
                 for line in roi_map:
                     roi_map_f.write(f"{line[0]} ")
-                    np.savetxt(roi_map_f, line[1], fmt="%d")
+                    np.savetxt(roi_map_f, line[1].reshape((1, -1)), fmt="%d")
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
         character_hiritsu /= 0.26
