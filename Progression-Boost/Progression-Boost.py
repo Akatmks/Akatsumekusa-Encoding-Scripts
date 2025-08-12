@@ -712,7 +712,7 @@ class DefaultZone:
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
     metric_upper_diff_bracket_frames = 6
-    metric_lower_diff_bracket_frames = 3
+    metric_lower_diff_bracket_frames = 0
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
@@ -722,14 +722,15 @@ class DefaultZone:
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 4
+    metric_upper_diff_bracket_fallback_frames = 5
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
 # last frame from the previous scene and is irrelevant. In addition,
-# the first frame as the keyframe often has great quality. Do you want
+# the first frame as the keyframe often has great quality... until it
+# doesn't. It's safer to select the first frame as well. Do you want
 # to always include the first frame in metric calculation?
-    metric_first_frame = 0
+    metric_first_frame = 1
 #
 # Sometimes, sometimes SVT-AV1-PSY will encode the last frame of a
 # scene slightly worse than the rest of the frames. Do you want to
