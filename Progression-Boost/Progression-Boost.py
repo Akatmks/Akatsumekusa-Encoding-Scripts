@@ -348,6 +348,11 @@ class DefaultZone:
 # for it to work.
     # scene_detection_method = "external".lower()
 
+# `--resume` information: If you've modified anything scene detection
+# related, you need to delete everything in `scene-detection` folder in
+# the temporary directory except for the four .txt files starting with
+# `luma-`, and then you can rerun the script.
+
 # Zoning information: all three `scene_detection_method` is zoneable,
 # which means you can mix av1an based scene detection with VapourSynth
 # based scene detection, as well as external scene detection fed from
@@ -380,6 +385,11 @@ class DefaultZone:
 # 60 would be fine.
     scene_detection_target_split = 49
 
+# `--resume` information: If you've modified anything scene detection
+# related, you need to delete everything in `scene-detection` folder in
+# the temporary directory except for the four .txt files starting with
+# `luma-`, and then you can rerun the script.
+
 # Zoning information: `scene_detection_extra_split` and
 # `scene_detection_min_scene_len` are only zoneable if you use
 # VapourSynth based scene detection.
@@ -402,6 +412,11 @@ class DefaultZone:
 # Even if you disable Progression Boost, you cannot skip this whole
 # section, as you need to set your final encoding parameters here. Read
 # first 3 cells below to find the settings you'll need to change.
+
+# `--resume` information: Toggling modules is completely resumable.
+# Just rerun the script and it will work... unless you've changed
+# individual settings for each module, then you need to check the
+# `--resume` information for each settings.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Set the encoding parameters!
@@ -515,6 +530,13 @@ class DefaultZone:
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
     final_min_crf = 6.50
+
+# `--resume` information: If you changed parameters for probing, you
+# need to delete everything in `progression-boost` folder inside the
+# temporary directory, and then you can rerun the script.
+# If you changed `metric_` or `final_` parameters for the output, you
+# don't need to delete anything in temporary directory, and the changes
+# will be updated once you rerun the script.
 # ---------------------------------------------------------------------
 # Second, `--preset`:
 
@@ -562,6 +584,13 @@ class DefaultZone:
 # `--preset`.                                                            # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     def metric_dynamic_preset(self, crf: float) -> int:
         return 2
+
+# `--resume` information: If you changed parameters for probing, you
+# need to delete everything in `progression-boost` folder inside the
+# temporary directory, and then you can rerun the script.
+# If you changed `metric_` parameters for the output, you don't need to
+# delete anything in temporary directory, and the changes will be
+# updated once you rerun the script.
 # ---------------------------------------------------------------------
 # Third, every other parameters:
 
@@ -612,6 +641,13 @@ class DefaultZone:
                   --tune 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
+
+# `--resume` information: If you changed parameters for probing, you
+# need to delete everything in `progression-boost` folder inside the
+# temporary directory, and then you can rerun the script.
+# If you changed `final_` parameters for the final output, you don't
+# need to delete anything in temporary directory, and the changes will
+# be updated once you rerun the script.
 # ---------------------------------------------------------------------
 # At last, av1an parameters:
 
@@ -645,6 +681,13 @@ class DefaultZone:
     final_photon_noise_height = None
     final_photon_noise_width = None
     final_chroma_noise = False
+
+# `--resume` information: If you changed parameters for probing, you
+# need to delete everything in `progression-boost` folder inside the
+# temporary directory, and then you can rerun the script.
+# If you changed `final_` parameters for the final output, you don't
+# need to delete anything in temporary directory, and the changes will
+# be updated once you rerun the script.
 
 # Zoning information: `probing_av1an_parameters` is not zoneable.
 # ---------------------------------------------------------------------
@@ -730,6 +773,11 @@ class DefaultZone:
 # scene slightly worse than the rest of the frames. Do you want to
 # always include the first frame in metric calculation?
     metric_last_frame = 1
+
+# `--resume` information: If you changed the frame selection, you need
+# to delete everything in `progression-boost` folder inside the
+# temporary directory, including the probe encodes, and then you can
+# rerun the script.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # Progression Boost currently supports two methods calculating metrics,
@@ -846,6 +894,14 @@ class DefaultZone:
     # metric_better = np.greater
     # metric_vapoursynth_calculate = core.vszip.SSIMULACRA2
     # metric_vapoursynth_metric = lambda self, frame: frame.props["SSIMULACRA2"]
+
+# `--resume` information: If you changed to a different metric or
+# metric measurement, you need to delete `probe-encode-first.mkv` in
+# `progression-boost` folder inside the temporary directory. By doing
+# this, you won't reencode the first probe encode, but you will
+# reencode the second probe encode due to internal machanics of
+# Progression Boost. After deleting `probe-encode-first.mkv`, you can
+# rerun the script.
 # ---------------------------------------------------------------------
 # After calcuating metric for frames, we summarise the quality for each
 # scene into a single value. There are two main ways for this in new
@@ -947,6 +1003,13 @@ class DefaultZone:
 # encode.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
     #     pass
+
+# `--resume` information: If you changed `metric_summarise`, you need
+# to delete `probe-encode-first.mkv` in `progression-boost` folder
+# inside the temporary directory. By doing this, you won't reencode the
+# first probe encode, but you will reencode the second probe encode due
+# to internal machanics of Progression Boost. After deleting
+# `probe-encode-first.mkv`, you can rerun the script.
 # ---------------------------------------------------------------------
 # After calculating the percentile, or harmonic mean, or other           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # quantizer of the data, we fit the quantizers to a polynomial model     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -960,6 +1023,10 @@ class DefaultZone:
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
     metric_target = 0.950
+
+# `--resume` information: If you changed `metric_target`, just rerun
+# the script and it will work. Unlike some other options, you don't
+# need to delete anything in the temp folder for this change to update.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -990,6 +1057,11 @@ class DefaultZone:
 #
 # Enable character boosting by setting the line below to True.
     character_enable = True
+
+# `--resume` information: Toggling modules is completely resumable.
+# Just rerun the script and it will work... unless you've changed
+# individual settings for each module, then you need to check the
+# `--resume` information for each settings.
 # ---------------------------------------------------------------------
 # Set how aggressive character boosting should be.
 
@@ -1047,6 +1119,11 @@ class DefaultZone:
 #
 # The number here should be positive.
     character_max_motion_crf_boost = 4.50
+
+# `--resume` information: If you changed any character boosting related
+# settings, just rerun the script and it will work. Unlike some other
+# options, you don't need to delete anything in the temp folder for the
+# changes to update.
 # ---------------------------------------------------------------------
 # Select vs-mlrt backend for image segmentation model here. You should
 # always use `fp16=True`. The resolution required for Character Boost
@@ -1316,13 +1393,14 @@ for zone in zones:
 print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progression Boost started", end="\n")
 
 
-# ███████  ██████ ███████ ███    ██ ███████     ██████  ███████ ████████ ███████  ██████ ████████ ██  ██████  ███    ██ 
-# ██      ██      ██      ████   ██ ██          ██   ██ ██         ██    ██      ██         ██    ██ ██    ██ ████   ██ 
-# ███████ ██      █████   ██ ██  ██ █████       ██   ██ █████      ██    █████   ██         ██    ██ ██    ██ ██ ██  ██ 
-#      ██ ██      ██      ██  ██ ██ ██          ██   ██ ██         ██    ██      ██         ██    ██ ██    ██ ██  ██ ██ 
-# ███████  ██████ ███████ ██   ████ ███████     ██████  ███████    ██    ███████  ██████    ██    ██  ██████  ██   ████ 
+#  ███████╗ ██████╗███████╗███╗   ██╗███████╗    ██████╗ ███████╗████████╗███████╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗
+#  ██╔════╝██╔════╝██╔════╝████╗  ██║██╔════╝    ██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║
+#  ███████╗██║     █████╗  ██╔██╗ ██║█████╗      ██║  ██║█████╗     ██║   █████╗  ██║        ██║   ██║██║   ██║██╔██╗ ██║
+#  ╚════██║██║     ██╔══╝  ██║╚██╗██║██╔══╝      ██║  ██║██╔══╝     ██║   ██╔══╝  ██║        ██║   ██║██║   ██║██║╚██╗██║
+#  ███████║╚██████╗███████╗██║ ╚████║███████╗    ██████╔╝███████╗   ██║   ███████╗╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║
+#  ╚══════╝ ╚═════╝╚══════╝╚═╝  ╚═══╝╚══════╝    ╚═════╝ ╚══════╝   ╚═╝   ╚══════╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 #
-# ANSI Regular FIGlet font
+#  ANSI Shadow ANSI FIGlet font
 
 
 scene_detection_scenes_file = scene_detection_temp_dir.joinpath("scenes.json")
@@ -1943,11 +2021,12 @@ for zone_scene in zone_scenes["scenes"]:
     }
 
 
-# ██████  ██████   ██████  ██████  ██ ███    ██  ██████        ███████ ██ ██████  ███████ ████████ 
-# ██   ██ ██   ██ ██    ██ ██   ██ ██ ████   ██ ██             ██      ██ ██   ██ ██         ██    
-# ██████  ██████  ██    ██ ██████  ██ ██ ██  ██ ██   ███ █████ █████   ██ ██████  ███████    ██    
-# ██      ██   ██ ██    ██ ██   ██ ██ ██  ██ ██ ██    ██       ██      ██ ██   ██      ██    ██    
-# ██      ██   ██  ██████  ██████  ██ ██   ████  ██████        ██      ██ ██   ██ ███████    ██    
+#  ██████╗ ██████╗  ██████╗ ██████╗ ██╗███╗   ██╗ ██████╗       ███████╗██╗██████╗ ███████╗████████╗
+#  ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██║████╗  ██║██╔════╝       ██╔════╝██║██╔══██╗██╔════╝╚══██╔══╝
+#  ██████╔╝██████╔╝██║   ██║██████╔╝██║██╔██╗ ██║██║  ███╗█████╗█████╗  ██║██████╔╝███████╗   ██║   
+#  ██╔═══╝ ██╔══██╗██║   ██║██╔══██╗██║██║╚██╗██║██║   ██║╚════╝██╔══╝  ██║██╔══██╗╚════██║   ██║   
+#  ██║     ██║  ██║╚██████╔╝██████╔╝██║██║ ╚████║╚██████╔╝      ██║     ██║██║  ██║███████║   ██║   
+#  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝       ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   
 
 
 scene_rjust_digits = math.floor(np.log10(len(scenes["scenes"]))) + 1
@@ -2387,11 +2466,12 @@ if metric_has_metric:
         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
 
 
-# ██████  ██████   ██████  ██████  ██ ███    ██  ██████        ███████ ███████  ██████  ██████  ███    ██ ██████  
-# ██   ██ ██   ██ ██    ██ ██   ██ ██ ████   ██ ██             ██      ██      ██      ██    ██ ████   ██ ██   ██ 
-# ██████  ██████  ██    ██ ██████  ██ ██ ██  ██ ██   ███ █████ ███████ █████   ██      ██    ██ ██ ██  ██ ██   ██ 
-# ██      ██   ██ ██    ██ ██   ██ ██ ██  ██ ██ ██    ██            ██ ██      ██      ██    ██ ██  ██ ██ ██   ██ 
-# ██      ██   ██  ██████  ██████  ██ ██   ████  ██████        ███████ ███████  ██████  ██████  ██   ████ ██████  
+#  ██████╗ ██████╗  ██████╗ ██████╗ ██╗███╗   ██╗ ██████╗       ███████╗███████╗ ██████╗ ██████╗ ███╗   ██╗██████╗ 
+#  ██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██║████╗  ██║██╔════╝       ██╔════╝██╔════╝██╔════╝██╔═══██╗████╗  ██║██╔══██╗
+#  ██████╔╝██████╔╝██║   ██║██████╔╝██║██╔██╗ ██║██║  ███╗█████╗███████╗█████╗  ██║     ██║   ██║██╔██╗ ██║██║  ██║
+#  ██╔═══╝ ██╔══██╗██║   ██║██╔══██╗██║██║╚██╗██║██║   ██║╚════╝╚════██║██╔══╝  ██║     ██║   ██║██║╚██╗██║██║  ██║
+#  ██║     ██║  ██║╚██████╔╝██████╔╝██║██║ ╚████║╚██████╔╝      ███████║███████╗╚██████╗╚██████╔╝██║ ╚████║██████╔╝
+#  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝       ╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═════╝ 
 
 
 if metric_has_metric and probing_second_perform_encode:
@@ -2542,11 +2622,12 @@ if metric_has_metric:
                 print(f"\r\033[K{scene_frame_print(scene_n)} / Metric result / first_qstep {metric_result["scenes"][scene_n]["first_qstep"]} / first_score {metric_result["scenes"][scene_n]["first_score"]:.3f} / second_qstep {metric_result["scenes"][scene_n]["second_qstep"]} / second_score {metric_result["scenes"][scene_n]["second_score"]:.3f}", end="\n")
 
 
-# ███████ ██ ███    ██  █████  ██      
-# ██      ██ ████   ██ ██   ██ ██      
-# █████   ██ ██ ██  ██ ███████ ██      
-# ██      ██ ██  ██ ██ ██   ██ ██      
-# ██      ██ ██   ████ ██   ██ ███████ 
+#  ███████╗██╗███╗   ██╗ █████╗ ██╗     
+#  ██╔════╝██║████╗  ██║██╔══██╗██║     
+#  █████╗  ██║██╔██╗ ██║███████║██║     
+#  ██╔══╝  ██║██║╚██╗██║██╔══██║██║     
+#  ██║     ██║██║ ╚████║██║  ██║███████╗
+#  ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
 
 
 final_scenes = copy.deepcopy(scenes)
