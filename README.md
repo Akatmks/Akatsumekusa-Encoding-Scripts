@@ -22,7 +22,7 @@ Character Boost is the crème de la crème of anime boosting. It's almost always
 As long as you're encoding anime, and you have at the very least an entrylevel GPU such as a GTX 1060, you should always pick a preset with Character Boost.  
 
 Butteraugli based boosting is the primary boosting method for Progression Boost. The reason is that the whole frame score of metrics such as SSIMU2 are given based on the average quality across the frame. It's not exactly rare in extreme long shots to have characters only occupying a small percentage of the scereen while the majority of the frame is background. In this case, if the character is moving while the background is still, the characters will get encoded very poorly. Mean based metric such as SSIMU2 would often fail to pick this up and represent it in the final score. To solve this, Progression Boost's Butteraugli presets use a combination of Butteraugli 3Norm and INFNorm score to make sure to we recognised these issues and give them enough boost.  
-You should always pick a Butteraugli based preset, unless you're stuck with Intel's integrated  GPU (AMD is fine though), or you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
+You should always pick a Butteraugli based preset, unless you're stuck with Intel's integrated GPU (AMD is fine though), or you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
 
 You may noticed the two „Mean“ based presets below. They are not simple arthritic mean. They are Harmonic Mean and Root Mean Cube augmented by Min or Max respectively. They should deliver the quality consistency of a mean based method while avoiding bad frames like that of a percentile based method.  
 You should prefer this modified mean over the commonly used 15th percentile method.  
@@ -30,7 +30,7 @@ You should prefer this modified mean over the commonly used 15th percentile meth
 | Preset | Quality Target Explained |
 | :-- | :-- |
 | [Character-Boost-Butteraugli-Max](../Preset-Character-Boost-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on getting even the worst frame good. |
-| [Character-Boost-Butteraugli-Mean](../master/Progression-Boost/Progression-Boost.py) | Targeting the entire quality range, focusing on quality consistency. |
+| [Character-Boost-Butteraugli-Mean](../master/Progression-Boost/Progression-Boost.py) | Targeting entire quality range, focusing on quality consistency<br /> while also reducing bad frames. |
 | [Character-Boost-SSIMU2-Mean](../Preset-Character-Boost-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is useful when the background of the source is very complicated and would take unreasonable amount of bitrate with normal metric based boosting. In this case, we can choose to disregard the background and letting it be a little bit less faithful, but rely on Character Boost to achieve a pristine quality on characters.  
@@ -48,7 +48,7 @@ Explanation for picking between Butteraugli and SSIMU2, as well as explanation f
 | Preset | Quality Target Explained |
 | :-- | :-- |
 | [Butteraugli-Max](../Preset-Butteraugli-Max/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on getting even the worst frame good. |
-| [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting the entire quality range, focusing on quality consistency. |
+| [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting entire quality range, focusing on quality consistency<br /> while also reducing bad frames. |
 | [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 ### Scene Detection Presets
