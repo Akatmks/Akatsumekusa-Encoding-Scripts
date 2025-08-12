@@ -1972,7 +1972,10 @@ if metric_has_metric:
 
         command = [
             "av1an",
-            "-y",
+            "-y"]
+        if verbose >= 2:
+            command += ["--verbose"]
+        command += [
             "--temp", probing_tmp_dir,
             "--keep"
         ]
