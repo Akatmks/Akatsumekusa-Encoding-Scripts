@@ -1515,7 +1515,11 @@ if not resume or not scene_detection_scenes_file.exists():
     for zone_i, zone in enumerate(zones):
         if zone["zone"].scene_detection_method == "av1an":
             av1an_scenes_start_copying = False
-            for av1an_scene in scene_detection_av1an_scenes["split_scenes"]:
+            if "split_scenes" in scene_detection_av1an_scenes:
+                scene_detection_av1an_scenes_scenes = scene_detection_av1an_scenes["split_scenes"]
+            else:
+                scene_detection_av1an_scenes_scenes = scene_detection_av1an_scenes["scenes"]
+            for av1an_scene in scene_detection_av1an_scenes_scenes:
                 if av1an_scene["start_frame"] == zone["start_frame"]:
                     av1an_scenes_start_copying = True
                 assert (av1an_scene["start_frame"] >= zone["start_frame"]) == av1an_scenes_start_copying, "Unexpected result from av1an"
