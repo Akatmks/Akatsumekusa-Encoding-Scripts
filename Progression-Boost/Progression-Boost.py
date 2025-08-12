@@ -727,7 +727,8 @@ class DefaultZone:
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
 # last frame from the previous scene and is irrelevant. In addition,
-# the first frame as the keyframe often has great quality. Do you want
+# the first frame as the keyframe often has great quality... until it
+# doesn't. It's safer to select the first frame as well. Do you want
 # to always include the first frame in metric calculation?
     metric_first_frame = 1
 #
