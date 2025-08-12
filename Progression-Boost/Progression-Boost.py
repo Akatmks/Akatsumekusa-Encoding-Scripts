@@ -2530,6 +2530,12 @@ if metric_has_metric:
     if start_count != -1:
         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time() - start):.2f} scenes per second", end="\n")
 
+    # Failsafe for `--resume`
+    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+        if zone_scene["zone"].metric_enable:
+            if "first_qstep" not in metric_result["scenes"][scene_n]:
+                metric_result["scenes"][scene_n]["first_qstep"] = 343
+
     if verbose >= 2:
         for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             if zone_scene["zone"].metric_enable:
