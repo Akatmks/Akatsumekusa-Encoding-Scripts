@@ -2738,6 +2738,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     
             uniform_offset = zone_scene["zone"].character_max_roi_boost // 2.0
             uniform_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 1.2
+            uniform_ending_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 4.8
             character_key_multiplier = 1.00
             character_32_multiplier = 0.90
             character_16_multiplier = 0.70
@@ -2751,24 +2752,20 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     a = np.round(a * -7)
                     if i == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_key_multiplier) + uniform_offset)
-                        roi_map.append([0, a])
-                        roi_map.append([1, np.full_like(a, np.round(uniform_nonboosting_offset), dtype=np.float32)])
                     elif i % 8 == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_32_multiplier) + uniform_offset)
-                        roi_map.append([i * 4, a])
-                        roi_map.append([i * 4 + 1, np.full_like(a, np.round(uniform_nonboosting_offset), dtype=np.float32)])
                     elif i % 4 == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_16_multiplier) + uniform_offset)
-                        roi_map.append([i * 4, a])
-                        roi_map.append([i * 4 + 1, np.full_like(a, np.round(uniform_nonboosting_offset), dtype=np.float32)])
                     elif i % 2 == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_8_multiplier) + uniform_offset)
-                        roi_map.append([i * 4, a])
-                        roi_map.append([i * 4 + 1, np.full_like(a, np.round(uniform_nonboosting_offset), dtype=np.float32)])
                     else:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_4_multiplier) + uniform_offset)
-                        roi_map.append([i * 4, a])
+                    roi_map.append([i * 4, a])
+
+                    if i != character_map.shape[0] - 1:
                         roi_map.append([i * 4 + 1, np.full_like(a, np.round(uniform_nonboosting_offset), dtype=np.float32)])
+                    else:
+                        roi_map.append([i * 4 + 1, np.full_like(a, np.round(uniform_ending_nonboosting_offset), dtype=np.float32)])
 
             needed_offset = 0
             for line in roi_map:
