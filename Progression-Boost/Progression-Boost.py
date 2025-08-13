@@ -2794,7 +2794,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
         
         character_diff = character_map[np.any(~np.isnan(character_map), axis=1)]
-        character_diff = np.sum(np.diff(character_diff, axis=0)) / (character_map.shape[0] * character_map.shape[1])
+        character_diff = np.sum(np.abs(np.diff(character_diff, axis=0))) / (character_map.shape[0] * character_map.shape[1])
         character_diff /= 0.07
         if character_diff > 1.00:
             character_diff = 1.00
