@@ -952,9 +952,16 @@ class DefaultZone:
     #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / Frames in this scene receive a metric score below 15 for test encodes.", end="\n")
     #
     #     mean = scores.shape[0] / np.sum(1 / scores)
+    #     mean_0 = mean
     #
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
+    #
+    #     threshold = median + mad * 3.0
+    #     scores = scores[scores <= threshold]
+    #
+    #     mean = scores.shape[0] / np.sum(1 / scores)
+    #     mean_1 = mean
     #
     #     limit = median - mad * 3.0
     #     overlimit = np.min(scores) - limit
@@ -965,19 +972,27 @@ class DefaultZone:
     #     if overlimit > 0:
     #         overlimit = 0
     #
-    #     if verbose >= 2:
-    #         if overlimit < 0:
-    #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean {mean:.3f} / adjusted mean {mean + overlimit:.3f}", end="\n")
-    #
     #     mean += overlimit
+    #     mean_2 = mean
+    #
+    #     if verbose >= 2:
+    #         if mean_1 != mean_0 or mean_2 != mean_0:
+    #             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean_0 {mean_0:.3f} / mean_1 {mean_1:.3f} / mean_2 {mean_2:.3f}", end="\n")
     #
     #     return mean
 # For Butteraugli 3Norm score, uncomment the lines below.
     def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
         mean = np.mean(scores ** 3) ** (1 / 3)
+        mean_0 = mean
 
         median = np.median(scores)
         mad = np.median(np.abs(scores - median))
+
+        threshold = median - mad * 3.0
+        scores = scores[scores >= threshold]
+
+        mean = np.mean(scores ** 3) ** (1 / 3)
+        mean_1 = mean
 
         limit = median + mad * 3.0
         overlimit = np.max(scores) - limit
@@ -987,12 +1002,13 @@ class DefaultZone:
             overlimit = np.max([overlimit, i_overlimit])
         if overlimit < 0:
             overlimit = 0
-        
-        if verbose >= 2:
-            if overlimit > 0:
-                print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean {mean:.3f} / adjusted mean {mean + overlimit:.3f}", end="\n")
 
         mean += overlimit
+        mean_2 = mean
+
+        if verbose >= 2:
+            if mean_1 != mean_0 or mean_2 != mean_0:
+                print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean_0 {mean_0:.3f} / mean_1 {mean_1:.3f} / mean_2 {mean_2:.3f}", end="\n")
 
         return mean
 
