@@ -1118,7 +1118,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.50
+    character_max_motion_crf_boost = 4.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
@@ -2789,10 +2789,17 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
-        
-        character_diff = character_map[np.any(~np.isnan(character_map), axis=1)]
-        character_diff = np.sum(np.abs(np.diff(character_diff, axis=0))) / (character_map.shape[0] * character_map.shape[1])
-        character_diff /= 0.07
+
+        character_map_non_still = character_map[np.any(~np.isnan(character_map), axis=1)]
+        if character_map_non_still.shape[0] >= 2:
+            character_map_non_still_diff = np.sum(np.abs(np.diff(character_map_non_still, axis=0)))
+            character_map_sum = np.sum(((sum_non_still := np.sum(character_map_non_still, axis=1))[1:] + sum_non_still[:-1]) / 2) / (character_map_non_still.shape[0] - 1) * (character_map.shape[0] - 1)
+            if character_map_sum != 0.0:
+                character_diff = character_map_non_still_diff / character_map_sum / 0.12
+            else:
+                character_diff = 0.0
+        else:
+            character_diff = 0.0
         if character_diff > 1.00:
             character_diff = 1.00
         crf -= zone_scene["zone"].character_max_motion_crf_boost * character_diff
