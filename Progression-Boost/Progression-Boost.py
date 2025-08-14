@@ -2783,9 +2783,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     np.savetxt(roi_map_f, line[1].reshape((1, -1)), fmt="%d")
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
-        character_hiritsu /= 0.26
-        if character_hiritsu > 1.00:
-            character_hiritsu = 1.00
+        character_hiritsu = np.interp(character_hiritsu, [0.00, 0.06, 0.26, 0.36, 0.46, 0.56],
+                                                         [0.00, 0.46, 1.00, 1.00, 0.96, 0.76])
         crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
