@@ -754,7 +754,7 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 4
+    metric_upper_diff_bracket_frames = 3
     metric_lower_diff_bracket_frames = 2
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
