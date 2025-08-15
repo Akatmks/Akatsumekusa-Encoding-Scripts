@@ -754,12 +754,12 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 3
+    metric_upper_diff_bracket_frames = 2
     metric_lower_diff_bracket_frames = 2
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
-    metric_diff_brackets_min_separation = 3
+    metric_diff_brackets_min_separation = 2
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
@@ -963,7 +963,7 @@ class DefaultZone:
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
     #
-    #     threshold = median + mad * 2.5
+    #     threshold = median + mad * 1.5
     #     scores = scores[scores <= threshold]
     #
     #     mean = scores.shape[0] / np.sum(1 / scores)
@@ -996,7 +996,7 @@ class DefaultZone:
         median = np.median(scores)
         mad = np.median(np.abs(scores - median))
 
-        threshold = median - mad * 2.5
+        threshold = median - mad * 1.5
         scores = scores[scores >= threshold]
 
         mean = np.mean(scores ** 3) ** (1 / 3)
