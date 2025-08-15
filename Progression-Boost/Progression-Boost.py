@@ -722,7 +722,7 @@ class DefaultZone:
 # difference there are between the frame and the frame before it. We
 # put this difference through various transformations, and then we pick
 # a maximum number of specified frames based the transformed results.
-    metric_highest_diff_frames = 5
+    metric_highest_diff_frames = 6
 # The second method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
