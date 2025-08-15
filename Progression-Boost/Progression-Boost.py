@@ -383,7 +383,7 @@ class DefaultZone:
 # If you are using Character Boost, you should set this number lower to
 # maybe 33. If you are not going to enable Character Boost, the default
 # 60 would be fine.
-    scene_detection_target_split = 33
+    scene_detection_target_split = 49
 
 # `--resume` information: If you've modified anything scene detection
 # related, you need to delete everything in `scene-detection` folder in
