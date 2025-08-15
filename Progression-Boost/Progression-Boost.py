@@ -956,11 +956,13 @@ class DefaultZone:
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
     #
-    #     threshold = median + mad * 3.0
+    #     threshold = median + mad * 2.5
     #     scores = scores[scores <= threshold]
     #
     #     mean = scores.shape[0] / np.sum(1 / scores)
     #     mean_1 = mean
+    #
+    #     mad = np.median(np.abs(scores - median))
     #
     #     limit = median - mad * 3.0
     #     overlimit = np.min(scores) - limit
@@ -987,11 +989,13 @@ class DefaultZone:
         median = np.median(scores)
         mad = np.median(np.abs(scores - median))
 
-        threshold = median - mad * 3.0
+        threshold = median - mad * 2.5
         scores = scores[scores >= threshold]
 
         mean = np.mean(scores ** 3) ** (1 / 3)
         mean_1 = mean
+
+        mad = np.median(np.abs(scores - median))
 
         limit = median + mad * 3.0
         overlimit = np.max(scores) - limit
