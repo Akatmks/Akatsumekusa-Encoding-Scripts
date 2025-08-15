@@ -702,7 +702,7 @@ class DefaultZone:
 # repeating frames, it's actually very dangerous because it will dilute
 # the data and make the few bad frames less arithmetically significant.
 #
-# First, we have two methods to selectively pick the frames that are
+# First, we have three methods to selectively pick the frames that are
 # most likely to be bad out. This is to make sure that we don't
 # actually miss these frames.
 # Since we're disproportionately picks the bad frames, the eventual mean
@@ -718,12 +718,19 @@ class DefaultZone:
 # However, under no circumstance should you not pick any frames from at
 # least one of these methods.
 #
-# The first method to pick the likely bad frame is to measure how much
-# difference there are between the frame and the frame before it. We
-# put this difference through various transformations, and then we pick
-# a maximum number of specified frames based the transformed results.
-    metric_highest_diff_frames = 6
-# The second method to pick the likely bad frame is to calculate the
+# The first idea to pick the likely bad frame is to measure how much
+# difference there are between the frame and the frame before it.
+# In the first method, we transform the diff through various methods,
+# and then we pick the local maxima of the transformed result. This
+# method is robust against most situation, including fades and big
+# character movements.
+    metric_peak_transformed_diff_frames = 4
+# In the second method, we select frames based on the raw diff. This is
+# more sensitive to small movements that would potentially cause
+# problems.
+    metric_highest_diff_frames = 3
+
+# The third method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
 # surprisingly well, even better than PSNR and XPSNR alike. However,
@@ -747,7 +754,7 @@ class DefaultZone:
 # power and you want to be relatively safe, use maybe 10 and 5. If you
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
-    metric_upper_diff_bracket_frames = 6
+    metric_upper_diff_bracket_frames = 4
     metric_lower_diff_bracket_frames = 2
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
@@ -758,7 +765,7 @@ class DefaultZone:
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 4
+    metric_upper_diff_bracket_fallback_frames = 2
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
@@ -2631,10 +2638,25 @@ if metric_has_metric:
 
                 picked = 0
                 if verbose >= 2:
-                    print(f" / highest diff", end="", flush=True)
+                    print(f" / peak transformed", end="", flush=True)
                 for offfset_frame in peaks_sort:
+                    if picked >= zone_scene["zone"].metric_peak_transformed_diff_frames:
+                        break
+                    offfset_frames = np.append(offfset_frames, offfset_frame)
+                    picked += 1
+                    if verbose >= 2:
+                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+
+                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
+
+                picked = 0
+                if verbose >= 2:
+                    print(f" / highest diff", end="", flush=True)
+                for offfset_frame in scene_diffs_sort:
                     if picked >= zone_scene["zone"].metric_highest_diff_frames:
                         break
+                    if offfset_frame in offfset_frames:
+                        continue
                     offfset_frames = np.append(offfset_frames, offfset_frame)
                     picked += 1
                     if verbose >= 2:
