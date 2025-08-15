@@ -34,6 +34,7 @@ from numpy.random import default_rng
 import os
 from pathlib import Path
 import platform
+from scipy import fftpack, signal
 import shutil
 import subprocess
 from time import time
@@ -718,12 +719,10 @@ class DefaultZone:
 # least one of these methods.
 #
 # The first method to pick the likely bad frame is to measure how much
-# difference there are between the frame and the frame before it.
-    metric_highest_diff_frames = 6
-# We will avoid selecting frames too close to each other to avoid
-# picking all the frames from, let's say, a fade at the start or the
-# end of the scene.
-    metric_highest_diff_min_separation = 4
+# difference there are between the frame and the frame before it. We
+# put this difference through various transformations, and then we pick
+# a maximum number of specified frames based the transformed results.
+    metric_highest_diff_frames = 5
 # The second method to pick the likely bad frame is to calculate the
 # raw pixel by pixel difference between the source and the first probe
 # encode. This is the most rudimentary of metric, but it works
@@ -749,17 +748,17 @@ class DefaultZone:
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
     metric_upper_diff_bracket_frames = 6
-    metric_lower_diff_bracket_frames = 0
+    metric_lower_diff_bracket_frames = 2
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
-    metric_diff_brackets_min_separation = 2
+    metric_diff_brackets_min_separation = 3
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 5
+    metric_upper_diff_bracket_fallback_frames = 4
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
@@ -2618,15 +2617,20 @@ if metric_has_metric:
                 offfset_frames = np.array([], dtype=np.int32)
                 
                 scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
-                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
+
+                transform = fftpack.dct(scene_diffs)
+                transform[np.max([math.ceil(transform.shape[0] / 5), 7]):] = 0
+                reconstructed = fftpack.idct(transform)
+
+                peaks, properties = signal.find_peaks(reconstructed, prominence=0)
+                peaks_sort = peaks[np.argsort(properties["prominences"])[::-1]]
+
                 picked = 0
                 if verbose >= 2:
                     print(f" / highest diff", end="", flush=True)
-                for offfset_frame in scene_diffs_sort:
+                for offfset_frame in peaks_sort:
                     if picked >= zone_scene["zone"].metric_highest_diff_frames:
                         break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_highest_diff_min_separation:
-                        continue
                     offfset_frames = np.append(offfset_frames, offfset_frame)
                     picked += 1
                     if verbose >= 2:
