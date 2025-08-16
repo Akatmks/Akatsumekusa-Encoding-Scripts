@@ -755,7 +755,7 @@ class DefaultZone:
 # want to speed up metric calculation, you can try 4 and 2 for these
 # while also reducing `metric_highest_diff_frames` to 2.
     metric_upper_diff_bracket_frames = 2
-    metric_lower_diff_bracket_frames = 2
+    metric_lower_diff_bracket_frames = 0
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
@@ -963,7 +963,7 @@ class DefaultZone:
     #     mean = np.mean(scores)
     #     mean_1 = mean
     #
-    #     mean -= std * 1.5
+    #     mean -= std * 0.7
     #     mean_2 = mean
     #
     #     if verbose >= 2:
