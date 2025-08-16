@@ -994,7 +994,6 @@ class DefaultZone:
     #
     #     return mean
 
-
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
 # 
