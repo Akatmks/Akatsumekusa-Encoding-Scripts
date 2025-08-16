@@ -951,9 +951,9 @@ class DefaultZone:
 #
 # For SSIMU2 score, uncomment the lines below.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     mean = np.mean(scores)
-    #     std = np.std(scores, mean=mean)
-    #     mean_0 = mean
+    #     if verbose >= 2:
+    #         mean = np.mean(scores)
+    #         mean_0 = mean
     #
     #     median = np.median(scores)
     #     mad = np.median(np.abs(scores - median))
@@ -961,6 +961,7 @@ class DefaultZone:
     #     scores = scores[scores <= threshold]
     #
     #     mean = np.mean(scores)
+    #     std = np.std(scores, mean=mean)
     #     mean_1 = mean
     #
     #     mean -= std * 0.7
