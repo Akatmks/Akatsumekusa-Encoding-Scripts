@@ -67,7 +67,7 @@ group.add_argument("--zones", type=Path, help="Zones file for Progression Boost.
 group.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
 parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output scenes file with file extension replaced by „.boost.tmp“)")
 parser.add_argument("-r", "--resume", action="store_true", help="Resume from the temporary folder. By enabling this option, Progression Boost will reuse finished or unfinished testing encodes. This should be disabled should the parameters for test encode be changed")
-parser.add_argument("-v", "--verbose", action="count", default=0, help="Report more details of Progression Boost. This parameter can be specified up to 2 times")
+parser.add_argument("-v", "--verbose", action="count", default=0, help="Report more details of Progression Boost. This parameter can be specified up to 3 times")
 args = parser.parse_args()
 input_file = args.input
 probing_input_file = args.encode_input
