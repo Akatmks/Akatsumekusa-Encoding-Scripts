@@ -197,13 +197,29 @@ class DefaultZone:
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # How should this script load your source video? Select the video
-# provider for both this Python script and for av1an
-    source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
-    source_provider = "lsmash"
+# provider for both this Python script and for av1an.
+    source_clip = core.ffms2.Source(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.ffindex").expanduser().resolve())
+    source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
+    source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
+    source_provider_av1an = "ffms2"
+# If you want to use lsmas instead, comment the lines above and
+# uncomment the lines below.
+    # source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
+    # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
+    # source_provider_av1an = "lsmash"
 # If you want to use BestSource instead, comment the lines above and
 # uncomment the lines below.
     # source_clip = core.bs.VideoSource(input_file)
-    # source_provider = "bestsource"
+    # source_provider = core.bs.VideoSource
+    # source_provider_cache = lambda self, file: None
+    # source_provider_av1an = "bestsource"
+# Also, it's possible to only use BestSource for source, and then use
+# faster lsmas to read Progression Boost's probe encodes.
+    # source_clip = core.bs.VideoSource(input_file)
+    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
+    # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
+    # source_provider_av1an = "bestsource"
 
 # This `source_clip` above is used in all three modules of Progression
 # Boost. Let's say if your source has 5 seconds of intro LOGO, and you
@@ -283,7 +299,7 @@ class DefaultZone:
         return (f"--sc-method standard"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len} --chunk-method {self.source_provider}").split()
+              + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len} --chunk-method {self.source_provider_av1an}").split()
 
 # av1an is mostly good, except for one single problem: av1an often
 # prefers to place the keyframe at the start of a series of still,
@@ -663,7 +679,7 @@ class DefaultZone:
         return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" --chunk-method {self.source_provider} --encoder svt-av1 --audio-params -an --concat mkvmerge --force --video-params").split() + \
+              + f" --chunk-method {self.source_provider_av1an} --encoder svt-av1 --audio-params -an --concat mkvmerge --force --video-params").split() + \
                 [message]
 
 # These are the photon noise parameters for your final encode. These
@@ -2332,9 +2348,10 @@ dc_X = np.arange(dc.shape[0])
 
 
 if metric_has_metric:
-    def probing_perform_probing(probing_tmp_dir, probing_scenes_file, probing_output_file, probing_output_file_lwi):
+    def probing_perform_probing(probing_tmp_dir, probing_scenes_file, probing_output_file, probing_output_file_cache):
         probing_output_file.unlink(missing_ok=True)
-        probing_output_file_lwi.unlink(missing_ok=True)
+        if probing_output_file_cache is not None:
+            probing_output_file_cache.unlink(missing_ok=True)
 
         command = [
             "av1an",
@@ -2365,13 +2382,13 @@ if metric_has_metric:
     probing_first_done_file = probing_first_tmp_dir / "done.json"
     probing_first_scenes_file = progression_boost_temp_dir / f"probe-encode-first.scenes.json"
     probing_first_output_file = progression_boost_temp_dir / f"probe-encode-first.mkv"
-    probing_first_output_file_lwi = progression_boost_temp_dir / f"probe-encode-first.lwi"
+    probing_first_output_file_cache = zone_default.source_provider_cache(probing_first_output_file)
     
     probing_second_tmp_dir = progression_boost_temp_dir / f"probe-encode-second.tmp"
     probing_second_done_file = probing_second_tmp_dir / "done.json"
     probing_second_scenes_file = progression_boost_temp_dir / f"probe-encode-second.scenes.json"
     probing_second_output_file = progression_boost_temp_dir / f"probe-encode-second.mkv"
-    probing_second_output_file_lwi = progression_boost_temp_dir / f"probe-encode-second.lwi"
+    probing_second_output_file_cache = zone_default.source_provider_cache(probing_second_output_file)
 
     metric_result_file = progression_boost_temp_dir / f"result.json"
 
@@ -2449,7 +2466,7 @@ if metric_has_metric and probing_first_perform_encode:
     with probing_first_scenes_file.open("w") as probing_scenes_f:
         json.dump(probing_first_scenes, probing_scenes_f, cls=NumpyEncoder)
 
-    probing_first_process = probing_perform_probing(probing_first_tmp_dir, probing_first_scenes_file, probing_first_output_file, probing_first_output_file_lwi)
+    probing_first_process = probing_perform_probing(probing_first_tmp_dir, probing_first_scenes_file, probing_first_output_file, probing_first_output_file_cache)
 
     if verbose < 2:
         probing_first_start = time.time() - 0.000001
@@ -2614,8 +2631,7 @@ if metric_has_metric:
         metric_method_has_ffvship = False
 
     metric_processed_reference = {}
-    metric_first = core.lsmas.LWLibavSource(probing_first_output_file.expanduser().resolve(),
-                                            cachefile=probing_first_output_file_lwi.expanduser().resolve())
+    metric_first = zone_default.source_provider(probing_first_output_file)
     metric_processed_first = {}
 
     metric_diff_clips = {}
@@ -2866,7 +2882,7 @@ if metric_has_metric and probing_second_perform_encode:
     with probing_second_scenes_file.open("w") as probing_scenes_f:
         json.dump(probing_second_scenes, probing_scenes_f, cls=NumpyEncoder)
 
-    probing_second_process = probing_perform_probing(probing_second_tmp_dir, probing_second_scenes_file, probing_second_output_file, probing_second_output_file_lwi)
+    probing_second_process = probing_perform_probing(probing_second_tmp_dir, probing_second_scenes_file, probing_second_output_file, probing_second_output_file_cache)
 
     if verbose < 2:
         probing_second_start = time.time() - 0.000001
@@ -2946,8 +2962,7 @@ if metric_has_metric:
     if metric_method_has_vapoursynth:
         metric_processed_reference = {}
         
-        metric_second = core.lsmas.LWLibavSource(probing_second_output_file.expanduser().resolve(),
-                                                 cachefile=probing_second_output_file_lwi.expanduser().resolve())
+        metric_second = zone_default.source_provider(probing_second_output_file)
         metric_processed_second = {}
         metric_second_metric_clips = {}
 
