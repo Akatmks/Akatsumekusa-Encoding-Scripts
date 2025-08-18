@@ -874,10 +874,9 @@ class DefaultZone:
 # character is, which is where INFNorm comes in. INFNorm on its own is
 # very, very sensitive, and we would not recommend using INFNorm
 # directly even aiming for the highest quality targets. Instead we
-# offers the following two options.
-# The first one only mixes in INFNorm score if INFNorm score is more
-# than 10 times the 3Norm score. This is more suitable for regular
-# medium quality boosting.
+# uses the following formula to mix Butteraugli 3Norm and INFNorm.
+# The first formula is less aggressive, and is the default for
+# Preset-(Character-Boost)-Butteraugli-Mean.
     metric_better = np.less
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     def metric_vapoursynth_metric(self, frame):
@@ -892,15 +891,23 @@ class DefaultZone:
         if adjustment < 0:
             adjustment = 0
         return frame[1] + adjustment
-
-# The second option always mixes in 2.6% INFNorm on top of 3Norm score
-# and is suitable for the highest quality boosting targets.
+#
+# The second fomula is more aggressive, and is the default for Preset-
+# (Character-Boost)-Butteraugli-Max.
     # metric_better = np.less
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"] + frame.props["_BUTTERAUGLI_INFNorm"] * 0.027
+    # def metric_vapoursynth_metric(self, frame):
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.027 - frame.props["_BUTTERAUGLI_3Norm"] * 0.18
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = None
-    # metric_ffvship_metric = lambda self, frame: frame[1] + frame[2] * 0.027
+    # def metric_ffvship_metric(self, frame):
+    #     adjustment = frame[2] * 0.027 - frame[1] * 0.18
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame[1] + adjustment
 
 # Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
 # very sensitive to fine details, but it is faster, and is good enough
