@@ -881,14 +881,14 @@ class DefaultZone:
     metric_better = np.less
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.027 - frame.props["_BUTTERAUGLI_3Norm"] * 0.27
+        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
         if adjustment < 0:
             adjustment = 0
         return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     metric_ffvship_calculate = "Butteraugli"
     metric_ffvship_intensity_target = None
     def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.027 - frame[1] * 0.27
+        adjustment = frame[2] * 0.030 - frame[1] * 0.30
         if adjustment < 0:
             adjustment = 0
         return frame[1] + adjustment
@@ -2603,7 +2603,7 @@ if metric_has_metric and probing_first_perform_encode:
                             if done_scenes is not None and "done" in done_scenes:
                                 if (done_scenes_len := len(done_scenes["done"])) != done_scenes_len_previous or done_scenes_len == 0:
                                     print(f"\r\033[KScene {scene_rjust(done_scenes_len)}/{scene_rjust(len(probing_first_scenes["scenes"]))} / Performing first probe / {(done_scenes_len - probing_first_done_scenes_len_start) / (time.time() - probing_first_start):.2f} scenes per second", end="", flush=True)
-                                    prevous_done_scenes_len = done_scenes_len
+                                    done_scenes_len_previous = done_scenes_len
 
                             time.sleep(1 / 6000 * 1001)
                     break
@@ -2946,7 +2946,7 @@ if metric_has_metric and probing_second_perform_encode:
                             if done_scenes is not None and "done" in done_scenes:
                                 if (done_scenes_len := len(done_scenes["done"])) != done_scenes_len_previous or done_scenes_len == 0:
                                     print(f"\r\033[KScene {scene_rjust(done_scenes_len)}/{scene_rjust(len(probing_second_scenes["scenes"]))} / Performing second probe / {(done_scenes_len - probing_second_done_scenes_len_start) / (time.time() - probing_second_start):.2f} scenes per second", end="", flush=True)
-                                    prevous_done_scenes_len = done_scenes_len
+                                    done_scenes_len_previous = done_scenes_len
 
                             time.sleep(1 / 6000 * 1001)
                     break
