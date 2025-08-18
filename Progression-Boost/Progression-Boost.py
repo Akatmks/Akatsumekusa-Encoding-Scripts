@@ -949,28 +949,29 @@ class DefaultZone:
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
     #     return np.max(scores)
 
-# The second method is more gentle and more suitable for general use.
-# The based of the second method is a mean based observation. And then
-# we will observe the min or max score of frames in the scene. If the
-# min or max score is tame and not specifically problematic, the mean
-# based observation is not modified. If the min or max score is
-# significant, we will offset the mean based observation to reflect on
-# this.
-# This method is aimed to achieve consistency in quality, aka, smallest
-# standard deviation, while also addressing the bad frames in a less
-# aggressive mannar than the first method. This method is suitable for
-# the entire quality range from high quality to lower quality.
+# The second method is based on mean instead of min or max. It is aimed
+# for archieving consistency in quality in the form of low standard
+# deviation, while also addressing the bad frames. This is more gentle
+# than the first method and suitable for general use for all quality
+# levels.
 #
-# Specifically to calculate mean, we use harmonic mean to calculate
-# SSIMU2 score. This is studied by Miss Moonlight to have good
-# representation of realworld viewing experience.
-# There is a very rare edge case for harmonic mean, that when the score
-# for a single frame dropped too low, it can skew the whole mean value
-# to the point that scores for all other frames have essentially no
-# effects on the final score. For this reason, we cap the SSIMU2 score
-# to 15 before calculating harmonic mean.
-# For Butteraugli score, we use root mean cube. This is suggested by
-# Miss Moonlight and tested to have good overall boosting result.
+# Specifically, we first trim the frames that're too good from
+# observation. For example, if half of the frames in a scene is still,
+# while only a half of frames is moving, the still half of the scene
+# will have a very good score and could dillute the mean and make the
+# moving half, the bad half, less arithmetically significant.
+# After the trimming, we calculate the arithmetic mean and the standard
+# deviation of the data. We use arithmetic mean as a base, and then
+# penalise scenes with high standard deviation. This is especially
+# aggressive, because if there're one or two bad frames caught by our
+# frame selection system, that means there are even more bad frames out
+# there.
+# In our tests, this new trimmed standard deviation penalised
+# arithmetic mean outperform the previous Harmonic Mean and Root Mean
+# Cube methods, and is now the defaults for mean based Progression
+# Boost presets. Even if Harmonic Mean and Root Mean Cube is no longer
+# recommended here, we still want to take this change and thank Miss
+# Moonlight for her various contribution in boosting.
 #
 # For SSIMU2 score, uncomment the lines below.
     # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
