@@ -34,7 +34,7 @@ from numpy.random import default_rng
 import os
 from pathlib import Path
 import platform
-from scipy import fftpack, signal
+from scipy import fftpack, interpolate, signal, stats
 import shutil
 import subprocess
 import time
@@ -769,7 +769,7 @@ class DefaultZone:
 # selecting the same frame. We use 2 times MAD but based on 40th
 # percentile instead of median value to separate the brackets.
     metric_upper_diff_bracket_frames = 1
-    metric_lower_diff_bracket_frames = 2
+    metric_lower_diff_bracket_frames = 3
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
@@ -858,6 +858,7 @@ class DefaultZone:
 # To use Butteraugli 3Norm via FFVship or vship, uncomment the lines
 # below.
     # metric_better = np.less
+    # metric_make_better = np.subtract
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # metric_vapoursynth_metric = lambda self, frame: frame.props["_BUTTERAUGLI_3Norm"]
     # metric_ffvship_calculate = "Butteraugli"
@@ -876,6 +877,7 @@ class DefaultZone:
 # The first formula is less aggressive, and is the default for
 # Preset-(Character-Boost)-Butteraugli-Mean.
     # metric_better = np.less
+    # metric_make_better = np.subtract
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # def metric_vapoursynth_metric(self, frame):
     #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
@@ -893,6 +895,7 @@ class DefaultZone:
 # The second fomula is more aggressive, and is the default for Preset-
 # (Character-Boost)-Butteraugli-Max.
     metric_better = np.less
+    metric_make_better = np.subtract
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     def metric_vapoursynth_metric(self, frame):
         adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.027 - frame.props["_BUTTERAUGLI_3Norm"] * 0.18
@@ -912,6 +915,7 @@ class DefaultZone:
 # for medium and low quality encodes. To use SSIMU2 via FFVship or
 # vship, uncomment the lines below.
     # metric_better = np.greater
+    # metric_make_better = np.add
     # metric_vapoursynth_calculate = core.vship.SSIMULACRA2
     # metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
     # metric_ffvship_calculate = "SSIMULACRA2"
@@ -919,6 +923,7 @@ class DefaultZone:
 
 # To use SSIMU2 via vszip, uncomment the lines below.
     # metric_better = np.greater
+    # metric_make_better = np.add
     # metric_vapoursynth_calculate = core.vszip.SSIMULACRA2
     # metric_vapoursynth_metric = lambda self, frame: frame.props["SSIMULACRA2"]
 
@@ -942,9 +947,9 @@ class DefaultZone:
 # If you want to get the best quality, you should also increase the
 # number of frames measured in order to prevent bad frames from
 # slipping through.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
     #     return np.min(scores)
-    def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
         return np.max(scores)
 
 # The second method is based on mean instead of min or max. It is aimed
@@ -956,72 +961,47 @@ class DefaultZone:
 # Specifically, we first trim the frames that're too good from
 # observation. For example, if half of the frames in a scene is still,
 # while only a half of frames is moving, the still half of the scene
-# will have a very good score and could dillute the mean and make the
+# will have a very good score and could dilute the mean and make the
 # moving half, the bad half, less arithmetically significant.
-# After the trimming, we calculate the arithmetic mean and the standard
-# deviation of the data. We use arithmetic mean as a base, and then
-# penalise scenes with high standard deviation. This is especially
-# aggressive, because if there're one or two bad frames caught by our
-# frame selection system, that means there are even more bad frames out
-# there.
-# In our tests, this new trimmed standard deviation penalised
-# arithmetic mean outperform the previous Harmonic Mean and Root Mean
-# Cube methods, and is now the defaults for mean based Progression
-# Boost presets. Even if Harmonic Mean and Root Mean Cube is no longer
-# recommended here, we still want to take this change and thank Miss
-# Moonlight for her various contribution in boosting.
-#
-# For SSIMU2 score, uncomment the lines below.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     if verbose >= 3:
-    #         mean = np.mean(scores)
-    #         mean_0 = mean
-    #
-    #     median = np.median(scores)
-    #     mad = np.median(np.abs(scores - median))
-    #     threshold = median + mad * 1.5
-    #     scores = scores[scores <= threshold]
-    #
-    #     mean = np.mean(scores)
-    #     std = np.std(scores, mean=mean)
-    #     mean_1 = mean
-    #
-    #     mean -= std * 0.7
-    #     mean_2 = mean
-    #
-    #     if verbose >= 3:
-    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean_0 {mean_0:.3f} / mean_1 {mean_1:.3f} / mean_2 {mean_2:.3f}", end="\n", flush=True)
-    #
-    #     return mean
-# For Butteraugli 3Norm score, uncomment the lines below.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
-    #     if verbose >= 3:
-    #         mean = np.mean(scores)
-    #         mean_0 = mean
-    #
-    #     median = np.median(scores)
-    #     mad = np.median(np.abs(scores - median))
-    #     threshold = median - mad * 1.5
-    #     scores = scores[scores >= threshold]
-    #
-    #     mean = np.mean(scores)
-    #     std = np.std(scores, mean=mean)
-    #     mean_1 = mean
-    #
-    #     mean += std * 0.7
-    #     mean_2 = mean
-    #
-    #     if verbose >= 3:
-    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / mean_0 {mean_0:.3f} / mean_1 {mean_1:.3f} / mean_2 {mean_2:.3f}", end="\n", flush=True)
-    #
-    #     return mean
+# After the trimming, we interpolate the measured frames to all frames
+# to bake in the temporal information on the assumption that if one
+# frame is bad, then the frames around it could possibly also be bad.
+# After interpolation, we calculate the arithmetic mean and the
+# standard deviation of the data. We use arithmetic mean as a base, and
+# then penalise scenes with high standard deviation. The reason is that
+# in scenes with high standard deviation, there might be more bad
+# frames out there that our frame selection system didn't manage to
+# catch.
+# In our tests, this new trimmed interpolated standard deviation
+# penalised arithmetic mean outperform the previous Harmonic Mean and
+# Root Mean Cube methods, and is now the defaults for mean based
+# Progression Boost presets. Even if Harmonic Mean and Root Mean Cube
+# is no longer recommended, we still want to take this chance and thank
+# Miss Moonlight for her various contributions to boosting.
+    def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
+        median = np.median(scores)
+        mad = stats.median_abs_deviation(scores)
+        frames = frames[(trim := scores <= self.metric_make_better(median, mad * 1.5))]
+        scores = scores[trim]
+
+        interpolation = interpolate.PchipInterpolator(frames, scores)
+        frames = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
+    
+        mean = np.mean(scores)
+        std = np.std(scores, mean=mean)
+        mean = self.metric_make_better(mean, std * -0.25)
+        
+        if verbose >= 3:
+            print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / standard deviation {std:.3f} / min {np.min(scores):.3f}", end="\n", flush=True)
+
+        return mean
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
 # 
 # This function is called independently for every scene for every test
 # encode.
-    # def metric_summarise(self, scores: np.ndarray[np.float32]) -> np.float32:
+    # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
     #     pass
 
 # `--resume` information: If you changed `metric_summarise`, you need
@@ -2831,7 +2811,7 @@ if metric_has_metric:
                         scores = json.load(metric_output_f)
                     scores = np.array([zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores])
                 
-                metric_result["scenes"][scene_n]["first_score"] = zone_scene["zone"].metric_summarise(scores)
+                metric_result["scenes"][scene_n]["first_score"] = zone_scene["zone"].metric_summarise(np.array(metric_result["scenes"][scene_n]["frames"]), scores)
 
 
             probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
@@ -3029,7 +3009,7 @@ if metric_has_metric:
                         scores = json.load(metric_output_f)
                     scores = np.array([zone_scene["zone"].metric_ffvship_metric(frame) for frame in scores])
                 
-                metric_result["scenes"][scene_n]["second_score"] = zone_scene["zone"].metric_summarise(scores)
+                metric_result["scenes"][scene_n]["second_score"] = zone_scene["zone"].metric_summarise(np.array(metric_result["scenes"][scene_n]["frames"]), scores)
 
             probing_frame_head += zone_scene["end_frame"] - zone_scene["start_frame"]
 
