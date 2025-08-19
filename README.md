@@ -21,7 +21,7 @@ For users that wants to fine tune the boosting, you can first download a preset 
 ### Presets with Character Boost
 
 Character Boost is the crème de la crème of anime boosting. It's almost always necessary in high quality encodes, because there is not a single other way to preserve the weak character linearts that's very common in all kinds of anime. It's even more beneficial in lower quality encodes, because when filesize is the limitation, it's very important to spend the bitrate on characters which we care more about instead of the background.  
-As long as you're encoding anime, and you have at the very least an entrylevel GPU such as a GTX 960, you should always pick a preset with Character Boost.  
+As long as you're encoding anime, and you are not having a setup that's extremely geared towards CPU, such as Ryzen 9950X × GTX 960, you should always pick a preset with Character Boost.  
 
 Butteraugli based boosting is the primary boosting method for Progression Boost. The reason is that the whole frame score of metrics such as SSIMU2 are given based on the average quality across the frame. It's not exactly rare in extreme long shots to have characters only occupying a small percentage of the screen while the majority of the frame is background. In this case, if the character is moving while the background is still, the characters will get encoded very poorly. Mean based metric such as SSIMU2 would often fail to pick this up and represent it in the final score. To solve this, Progression Boost's Butteraugli presets use a combination of Butteraugli 3Norm and INFNorm score to make sure to we recognised these issues and give them enough boost.  
 You should always pick a Butteraugli based preset, unless you're stuck with Intel's integrated GPU (AMD is fine though), or you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible.  
@@ -42,7 +42,7 @@ There is also a preset that disables metric based boosting and solely relies on 
 
 ### Presets without Character Boost
 
-As explained above, you should always use Character Boost at all quality targets, unless you don't have a GPU equivalent to GTX 960, or you can't set up vs-mlrt. And here are the presets without Character Boost.  
+As explained above, you should always use Character Boost at all quality targets, unless you have a setup that's extremely geared towards CPU, such as Ryzen 9950X × GTX 960, or you can't set up vs-mlrt. And here are the presets without Character Boost.  
 
 Explanation for picking between Butteraugli and SSIMU2, as well as explanation for the „Mean“ based presets below are also available in the last section. In short, you should always pick a Butteraugli based preset, unless you're performing your final encode at a very fast `--preset` and you want the boosting to be as fast as possible. And the mean based methods here deliver the quality consistency of a mean based method, while in the same time also avoiding bad frames.  
 
