@@ -978,23 +978,23 @@ class DefaultZone:
 # Progression Boost presets. Even if Harmonic Mean and Root Mean Cube
 # is no longer recommended, we still want to take this chance and thank
 # Miss Moonlight for her various contributions to boosting.
-    def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
-        median = np.median(scores)
-        mad = stats.median_abs_deviation(scores)
-        frames = frames[(trim := self.metric_better(self.metric_make_better(median, mad * 1.5), scores))]
-        scores = scores[trim]
-
-        interpolation = interpolate.PchipInterpolator(frames, scores)
-        frames = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
-    
-        mean = np.mean(scores)
-        std = np.std(scores, mean=mean)
-        mean = self.metric_make_better(mean, std * -0.25)
-        
-        if verbose >= 3:
-            print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / standard deviation {std:.3f} / min {np.min(scores):.3f}", end="\n", flush=True)
-
-        return mean
+    # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
+    #     median = np.median(scores)
+    #     mad = stats.median_abs_deviation(scores)
+    #     frames = frames[(trim := self.metric_better(self.metric_make_better(median, mad * 1.5), scores))]
+    #     scores = scores[trim]
+    #
+    #     interpolation = interpolate.PchipInterpolator(frames, scores)
+    #     frames = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
+    #
+    #     mean = np.mean(scores)
+    #     std = np.std(scores, mean=mean)
+    #     mean = self.metric_make_better(mean, std * -0.25)
+    #
+    #     if verbose >= 3:
+    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / standard deviation {std:.3f} / min {np.min(scores):.3f}", end="\n", flush=True)
+    #
+    #     return mean
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
