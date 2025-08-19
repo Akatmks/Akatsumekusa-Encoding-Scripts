@@ -773,7 +773,7 @@ class DefaultZone:
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
-    metric_diff_brackets_min_separation = 30
+    metric_diff_brackets_min_separation = 24
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
@@ -2714,10 +2714,12 @@ if metric_has_metric:
                         if verbose >= 3:
                             print(f" {zone_scene["start_frame"] + frame}", end="", flush=True)
                 
+                if verbose >= 3:
+                    print(f" / last", end="", flush=True)
                 if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
                     offfset_frames = np.append(offfset_frames, zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
                     if verbose >= 3:
-                        print(f" / last {zone_scene["end_frame"] - 1}", end="", flush=True)
+                        print(f" {zone_scene["end_frame"] - 1}", end="", flush=True)
             
                 scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
                 scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
@@ -2752,10 +2754,12 @@ if metric_has_metric:
                 else:
                     to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
             
+                if verbose >= 3:
+                    print(f" / first", end="", flush=True)
                 if zone_scene["zone"].metric_first_frame >= 1:
                     offfset_frames = np.append(offfset_frames, -1)
                     if verbose >= 3:
-                        print(f" / first {zone_scene["start_frame"]}", end="", flush=True)
+                        print(f" {zone_scene["start_frame"]}", end="", flush=True)
             
                 picked = 0
                 if verbose >= 3:
