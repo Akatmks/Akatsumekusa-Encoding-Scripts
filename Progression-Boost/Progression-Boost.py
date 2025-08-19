@@ -758,30 +758,28 @@ class DefaultZone:
     metric_highest_probing_diff_frames = 0
 #
 # After that, we now use a randomiser to select frames across the whole
-# scene. It's common for anime to have 1 new frame followed by 2 to 4
-# repeating frame that are exactly the same as the frame before.
-# To adapt to this frakn arrangement, we separate the frames into two
-# brackets at 2 times MAD but based on the 40th percentile instead of
-# median value. The lower bracket are most likely be repeating frames,
-# and the upper bracket are most likely to be frames we want to
-# measure.
-# A good starting point for a mean-based method is to measure 6 and 3
-# frames respectively from each bracket. If you have the computing
-# power and you want to be relatively safe, use maybe 10 and 5. If you
-# want to speed up metric calculation, you can try 4 and 2 for these
-# while also reducing `metric_highest_diff_frames` to 2.
+# scene. This is the primary method of selecting frames in the old
+# version, but in the new version, the above three methods are good
+# enough, and this method is only for picking up the frames from region
+# the first three methods may not discover.
+# 
+# We divde the frames into two brackets because it's common in anime to
+# have only 1 new frame every 2 to 4 frames. The repeating frames would
+# be the same as the new frames that comes before and we want to avoid
+# selecting the same frame. We use 2 times MAD but based on 40th
+# percentile instead of median value to separate the brackets.
     metric_upper_diff_bracket_frames = 2
-    metric_lower_diff_bracket_frames = 0
+    metric_lower_diff_bracket_frames = 1
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
-    metric_diff_brackets_min_separation = 2
+    metric_diff_brackets_min_separation = 24
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
 # number, we will select additional frames in the lower bracket until
 # this number is reached.
-    metric_upper_diff_bracket_fallback_frames = 2
+    metric_upper_diff_bracket_fallback_frames = 1
 #
 # All these diff sorting and selection excludes the first frame of the
 # scene since the diff data of the first frame is compared against the
