@@ -2468,6 +2468,9 @@ if metric_has_metric and probing_first_perform_encode:
             probing_first_scenes["scenes"].append(probing_scene)
     probing_first_scenes["frames"] = total_frames
     probing_first_scenes["split_scenes"] = probing_first_scenes["scenes"]
+
+    with metric_result_file.open("w") as metric_result_f:
+        json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
             
     with probing_first_scenes_file.open("w") as probing_scenes_f:
         json.dump(probing_first_scenes, probing_scenes_f, cls=NumpyEncoder)
@@ -2884,6 +2887,9 @@ if metric_has_metric and probing_second_perform_encode:
             probing_second_scenes["scenes"].append(probing_scene)
     probing_second_scenes["frames"] = total_frames
     probing_second_scenes["split_scenes"] = probing_second_scenes["scenes"]
+
+    with metric_result_file.open("w") as metric_result_f:
+        json.dump(metric_result, metric_result_f, cls=NumpyEncoder)
             
     with probing_second_scenes_file.open("w") as probing_scenes_f:
         json.dump(probing_second_scenes, probing_scenes_f, cls=NumpyEncoder)
@@ -3033,11 +3039,11 @@ if metric_has_metric:
     if start_count != -1:
         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric calculation complete / {(start_count + 1) / (time.time() - start):.2f} scenes per second", end="\n", flush=True)
 
-    # Failsafe for `--resume`
-    for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
-        if zone_scene["zone"].metric_enable:
-            if "first_qstep" not in metric_result["scenes"][scene_n]:
-                metric_result["scenes"][scene_n]["first_qstep"] = 343
+    # Failsafe for `--resume` # Fixed it properly this time
+    # for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
+    #     if zone_scene["zone"].metric_enable:
+    #         if "first_qstep" not in metric_result["scenes"][scene_n]:
+    #             metric_result["scenes"][scene_n]["first_qstep"] = 343
 
     if verbose >= 3:
         for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
