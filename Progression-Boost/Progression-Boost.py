@@ -768,12 +768,12 @@ class DefaultZone:
 # be the same as the new frames that comes before and we want to avoid
 # selecting the same frame. We use 2 times MAD but based on 40th
 # percentile instead of median value to separate the brackets.
-    metric_upper_diff_bracket_frames = 2
-    metric_lower_diff_bracket_frames = 1
+    metric_upper_diff_bracket_frames = 1
+    metric_lower_diff_bracket_frames = 2
 # We select frames from the two brackets randomly, but we want to avoid
 # picking frames too close to each other, because, in anime content,
 # these two frames are most likely exactly the same.
-    metric_diff_brackets_min_separation = 24
+    metric_diff_brackets_min_separation = 30
 # If there are not enough frames in the upper bracket to select, we
 # will select some more frames in the lower diff bracket. If the number
 # of frames selected in the upper diff bracket is smaller than this
