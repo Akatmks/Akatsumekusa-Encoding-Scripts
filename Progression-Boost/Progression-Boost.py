@@ -2756,7 +2756,7 @@ if metric_has_metric:
             
                 if verbose >= 3:
                     print(f" / first", end="", flush=True)
-                if zone_scene["zone"].metric_first_frame >= 1:
+                if zone_scene["zone"].metric_first_frame >= 1 and -1 not in offfset_frames::
                     offfset_frames = np.append(offfset_frames, -1)
                     if verbose >= 3:
                         print(f" {zone_scene["start_frame"]}", end="", flush=True)
