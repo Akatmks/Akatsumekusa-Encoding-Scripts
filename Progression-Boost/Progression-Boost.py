@@ -651,12 +651,12 @@ class DefaultZone:
     def probing_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 0 --psy-rd 1.5 --spy-rd 0
+                  --complex-hvs 0 --psy-rd 1.5 --spy-rd 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 1 --psy-rd 1.5 --spy-rd 0
+                  --complex-hvs 1 --psy-rd 1.5 --spy-rd 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
 # `--resume` information: If you changed parameters for probing, you
