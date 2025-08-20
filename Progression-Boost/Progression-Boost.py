@@ -1104,7 +1104,7 @@ class DefaultZone:
 #
 # In some works when there are annoying sections that eats too much
 # bitrate, you can even disable Progression Boost module, relying on
-# the base `--crf` set by `metric_unboosted_crf` to maintain a baseline
+# the base `--crf` set by `metric_disabled_crf` to maintain a baseline
 # consistency, and then hyperboost character here.
 #
 # The number here should be positive.
