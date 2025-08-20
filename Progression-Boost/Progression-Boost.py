@@ -1022,7 +1022,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.850
+    metric_target = 0.750
 
 # `--resume` information: If you changed `metric_target`, just rerun
 # the script and it will work. Unlike some other options, you don't
