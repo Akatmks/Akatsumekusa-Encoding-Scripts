@@ -3061,7 +3061,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         if verbose >= 1:
             print(f"Progression Boost ", end="", flush=True)
 
-        def metric_linear(readjusting):
+        def metric_linear():
             fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]],
                                  [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
                                  1)
@@ -3073,34 +3073,30 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             if verbose >= 1:
                 print(f"original {crf:>5.2f} / ", end="", flush=True)
 
-            if readjusting:
-                readjusted_second_score = metric_result["scenes"][scene_n]["second_score"]
+            if qstep > 163:
                 if zone_scene["zone"].probing_preset >= 6:
                     if preset <= -1:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.63
+                        qstep = (qstep - 163) * 0.72 + 163
                     elif preset <= 0:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.60
+                        qstep = (qstep - 163) * 0.73 + 163
                     elif preset <= 2:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.51
+                        qstep = (qstep - 163) * 0.76 + 163
                     elif preset <= 5:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.30
+                        qstep = (qstep - 163) * 0.84 + 163
                 elif zone_scene["zone"].probing_preset >= 5:
                     if preset <= -1:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.33
+                        qstep = (qstep - 163) * 0.82 + 163
                     elif preset <= 0:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.30
+                        qstep = (qstep - 163) * 0.83 + 163
                     elif preset <= 2:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.21
+                        qstep = (qstep - 163) * 0.86 + 163
                 elif zone_scene["zone"].probing_preset >= 3:
-                    if preset <= 0:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.15
+                    if preset <= -1:
+                        qstep = (qstep - 163) * 0.90 + 163
+                    elif preset <= 0:
+                        qstep = (qstep - 163) * 0.91 + 163
                     elif preset <= 2:
-                        readjusted_second_score -= (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"]) * 0.12
-
-                fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], readjusted_second_score],
-                                     [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
-                                     1)
-                qstep = fit(zone_scene["zone"].metric_target)
+                        qstep = (qstep - 163) * 0.94 + 163
 
                 crf = np.interp(qstep, dc, dc_X) / 4
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
@@ -3112,7 +3108,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
         if metric_result["scenes"][scene_n]["first_qstep"] < metric_result["scenes"][scene_n]["second_qstep"]:
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]):
-                crf, preset = metric_linear(readjusting=True)
+                crf, preset = metric_linear()
             else:
                 crf = np.interp(np.mean([metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]]), dc, dc_X) / 4
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
@@ -3121,7 +3117,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     print(f"fallback {crf:>5.2f} / ", end="", flush=True)
         else: # second_qstep < first_qstep
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["second_score"], metric_result["scenes"][scene_n]["first_score"]):
-                crf, preset = metric_linear(readjusting=False)
+                crf, preset = metric_linear()
             else:
                 crf = np.min([zone_scene["zone"].metric_unreliable_crf_fallback(), (np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4])
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
