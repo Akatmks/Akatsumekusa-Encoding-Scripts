@@ -3145,22 +3145,47 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
         character_map = np.load(character_map_file)
 
+        character_map_filled = character_map.copy()
+        a_last_filled = None
+        for i, a in enumerate(character_map):
+            if np.any((a_nan := np.isnan(a))):
+                assert np.all(a_nan), "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+
+                assert a_last_filled is not None, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+                character_map_filled[i] = a_last_filled
+            else:
+                a_last_filled = a
+        
+        if character_map_filled.shape[0] >= 2:
+            character_map_filled_diff = np.sum(np.abs(np.diff(character_map_filled, axis=0)), axis=1)
+            character_map_filled_sum = ((sum_filled := np.sum(character_map_filled, axis=1))[1:] + sum_filled[:-1]) / 2
+
+
         if zone["zone"].character_max_roi_boost:
-            roi_map = []
+            character_roi_diff = np.divide(character_map_filled_diff, character_map_filled_sum, out=np.zeros_like(character_map_filled_diff), where=character_map_filled_sum != 0)
+            character_roi_high_diff = np.zeros((math.ceil(character_map_filled.shape[0] / 8) * 8 + 1,), dtype=bool)
+
+            for i, diff in enumerate(character_roi_diff):
+                if diff > 0.10:
+                    character_roi_high_diff[i + 1] = True
+                    character_roi_high_diff[[math.floor((i + 1) / 2) * 2, math.ceil((i + 1) / 2) * 2]] = True
+                    character_roi_high_diff[[math.floor((i + 1) / 4) * 4, math.ceil((i + 1) / 4) * 4]] = True
+                    character_roi_high_diff[[math.floor((i + 1) / 8) * 8, math.ceil((i + 1) / 8) * 8]] = True
     
+            roi_map = []
+            
             uniform_offset = zone_scene["zone"].character_max_roi_boost // 2.0
             uniform_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 1.2
             uniform_ending_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 4.8
             character_key_multiplier = 1.00
             character_32_multiplier = 0.90
             character_16_multiplier = 0.70
+            character_high_diff_8_multiplier = 0.60
+            character_high_diff_4_multiplier = 0.40
             character_8_multiplier = 0.50
             character_4_multiplier = 0.45
             for i, a in enumerate(character_map):
-                if np.any((a_nan := np.isnan(a))):
-    
-                    assert np.all(a_nan), "This indicates a bug in the original code. Please report this to the repository including this entire error message."
-                else:
+                if not np.any((a_nan := np.isnan(a))):
                     a = np.round(a * -7)
                     if i == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_key_multiplier) + uniform_offset)
@@ -3169,9 +3194,15 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     elif i % 4 == 0:
                         a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_16_multiplier) + uniform_offset)
                     elif i % 2 == 0:
-                        a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_8_multiplier) + uniform_offset)
+                        if character_roi_high_diff[i]:
+                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_high_diff_8_multiplier) + uniform_offset)
+                        else:
+                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_8_multiplier) + uniform_offset)
                     else:
-                        a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_4_multiplier) + uniform_offset)
+                        if character_roi_high_diff[i]:
+                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_high_diff_4_multiplier) + uniform_offset)
+                        else:
+                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_4_multiplier) + uniform_offset)
                     roi_map.append([i * 4, a])
 
                     if i != character_map.shape[0] - 1:
@@ -3201,14 +3232,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
 
-        character_map_non_still = character_map[np.any(~np.isnan(character_map), axis=1)]
-        if character_map_non_still.shape[0] >= 2:
-            character_map_non_still_diff = np.sum(np.abs(np.diff(character_map_non_still, axis=0)))
-            character_map_sum = np.sum(((sum_non_still := np.sum(character_map_non_still, axis=1))[1:] + sum_non_still[:-1]) / 2) / (character_map_non_still.shape[0] - 1) * (character_map.shape[0] - 1)
-            if character_map_sum != 0.0:
-                character_diff = character_map_non_still_diff / character_map_sum / 0.12
-            else:
-                character_diff = 0.0
+        if (sum_filled := np.sum(character_map_filled_sum)) != 0.0:
+            character_diff = np.sum(character_map_filled_diff) / sum_filled / 0.12
         else:
             character_diff = 0.0
         if character_diff > 1.00:
