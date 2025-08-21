@@ -1476,12 +1476,6 @@ if not resume or not scene_detection_scenes_file.exists():
         
     if not scene_detection_diffs_available:
         if not (scene_detection_perform_vapoursynth and not scene_detection_has_av1an and not scene_detection_has_external):
-            global scene_detection_diffs
-            global scene_detection_average
-            global scene_detection_min
-            global scene_detection_max
-            global scene_detection_diffs_available
-    
             scene_detection_luma_clip = zone_default.source_clip
             scene_detection_luma_clip = scene_detection_luma_clip.std.PlaneStats(scene_detection_luma_clip[0] + scene_detection_luma_clip, plane=0, prop="Luma")
             
@@ -3075,8 +3069,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             preset = zone_scene["zone"].metric_dynamic_preset(crf,
                                                               scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                               scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                              scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]]),
-                                                              scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
+                                                              scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                              scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
             if verbose >= 1:
                 print(f"original {crf:>5.2f} / ", end="", flush=True)
 
