@@ -2523,7 +2523,7 @@ r@ -1 > r@ -1 ?""")
                 frames[[math.floor(frame / 16) * 16, math.ceil(frame / 16) * 16]] = True
                 frames[[math.floor(frame / 32) * 32, math.ceil(frame / 32) * 32]] = True
 
-        character_map = np.full(((scenes["scenes"][scene_n]["end_frame"] - scenes["scenes"][scene_n]["start_frame"]) // 4, character_block_width * character_block_height),
+        character_map = np.full(((scenes["scenes"][scene_n]["end_frame"] - scenes["scenes"][scene_n]["start_frame"]) // 4 + 1, character_block_width * character_block_height),
                                 np.nan, dtype=np.float64)
 
         clip = character_clip[int(scenes["scenes"][scene_n]["start_frame"])]
