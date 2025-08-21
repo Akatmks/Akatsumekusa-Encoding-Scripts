@@ -654,12 +654,12 @@ class DefaultZone:
     def probing_dynamic_parameters(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 0 --psy-rd 3.0 --spy-rd 0
+                  --complex-hvs 0 --psy-rd 2.5 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 1 --psy-rd 3.0 --spy-rd 0
+                  --complex-hvs 1 --psy-rd 2.5 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
 # `--resume` information: If you changed parameters for probing, you
