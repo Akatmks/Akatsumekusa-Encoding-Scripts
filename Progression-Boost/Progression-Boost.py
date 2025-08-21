@@ -985,7 +985,7 @@ class DefaultZone:
         median = np.median(scores)
         mad = stats.median_abs_deviation(scores)
         threshold = self.metric_make_better(median, mad * 1.5)
-        frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores)), scores == threshold)]
+        frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores), scores == threshold))]
         scores = scores[trim]
 
         interpolation = interpolate.PchipInterpolator(frames, scores)
