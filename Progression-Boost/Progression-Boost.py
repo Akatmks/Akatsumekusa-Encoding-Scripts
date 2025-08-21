@@ -984,7 +984,8 @@ class DefaultZone:
     # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
     #     median = np.median(scores)
     #     mad = stats.median_abs_deviation(scores)
-    #     frames = frames[(trim := self.metric_better(self.metric_make_better(median, mad * 1.5), scores))]
+    #     threshold = self.metric_make_better(median, mad * 1.5)
+        # frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores)), scores == threshold)]
     #     scores = scores[trim]
     #
     #     interpolation = interpolate.PchipInterpolator(frames, scores)
