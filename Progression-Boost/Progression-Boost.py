@@ -883,14 +883,14 @@ class DefaultZone:
     # metric_make_better = np.subtract
     # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     # def metric_vapoursynth_metric(self, frame):
-    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.30
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = None
     # def metric_ffvship_metric(self, frame):
-    #     adjustment = frame[2] * 0.030 - frame[1] * 0.30
+    #     adjustment = frame[2] * 0.036 - frame[1] * 0.32
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame[1] + adjustment
@@ -901,14 +901,14 @@ class DefaultZone:
     metric_make_better = np.subtract
     metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
     def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.027 - frame.props["_BUTTERAUGLI_3Norm"] * 0.18
+        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
         if adjustment < 0:
             adjustment = 0
         return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     metric_ffvship_calculate = "Butteraugli"
     metric_ffvship_intensity_target = None
     def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.027 - frame[1] * 0.18
+        adjustment = frame[2] * 0.032 - frame[1] * 0.20
         if adjustment < 0:
             adjustment = 0
         return frame[1] + adjustment
@@ -982,21 +982,38 @@ class DefaultZone:
 # is no longer recommended, we still want to take this chance and thank
 # Miss Moonlight for her various contributions to boosting.
     # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
+    #     if verbose >= 3:
+    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation", end="", flush=True)
+    #
+    #     if verbose >= 3:
+    #         min, max = np.percentile(scores, [0, 100])
+    #         if self.metric_better(max, min):
+    #             high_extremum = max
+    #             low_extremum = min
+    #         else:
+    #             high_extremum = min
+    #             low_extremum = max
+    #         print(f" / extremum {high_extremum:.3f} {low_extremum:.3f}", end="", flush=True)
+    #
     #     median = np.median(scores)
     #     mad = stats.median_abs_deviation(scores)
     #     threshold = self.metric_make_better(median, mad * 1.5)
-        # frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores), scores == threshold))]
+    #     frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores), scores == threshold))]
     #     scores = scores[trim]
+    #     if verbose >= 3:
+    #         print(f" / trim thr {threshold:.3f}", end="", flush=True)
     #
     #     interpolation = interpolate.PchipInterpolator(frames, scores)
-    #     frames = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
+    #     scores = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
     #
     #     mean = np.mean(scores)
-    #     std = np.std(scores, mean=mean)
-    #     mean = self.metric_make_better(mean, std * -0.25)
-    #
     #     if verbose >= 3:
-    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation / standard deviation {std:.3f} / min {np.min(scores):.3f}", end="\n", flush=True)
+    #         print(f" / mean {mean:.3f}", end="", flush=True)
+    #
+    #     deviation = np.mean((scores - mean) ** 4) ** (1 / 4)
+    #     mean = self.metric_make_better(mean, -deviation)
+    #     if verbose >= 3:
+    #         print(f" / deviation {deviation:.3f} / mean {mean:.3f}", end="\n", flush=True)
     #
     #     return mean
 
