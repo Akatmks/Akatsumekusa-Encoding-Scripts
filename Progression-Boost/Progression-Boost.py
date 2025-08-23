@@ -2480,7 +2480,7 @@ if metric_has_metric and probing_first_perform_encode:
                 done_scenes = None
                 try:
                     done_scenes = json.load(done_f)
-                except JSONDecodeError:
+                except json.JSONDecodeError:
                     pass
                     
                 if done_scenes is not None and "done" in done_scenes:
@@ -2595,7 +2595,7 @@ if metric_has_metric and probing_first_perform_encode:
                             done_f.seek(0)
                             try:
                                 done_scenes = json.load(done_f)
-                            except JSONDecodeError:
+                            except json.JSONDecodeError:
                                 time.sleep(1 / 6000 * 1001)
                                 continue
 
@@ -2903,7 +2903,7 @@ if metric_has_metric and probing_second_perform_encode:
                 done_scenes = None
                 try:
                     done_scenes = json.load(done_f)
-                except JSONDecodeError:
+                except json.JSONDecodeError:
                     pass
                     
                 if done_scenes is not None and "done" in done_scenes:
@@ -2949,7 +2949,7 @@ if metric_has_metric and probing_second_perform_encode:
                             done_f.seek(0)
                             try:
                                 done_scenes = json.load(done_f)
-                            except JSONDecodeError:
+                            except json.JSONDecodeError:
                                 time.sleep(1 / 6000 * 1001)
                                 continue
 
