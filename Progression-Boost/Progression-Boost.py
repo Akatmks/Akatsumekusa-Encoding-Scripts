@@ -383,7 +383,7 @@ class DefaultZone:
 # this scene detection will be used both for test encodes and the final
 # encodes.
     scene_detection_extra_split = 193
-    scene_detection_min_scene_len = 12
+    scene_detection_min_scene_len = 9
 # The next setting is only used if VapourSynth based scene detection
 # method is selected.
 #
