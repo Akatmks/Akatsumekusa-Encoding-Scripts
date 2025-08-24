@@ -1010,7 +1010,7 @@ class DefaultZone:
         if verbose >= 3:
             print(f" / mean {mean:.3f}", end="", flush=True)
 
-        deviation = np.mean((scores - mean) ** 4) ** (1 / 4)
+        deviation = np.mean((scores - mean) ** 8) ** (1 / 8)
         mean = self.metric_make_better(mean, -deviation)
         if verbose >= 3:
             print(f" / deviation {deviation:.3f} / mean {mean:.3f}", end="\n", flush=True)
