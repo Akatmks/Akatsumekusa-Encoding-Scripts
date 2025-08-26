@@ -218,6 +218,12 @@ class DefaultZone:
     # source_provider_cache = lambda self, file: None
     # source_provider_av1an = "bestsource"
 # Also, it's possible to only use BestSource for source, and then use
+# faster ffms2 to read Progression Boost's probe encodes.
+    # source_clip = core.bs.VideoSource(input_file)
+    # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
+    # source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
+    # source_provider_av1an = "bestsource"
+# Also, it's possible to only use BestSource for source, and then use
 # faster lsmas to read Progression Boost's probe encodes.
     # source_clip = core.bs.VideoSource(input_file)
     # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
