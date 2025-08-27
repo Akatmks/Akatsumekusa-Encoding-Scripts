@@ -1132,7 +1132,7 @@ class DefaultZone:
 # consistency, and then hyperboost character here.
 #
 # The number here should be positive.
-    character_max_crf_boost = 3.00
+    character_max_crf_boost = 4.00
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
@@ -3264,8 +3264,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     np.savetxt(roi_map_f, line[1].reshape((1, -1)), fmt="%d")
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
-        character_hiritsu = np.interp(character_hiritsu, [0.00, 0.06, 0.26, 0.36, 0.46, 0.56],
-                                                         [0.00, 0.46, 1.00, 1.00, 0.96, 0.76])
+        character_hiritsu = np.interp(character_hiritsu, [0.00, 0.02, 0.12, 0.22, 0.32, 0.42, 0.52],
+                                                         [0.00, 0.00, 1.00, 1.00, 0.92, 0.82, 0.62])
         crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
