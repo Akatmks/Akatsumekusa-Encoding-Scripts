@@ -2,8 +2,6 @@
 
 # Progression Boost
 
-> *This is the new version of Progression Boost **still in testing**. You're welcome to try out the new version, but if you want something production ready, try out our [existing version](../../tree/old).*
-
 ## Introduction
 
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their Auto-Boost, and BoatsMcGee and their Normal-Boost that makes this script possible.  
