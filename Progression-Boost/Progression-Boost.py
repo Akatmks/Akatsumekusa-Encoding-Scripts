@@ -434,7 +434,7 @@ class DefaultZone:
 
 # Enable Progression Boost module by setting the following value to
 # True:
-    metric_enable = True
+    metric_enable = False
 # Even if you disable Progression Boost, you cannot skip this whole
 # section, as you need to set your final encoding parameters here. Read
 # first 3 cells below to find the settings you'll need to change.
@@ -1083,7 +1083,7 @@ class DefaultZone:
 # significantly better watching experience with Character Boost.
 #
 # Enable character boosting by setting the line below to True.
-    character_enable = True
+    character_enable = False
 
 # `--resume` information: Toggling modules is completely resumable.
 # Just rerun the script and it will work... unless you've changed
