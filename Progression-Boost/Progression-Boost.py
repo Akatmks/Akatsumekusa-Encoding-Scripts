@@ -1145,7 +1145,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.00
+    character_max_motion_crf_boost = 5.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
