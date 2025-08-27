@@ -434,7 +434,7 @@ class DefaultZone:
 
 # Enable Progression Boost module by setting the following value to
 # True:
-    metric_enable = True
+    metric_enable = False
 # Even if you disable Progression Boost, you cannot skip this whole
 # section, as you need to set your final encoding parameters here. Read
 # first 3 cells below to find the settings you'll need to change.
@@ -1110,7 +1110,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 5.50
+    character_max_roi_boost = 6.50
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1132,7 +1132,7 @@ class DefaultZone:
 # consistency, and then hyperboost character here.
 #
 # The number here should be positive.
-    character_max_crf_boost = 3.00
+    character_max_crf_boost = 12.00
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
@@ -1145,7 +1145,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 8.00 ~ 10.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.00
+    character_max_motion_crf_boost = 5.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
