@@ -1110,7 +1110,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 6.50
+    character_max_roi_boost = 5.50
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
