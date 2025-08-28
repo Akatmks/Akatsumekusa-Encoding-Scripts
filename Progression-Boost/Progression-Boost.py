@@ -1121,18 +1121,23 @@ class DefaultZone:
 # There are no minimum recommended value for this, but setting it at a
 # low value such as 2.00 or 3.00 never hurts.
 # There are no maximum value for this either. Once you've set the first
-# ROI map based boosting to its maximum recommended value of 7.00 or
-# above, you can put all your remaining boosting here as much as you
-# want. For example, something like a very aggressive 20.00 will work
-# just fine.
+# ROI map based boosting to its maximum recommended value of 7.00, you
+# can put all your remaining boosting here as much as you want. For
+# example, something like a very aggressive 20.00 will work just fine.
 #
 # In some works when there are annoying sections that eats too much
 # bitrate, you can even disable Progression Boost module, relying on
 # the base `--crf` set by `metric_disabled_crf` to maintain a baseline
 # consistency, and then hyperboost character here.
+# However, the default tune for this parameters is designed to mitigate
+# issues that are potentially missed by metric based boosting instead
+# of full on boosting. If you've disabled metric based boosting and
+# want to solely rely on Character Boost, please set
+# `character_max_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
     character_max_crf_boost = 4.00
+    character_max_crf_boost_alt_curve = 0
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
@@ -1141,8 +1146,8 @@ class DefaultZone:
 # This detection is based on the character recognition model, and is
 # not very accurate. There will be cases of false positive. For this
 # reason, this method should only be treated as an addition to the
-# first two methods. The recommended starting value for this is 4.50,
-# and the maximum recommended value for this would be 8.00 ~ 10.00.
+# first two methods. The recommended starting value for this is 4.00,
+# and the maximum recommended value for this would be 6.00 ~ 9.00.
 #
 # The number here should be positive.
     character_max_motion_crf_boost = 5.00
@@ -1302,7 +1307,7 @@ if zones_string is not None:
             zone = []
             zone_head = 0
         else:
-            assert False
+            assert False, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
     if zone_head != 0:
         raise ValueError(f"Invalid zones. There are too much or two few items in the provided zones")
 else:
@@ -3264,8 +3269,14 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     np.savetxt(roi_map_f, line[1].reshape((1, -1)), fmt="%d")
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
-        character_hiritsu = np.interp(character_hiritsu, [0.00, 0.02, 0.12, 0.22, 0.32, 0.42, 0.52],
-                                                         [0.00, 0.00, 1.00, 1.00, 0.92, 0.82, 0.62])
+        if character_max_crf_boost_alt_curve == 0:
+            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
+                                                             [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.61])
+        elif character_max_crf_boost_alt_curve == 1:
+            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
+                                                             [0.00, 0.00, 0.71, 1.00, 1.00, 0.91, 0.81])
+        else:
+            assert False, "Invalid `character_max_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
         crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
