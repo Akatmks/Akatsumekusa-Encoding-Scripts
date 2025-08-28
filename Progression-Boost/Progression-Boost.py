@@ -1110,7 +1110,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_max_roi_boost = 5.50
+    character_roi_boost_max = 5.50
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1133,11 +1133,11 @@ class DefaultZone:
 # issues that are potentially missed by metric based boosting instead
 # of full on boosting. If you've disabled metric based boosting and
 # want to solely rely on Character Boost, you probably want to set
-# `character_max_crf_boost_alt_curve` to `1`.
+# `character_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
-    character_max_crf_boost = 4.00
-    character_max_crf_boost_alt_curve = 0
+    character_crf_boost_max = 4.00
+    character_crf_boost_alt_curve = 0
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
@@ -1150,7 +1150,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 6.00 ~ 9.00.
 #
 # The number here should be positive.
-    character_max_motion_crf_boost = 4.00
+    character_motion_crf_boost_max = 4.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
@@ -1388,7 +1388,7 @@ for zone in zones:
 
         break
 for zone in zones:
-    if zone["zone"].character_enable and zone["zone"].character_max_roi_boost:
+    if zone["zone"].character_enable and zone["zone"].character_roi_boost_max:
         if not roi_maps_dir:
             print(f"\r\033[KCharacter Boost is enabled in at least one active zone, but commandline parameter `--output-roi-map` is not provided.", end="\n", flush=True)
             raise SystemExit(2)
@@ -3204,7 +3204,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_map_filled_sum = ((sum_filled := np.sum(character_map_filled, axis=1))[1:] + sum_filled[:-1]) / 2
 
 
-        if zone["zone"].character_max_roi_boost:
+        if zone["zone"].character_roi_boost_max:
             character_roi_diff = np.divide(character_map_filled_diff, character_map_filled_sum, out=np.zeros_like(character_map_filled_diff), where=character_map_filled_sum != 0)
             character_roi_high_diff = np.zeros((math.ceil(character_map_filled.shape[0] / 8) * 8 + 1,), dtype=bool)
 
@@ -3217,9 +3217,9 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     
             roi_map = []
             
-            uniform_offset = zone_scene["zone"].character_max_roi_boost // 2.0
-            uniform_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 1.2
-            uniform_ending_nonboosting_offset = zone_scene["zone"].character_max_roi_boost // 4.8
+            uniform_offset = zone_scene["zone"].character_roi_boost_max // 2.0
+            uniform_nonboosting_offset = zone_scene["zone"].character_roi_boost_max // 1.2
+            uniform_ending_nonboosting_offset = zone_scene["zone"].character_roi_boost_max // 4.8
             character_key_multiplier = 1.00
             character_32_multiplier = 0.90
             character_16_multiplier = 0.70
@@ -3231,21 +3231,21 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                 if not np.any((a_nan := np.isnan(a))):
                     a = np.round(a * -7)
                     if i == 0:
-                        a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_key_multiplier) + uniform_offset)
+                        a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_key_multiplier) + uniform_offset)
                     elif i % 8 == 0:
-                        a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_32_multiplier) + uniform_offset)
+                        a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_32_multiplier) + uniform_offset)
                     elif i % 4 == 0:
-                        a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_16_multiplier) + uniform_offset)
+                        a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_16_multiplier) + uniform_offset)
                     elif i % 2 == 0:
                         if character_roi_high_diff[i]:
-                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_high_diff_8_multiplier) + uniform_offset)
+                            a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_high_diff_8_multiplier) + uniform_offset)
                         else:
-                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_8_multiplier) + uniform_offset)
+                            a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_8_multiplier) + uniform_offset)
                     else:
                         if character_roi_high_diff[i]:
-                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_high_diff_4_multiplier) + uniform_offset)
+                            a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_high_diff_4_multiplier) + uniform_offset)
                         else:
-                            a = np.round(a * (zone_scene["zone"].character_max_roi_boost / 1.75 * character_4_multiplier) + uniform_offset)
+                            a = np.round(a * (zone_scene["zone"].character_roi_boost_max / 1.75 * character_4_multiplier) + uniform_offset)
                     roi_map.append([i * 4, a])
 
                     if i != character_map.shape[0] - 1:
@@ -3269,15 +3269,15 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     np.savetxt(roi_map_f, line[1].reshape((1, -1)), fmt="%d")
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
-        if zone_scene["zone"].character_max_crf_boost_alt_curve == 0:
+        if zone_scene["zone"].character_crf_boost_alt_curve == 0:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
                                                              [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.67])
-        elif zone_scene["zone"].character_max_crf_boost_alt_curve == 1:
+        elif zone_scene["zone"].character_crf_boost_alt_curve == 1:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
                                                              [0.00, 0.00, 0.71, 1.00, 1.00, 0.91, 0.81])
         else:
-            assert False, "Invalid `character_max_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
-        crf -= zone_scene["zone"].character_max_crf_boost * character_hiritsu
+            assert False, "Invalid `character_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
+        crf -= zone_scene["zone"].character_crf_boost_max * character_hiritsu
         if verbose >= 1:
             print(f"--crf {crf:>5.2f} / ", end="", flush=True)
 
@@ -3287,7 +3287,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_diff = 0.0
         if character_diff > 1.00:
             character_diff = 1.00
-        crf -= zone_scene["zone"].character_max_motion_crf_boost * character_diff
+        crf -= zone_scene["zone"].character_motion_crf_boost_max * character_diff
         if verbose >= 1:
             print(f"motion --crf {crf:>5.2f} / ", end="", flush=True)
 
@@ -3320,7 +3320,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         "extra_splits_len": zone_scene["zone"].scene_detection_extra_split,
         "min_scene_len": zone_scene["zone"].scene_detection_min_scene_len
     }
-    if zone_scene["zone"].character_enable and zone["zone"].character_max_roi_boost:
+    if zone_scene["zone"].character_enable and zone["zone"].character_roi_boost_max:
         final_scenes["scenes"][scene_n]["zone_overrides"]["video_params"] += ["--roi-map-file", str(roi_map_file)]
     
 final_scenes["split_scenes"] = final_scenes["scenes"]
