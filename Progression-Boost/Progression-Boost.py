@@ -1125,14 +1125,14 @@ class DefaultZone:
 # can put all your remaining boosting here as much as you want. For
 # example, something like a very aggressive 20.00 will work just fine.
 #
-# In some works when there are annoying sections that eats too much
+# In some works when there are annoying backgrounds that eats too much
 # bitrate, you can even disable Progression Boost module, relying on
 # the base `--crf` set by `metric_disabled_crf` to maintain a baseline
 # consistency, and then hyperboost character here.
 # However, the default tune for this parameters is designed to mitigate
 # issues that are potentially missed by metric based boosting instead
 # of full on boosting. If you've disabled metric based boosting and
-# want to solely rely on Character Boost, please set
+# want to solely rely on Character Boost, you probably want to set
 # `character_max_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
