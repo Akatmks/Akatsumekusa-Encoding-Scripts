@@ -3271,7 +3271,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
         if character_max_crf_boost_alt_curve == 0:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
-                                                             [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.61])
+                                                             [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.67])
         elif character_max_crf_boost_alt_curve == 1:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
                                                              [0.00, 0.00, 0.71, 1.00, 1.00, 0.91, 0.81])
