@@ -2629,13 +2629,13 @@ if metric_has_metric and probing_first_perform_encode:
 
 if metric_has_metric:
     for zone in zones:
-        if zone_scene["zone"].metric_enable and zone["zone"].metric_method == "vapoursynth":
+        if zone["zone"].metric_enable and zone["zone"].metric_method == "vapoursynth":
             metric_method_has_vapoursynth = True
             break
     else:
         metric_method_has_vapoursynth = False
     for zone in zones:
-        if zone_scene["zone"].metric_enable and zone["zone"].metric_method == "ffvship":
+        if zone["zone"].metric_enable and zone["zone"].metric_method == "ffvship":
             metric_method_has_ffvship = True
             break
     else:
