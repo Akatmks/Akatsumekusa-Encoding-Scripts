@@ -63,7 +63,7 @@ Progression Boost has a great scene detection system. This scene detection may b
 Progression Boost has very few dependencies:  
 * Progression Boost is a script for av1an, and it outputs scenes.json in av1an format. You need to be using av1an to use Progression Boost.  
 * Progression Boost's only hard requirements other than av1an are `numpy` and `scipy`. These are the most common math libraries for Python, and you can install them using `python -m pip install numpy scipy`.  
-* Progression Bosot by default uses lsmas as video provider, but you can easily switch to BestSource or other video providers in the file itself.  
+* Progression Bosot by default uses ffms2 as video provider, but you can easily switch to lsmas, BestSource or other video providers in the file itself.  
 * Progression Boost supports all VapourSynth based metric calculation and FFVship. All presets are set to use Vship by default, which can be installed from vsrepo (`vship_nvidia` or `vship_amd`) or AUR ([Cuda](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-cuda-git) or [AMD](https://aur.archlinux.org/packages/vapoursynth-plugin-vship-amd-git)). Miss Moonlight spent a lot of time optimising Vship and it can even run on integrated GPU decently well.  
   However, if you don't have that luxury and can only use vszip, you can easily switch to vszip or any other VapourSynth based methods easily in the config. Search for `metric_calculate` in the file.  
   If you're using a preset that skips metric based boosting, you don't need any of these dependencies.  
