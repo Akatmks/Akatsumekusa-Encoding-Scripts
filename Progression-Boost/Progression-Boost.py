@@ -527,7 +527,9 @@ class DefaultZone:
 
 # In addition to setting our maximum and minimum clamp, we can also
 # adjust our `--crf` values dynamically.
-    def metric_dynamic_crf(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> float:
+    def metric_dynamic_crf(self, start_frame: int, end_frame: int,
+                                 crf: float,
+                                 luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> float:
 # For example, one common usage is for encodes targeting lower filesize
 # targets to dampen the boost. We willingly allow some scenes to have a
 # worse quality than the target we set, in order to save space for all
@@ -608,7 +610,9 @@ class DefaultZone:
 # very different from the eventual output. You can use `--resume` and
 # `--verbose` to test out the right threshold for your dynamic
 # `--preset`.                                                            # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    def metric_dynamic_preset(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
+    def metric_dynamic_preset(self, start_frame: int, end_frame: int,
+                                    crf: float,
+                                    luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
         return 2
 
 # `--resume` information: If you changed parameters for probing, you
@@ -657,12 +661,16 @@ class DefaultZone:
 # not only includes `--crf` result from this Progression Boost module
 # after `metric_dynamic_crf`, but also the `--crf` boosts in the next
 # Character Boost module as well.                                        # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    def probing_dynamic_parameters(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
+    def probing_dynamic_parameters(self, start_frame: int, end_frame: int,
+                                         crf: float,
+                                         luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 0 --psy-rd 1.5 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
-    def final_dynamic_parameters(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
+    def final_dynamic_parameters(self, start_frame: int, end_frame: int,
+                                       crf: float,
+                                       luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
                   --complex-hvs 1 --psy-rd 1.5 --spy-rd 0
@@ -702,7 +710,8 @@ class DefaultZone:
 # Note that the default value for `photon_noise` in scenes file is
 # `None` instead of `0`, and the result for `photon_noise` `0` is
 # undefined.
-    def final_dynamic_photon_noise(self, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> Optional[int]:
+    def final_dynamic_photon_noise(self, start_frame: int, end_frame: int,
+                                         luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> Optional[int]:
         return None
     final_photon_noise_height = None
     final_photon_noise_width = None
@@ -1197,13 +1206,17 @@ class BuiltinExampleZone(DefaultZone):
 # as all the default settings in the previous 4 sections.
 # Now we can change the settings that we want to make it different.
 # Let's first apply some `--film-grian` because why not:
-    def final_dynamic_parameters(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
+    def final_dynamic_parameters(self, start_frame: int, end_frame: int,
+                                       crf:
+                                       float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --luminance-qp-bias 12 --qp-min 8 --chroma-qp-min 10
                   --film-grain 12 --complex-hvs 1 --psy-rd 1.0 --spy-rd 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 # Let's use a different `--preset` for final encode:
-    def metric_dynamic_preset(self, crf: float, luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
+    def metric_dynamic_preset(self, start_frame: int, end_frame: int,
+                                    crf: float,
+                                    luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
         return -1
 # Change the number of frames measured:
     metric_highest_diff_frames = 5
@@ -2461,7 +2474,9 @@ if metric_has_metric and probing_first_perform_encode:
                 ]
             probing_scene["zone_overrides"]["video_params"] += [
                 "--preset", f"{zone_scene["zone"].probing_preset}",
-                *zone_scene["zone"].probing_dynamic_parameters((np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4,
+                *zone_scene["zone"].probing_dynamic_parameters(zone_scene["start_frame"],
+                                                               zone_scene["end_frame"],
+                                                               (np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4,
                                                                scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -2884,7 +2899,9 @@ if metric_has_metric and probing_second_perform_encode:
                 ]
             probing_scene["zone_overrides"]["video_params"] += [
                 "--preset", f"{zone_scene["zone"].probing_preset}",
-                *zone_scene["zone"].probing_dynamic_parameters((np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4,
+                *zone_scene["zone"].probing_dynamic_parameters(zone_scene["start_frame"],
+                                                               zone_scene["end_frame"],
+                                                               (np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4,
                                                                scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -3095,7 +3112,9 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
             crf = np.interp(qstep, dc, dc_X) / 4
             crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
-            preset = zone_scene["zone"].metric_dynamic_preset(crf,
+            preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
+                                                              zone_scene["end_frame"],
+                                                              crf,
                                                               scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                               scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                               scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -3142,7 +3161,9 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             else:
                 crf = np.interp(np.mean([metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]]), dc, dc_X) / 4
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
-                preset = zone_scene["zone"].metric_dynamic_preset(crf,
+                preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
+                                                                  zone_scene["end_frame"],
+                                                                  crf,
                                                                   scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                   scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                   scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -3155,14 +3176,18 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             else:
                 crf = np.min([zone_scene["zone"].metric_unreliable_crf_fallback(), (np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4])
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
-                preset = zone_scene["zone"].metric_dynamic_preset(crf,
+                preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
+                                                                  zone_scene["end_frame"],
+                                                                  crf,
                                                                   scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                   scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                   scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                   scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
                 if verbose >= 1:
                     print(f"fallback {crf:>5.2f} / ", end="", flush=True)
-        crf = zone_scene["zone"].metric_dynamic_crf(crf,
+        crf = zone_scene["zone"].metric_dynamic_crf(zone_scene["start_frame"],
+                                                    zone_scene["end_frame"],
+                                                    crf,
                                                     scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                     scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                     scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -3170,7 +3195,9 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     else:
         crf = zone_scene["zone"].metric_disabled_crf
         crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
-        preset = zone_scene["zone"].metric_dynamic_preset(crf,
+        preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
+                                                          zone_scene["end_frame"],
+                                                          crf,
                                                           scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                           scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                           scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
@@ -3304,13 +3331,17 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         "video_params": [
             "--crf", (f"{crf:.2f}" if zone_scene["zone"].quarterstep_crf else f"{crf:.0f}"),
             "--preset", f"{preset}",
-            *zone_scene["zone"].final_dynamic_parameters(crf,
+            *zone_scene["zone"].final_dynamic_parameters(zone_scene["start_frame"],
+                                                         zone_scene["end_frame"],
+                                                         crf,
                                                          scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                          scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                          scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                          scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
         ],
-        "photon_noise": zone_scene["zone"].final_dynamic_photon_noise(scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+        "photon_noise": zone_scene["zone"].final_dynamic_photon_noise(zone_scene["start_frame"],
+                                                                      zone_scene["end_frame"],
+                                                                      scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                       scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                       scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                                       scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]),
