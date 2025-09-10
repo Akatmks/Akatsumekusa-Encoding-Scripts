@@ -7,7 +7,7 @@
 Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and their Auto-Boost, and BoatsMcGee and their Normal-Boost that makes this script possible.  
 Thanks to name? and MA0MA0 that helps testing and coming up with new ideas for the new version of Progression Boost.  
 
-Constant quality? Eliminating bad frames? Better character? Better birate allocation? Whatever your target is, Progression Boost gets you covered.  
+Constant quality? Eliminating bad frames? Better character? Better bitrate allocation? Whatever your target is, Progression Boost gets you covered.  
 Progression Boost is a fast, safe, and featurerich boosting script. It comes with readytouse presets that you can try directly, but it can also be configured to target unique quality targets and more.  
 
 ## Download
