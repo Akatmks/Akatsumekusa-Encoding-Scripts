@@ -50,14 +50,6 @@ Explanation for picking between Butteraugli and SSIMU2, as well as explanation f
 | [Butteraugli-Mean](../Preset-Butteraugli-Mean/Progression-Boost/Progression-Boost.py) | Targeting entire quality range, focusing on quality consistency<br /> while also improving bad frames. |
 | [SSIMU2-Mean](../Preset-SSIMU2-Mean/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
-### Scene Detection Presets
-
-Progression Boost has a great scene detection system. This scene detection may be beneficial over av1an's scene detection even when you're doing unboosted encoding with constant `--crf`. This preset supports mixing Progression Boost's scene detection with av1an's scene detection via Progression Boost's zoning feature. But if you want just to use Progression Boost's scene detection throughout the entire encode, you can use the easiertouse standalone [VapourSynth Scene Detection](#vapoursynth-scene-detection) script.  
-
-| Preset | Explained |
-| :-- | :-- |
-| [Scene-Detection](../Preset-Scene-Detection/Progression-Boost/Progression-Boost.py) | Performing Scene Detection for fixed `--crf` encoding. |
-
 ## Dependencies
 
 Progression Boost has very few dependencies:  
