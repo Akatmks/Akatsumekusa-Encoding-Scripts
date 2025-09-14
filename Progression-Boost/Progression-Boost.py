@@ -59,6 +59,8 @@ parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more conf
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
 parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform probe encodes, while all other processes will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
 parser.add_argument("--encode-vspipe-args", nargs="+", help="VSPipe argument for test encodes.")
+parser.add_argument("--scene-detection-input", type=Path, help="Source file for x264 based and av1an based scene detection. Supports both video file and vpy file (Default: same as `--input`)")
+parser.add_argument("--scene-detection-vspipe-args", nargs="+", help="VSPipe argument for x264 based and av1an based scene detection.")
 parser.add_argument("--input-scenes", type=Path, help="Perform your own scene detection and skip Progression Boost's scene detection")
 parser.add_argument("-o", "--output-scenes", type=Path, required=True, help="Output scenes file for encoding")
 parser.add_argument("-m", "--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes")
@@ -74,6 +76,10 @@ probing_input_file = args.encode_input
 if probing_input_file is None:
     probing_input_file = input_file
 probing_input_vspipe_args = args.encode_vspipe_args
+scene_detection_input_file = args.scene_detection_input
+if scene_detection_input_file is None:
+    scene_detection_input_file = input_file
+scene_detection_vspipe_args = args.scene_detection_vspipe_args
 input_scenes_file = args.input_scenes
 scenes_file = args.output_scenes
 roi_maps_dir = args.output_roi_maps
@@ -205,24 +211,26 @@ class DefaultZone:
     source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
     source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
     source_provider_av1an = "ffms2"
+# If you want to use BestSource, the recommended way is to use
+# BestSource for source, and then use faster ffms2 to read Progression
+# Boost's probe encodes. To use this option, comment the lines above
+# and uncomment the lines below.
+    # source_clip = core.bs.VideoSource(input_file)
+    # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
+    # source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
+    # source_provider_av1an = "bestsource"
+# If you want to use all BestSource instead, comment the lines above
+# and uncomment the lines below.
+    # source_clip = core.bs.VideoSource(input_file)
+    # source_provider = core.bs.VideoSource
+    # source_provider_cache = lambda self, file: None
+    # source_provider_av1an = "bestsource"
 # If you want to use lsmas instead, comment the lines above and
 # uncomment the lines below.
     # source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
     # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
     # source_provider_av1an = "lsmash"
-# If you want to use BestSource instead, comment the lines above and
-# uncomment the lines below.
-    # source_clip = core.bs.VideoSource(input_file)
-    # source_provider = core.bs.VideoSource
-    # source_provider_cache = lambda self, file: None
-    # source_provider_av1an = "bestsource"
-# Also, it's possible to only use BestSource for source, and then use
-# faster ffms2 to read Progression Boost's probe encodes.
-    # source_clip = core.bs.VideoSource(input_file)
-    # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
-    # source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
-    # source_provider_av1an = "bestsource"
 # Also, it's possible to only use BestSource for source, and then use
 # faster lsmas to read Progression Boost's probe encodes.
     # source_clip = core.bs.VideoSource(input_file)
@@ -267,111 +275,77 @@ class DefaultZone:
 # Section: Scene Detection
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# In the grand scheme of scene detection, av1an is the more universal
-# option for scene detection. It works well in most conditions.
+# Scene Detection based on x264 and WWXD in new version of Progression
+# Boost is greatly improved and is the best scene detection option for
+# AV1 encoding as of right now.
 #
-# Depending on the situations, you may want to use
-# `--sc-method standard` or `--sc-method fast`.
+# Both x264 and WWXD has the tendency to place too much keyframes in
+# complex sections. The additional diff based algorithm inside
+# Progression Boost balances these two methods and alleviates this
+# issue. This method is suitable for all situations, both in scenes
+# that are hard for scene detection, and in scenes that are easy for
+# scene detection.
 #
-# The reason `--sc-method fast` is sometimes preferred over
-# `--sc-method standard` is that `--sc-method standard` will sometimes
-# place scenecut not at the actual frame the scene changes, but at a
-# frame optimised for encoder to reuse information.
-# `--sc-method fast` is preferred because, first, the benefit from this
-# optimisation is insignificant for most sources, and second, it means
-# Progression Boost (or any other boosting scripts) will be much less
-# accurate as a result, since scenes with such optimisation can contain
-# frames from nearby scenes, which said frames will then certainly be
-# overboosted or underboosted.
+# To use this x264 + WWXD method, uncomment the lines below.
+    scene_detection_method = "x264_vapoursynth".lower()
+    scene_detection_vapoursynth_method = "wwxd".lower()
 #
-# However, in sections that's challenging for scene detection, such as
-# a continuous cut many times the length of
-# `scene_detection_extra_split` featuring lots of movements but no
-# actual scenecuts, or sections with a lot of very fancy transition
-# effects between cuts, `--sc-method standard` should be always
-# preferred. The aforementioned additional optimisations are very
-# helpful in complex sections and `--sc-method standard` greatly
-# outperforms `--sc-method fast` in sources with such sections.
+# For the diff based optimisation in Progression Boost to work, make
+# sure you've selected the correct colour range depending on your
+# source, whether it is limited or full. For anime, it's almost always
+# limited.
+    scene_detection_vapoursynth_range = "limited".lower()
+    # scene detection_vapoursynth_range = "full".lower()
+
+# You should use x264 + WWXD method in all situations, but here are
+# some alternatives from older version of Progression Boost simply
+# because we have no reasons to delete codes that are already written.
+# If you want to use any of these methods, you can comment the lines
+# above for x264 + WWXD, and uncomment the option you want below:
 #
-# You should use `--sc-method standard` if you anime contains sections
-# challenging for scene detection such as what's mentioned above.
-# Otherwise, `--sc-method fast` or WWXD or SCXVID based detection
-# introduced below should always be preferred.
-# 
-# If you want to use av1an for scene detection, comment the line
-# specifying `scene_detection_method = "vapoursynth"` in the next
-# section and uncomment the line specifying av1an below.
+# Progression Boost performs x264 and WWXD in parellel. On systems with
+# 6 core 12 threads or more, x264 + WWXD method should be almost the
+# same speed as WWXD alone. But if you're on a lowerend system, WWXD
+# alone might be faster for you.
+# Note that WWXD alone would handle sources with scenes that are hard
+# for scene detection poorly. Examples of scenes that are hard for
+# scene detection includes long, continous scenes with a lot of
+# movements but no actual scenecut, or very closeup scenes with too
+# much movements basically every frame, or scenes with very fancy
+# transition in between. Progression Boost's internal diff based
+# algorithm can alleviates the biggest issues, but nonetheless WWXD
+# alone would not be able to place scenecuts as optimal as x264 + WWXD.
+    # scene_detection_method = "vapoursynth".lower()
+    # scene_detection_vapoursynth_method = "wwxd".lower()
+
+# For sources with such scenes that are hard for scene detection,
+# av1an's `--sc-method standard` might be an option.
+# av1an based scene detection does not have the hierchical structure
+# oriented optimisation in Progression Boost.
+# If you want to avoid bad frames, you shouldn't use av1an based scene
+# detection, and you should use either the x264 + WWXD method, if it's
+# available for you, or the WWXD only method, even if there are scenes
+# that are hard for scene detection. Only if you're targeting mean
+# score and you can't run x264 + WWXD method, you can try av1an based
+# scene detection methods.
     # scene_detection_method = "av1an".lower()
-# Specify av1an parameters. You need to specify all parameters for an
-# `--sc-only` pass other than `-i`, `--temp` and `--scenes`.
     def scene_detection_av1an_parameters(self) -> list[str]:
         return (f"--sc-method standard"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
               + f" --sc-only --extra-split {self.scene_detection_extra_split} --min-scene-len {self.scene_detection_min_scene_len} --chunk-method {self.source_provider_av1an}").split()
 
-# av1an is mostly good, except for one single problem: av1an often
-# prefers to place the keyframe at the start of a series of still,
-# unmoving frames. This preference even takes priority over placing
-# keyframes at actual scene changes. For most works, it's common to
-# find cuts where the character will make some movements at the very
-# start of a cut, before they settles and starts talking. Using av1an,
-# these few frames will be allocated to the previous scenes. These are
-# a low number of frames, with movements, and after an actual scene
-# changes, but placed at the very end of previous scene, which is why
-# they will often be encoded badly. They most likely would be picked up
-# by Progression Boost to be given a big boost, but compared to av1an,
-# WWXD or Scxvid is more reliable in this matter, and would have less
-# potentials for issues like this.
-#
-# Similar to `--sc-method fast` against `--sc-method standard`, WWXD
-# and Scxvid struggles in sections challenging for scene detection,
-# such as a continuous cut many times the length of
-# `scene_detection_extra_split` featuring lots of movements but no
-# actual scenecuts, or sections with a lot of very fancy transition
-# effects between cuts. WWXD or Scxvid tends to mark either too much or
-# too few keyframes. Although this is largely alleviated by the
-# additional scene detection logic in this script, you should prefer
-# `--sc-method standard` if your source contains long sections of very
-# challenging material unless you're boosting the worst frames to be
-# good.
-#
-# In general, you should always use WWXD or Scxvid if you cares about
-# the worst frames. For encodes targeting a good mean quality, if there
-# are no sections difficult for scene detection, WWXD or Scxvid should
-# always be preferred. If there are such sections, as explained above
-# when introducing av1an-based scene detection, `--sc-method standard`
-# should be preferred.
-# 
-# Progression Boost provides two options for VapourSynth-based scene
-# detection, `wwxd` and `wwxd_scxvid`. `wwxd_scxvid` is slightly safer
-# than `wwxd` alone, but multiple times slower. You should use
-# `wwxd_scxvid` unless it's too slow, which `wwxd` can be then used. If
-# you want to use VapourSynth-based scene detection, comment the
-# `scene_detection_method` line above for av1an, and uncomment the line
-# below for VapourSynth.
-    scene_detection_method = "vapoursynth".lower()
-# Select which VapourSynth based methods you're going to use for scene
-# detection
-    # scene_detection_vapoursynth_method = "wwxd_scxvid".lower() # Preferred
-    scene_detection_vapoursynth_method = "wwxd".lower() # Fast
-#
-# For VapourSynth based scene detection to work, make sure you selected
-# the correct colour range depending on your source, whether it is
-# limited or full. For anime, it's almost always limited.
-    scene_detection_vapoursynth_range = "limited".lower()
-    # scene detection_vapoursynth_range = "full".lower()
+# Also, you can use WWXD + SCXVID for the VapourSynth part if you have
+# the time to burn. This has little to no gain at all with the
+# additional optimisation algorithm of Progression Boost in place.
+    # scene_detection_method = "x264_vapoursynth".lower()
+    # ↑ or ↓
+    # scene_detection_method = "vapoursynth".lower()
+    # and ↓
+    # scene_detection_vapoursynth_method = "wwxd_scxvid".lower()
 
-# On this note, in case in some works the complex scenes are only in
-# the OP and ED but not in the main episode, we've created a zone spec
-# for this exact situation. Once you've read through the guide and
-# understand how to use zones, you can set VapourSynth based scene
-# detection here as default and then use the builtin_av1an zone for OP
-# and ED.
-
-# You can also provide your own scene detection via `--input-scenes`.
-# You must uncomment the above two options and uncomment this option
-# for it to work.
+# At last, you can also provide your own scene detection via
+# `--input-scenes` option.
     # scene_detection_method = "external".lower()
 
 # `--resume` information: If you've modified anything scene detection
@@ -409,7 +383,7 @@ class DefaultZone:
 # If you are using Character Boost, you should set this number lower to
 # maybe 33. If you are not going to enable Character Boost, the default
 # 60 would be fine.
-    scene_detection_target_split = 49
+    scene_detection_target_split = 25
 
 # `--resume` information: If you've modified anything scene detection
 # related, you need to delete everything in `scene-detection` folder in
@@ -1268,18 +1242,6 @@ zones_spec["builtin_example"] = BuiltinExampleZone()
 # Now you can implement your own zone below:
 
 
-# In the scene detection section, we mentioned that in some works the
-# complex scenes are only in OP and ED, but not in the main episode.
-# In that case you can set VapourSynth based scene detection as
-# default, and then specifically zone the OP or ED with complex scenes
-# to use the zone here. This won't be faster, but this will be the
-# most efficient way for the encoding.
-class BuiltinAv1anZone(DefaultZone):
-    scene_detection_method = "av1an".lower()
-    # As explained in "Zoning information: " in the section of the
-    # guide for scene detection, `scene_detection_av1an_parameters` can
-    # only be changed in the default zone.
-zones_spec["builtin_av1an"] = BuiltinAv1anZone()
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -1449,6 +1411,10 @@ print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Pro
 
 
 scene_detection_scenes_file = scene_detection_temp_dir.joinpath("scenes.json")
+scene_detection_x264_scenes_file = scene_detection_temp_dir.joinpath("x264.scenes.json")
+scene_detection_x264_temp_dir = scene_detection_temp_dir.joinpath("x264.tmp")
+scene_detection_x264_output_file = scene_detection_temp_dir.joinpath("x264.mkv")
+scene_detection_x264_output_file_cache = zone_default.source_provider_cache(scene_detection_x264_output_file)
 scene_detection_av1an_scenes_file = scene_detection_temp_dir.joinpath("av1an.scenes.json")
 scene_detection_diffs_file = scene_detection_temp_dir.joinpath("luma-diff.txt")
 scene_detection_average_file = scene_detection_temp_dir.joinpath("luma-average.txt")
@@ -1475,6 +1441,18 @@ frame_scene_print = lambda start_frame, end_frame: f"Scene [{frame_rjust(start_f
 
 if not resume or not scene_detection_scenes_file.exists():
     for zone in zones:
+        if zone["zone"].scene_detection_method == "x264_vapoursynth":
+            scene_detection_perform_x264 = True
+            break
+    else:
+        scene_detection_perform_x264 = False
+    for zone in zones:
+        if zone["zone"].scene_detection_method in ["x264_vapoursynth", "vapoursynth"]:
+            scene_detection_perform_vapoursynth = True
+            break
+    else:
+        scene_detection_perform_vapoursynth = False
+    for zone in zones:
         if zone["zone"].scene_detection_method == "av1an":
             if not resume or not scene_detection_av1an_scenes_file.exists():
                 scene_detection_perform_av1an = True
@@ -1487,17 +1465,85 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_has_av1an = False
         scene_detection_perform_av1an = False
     for zone in zones:
-        if zone["zone"].scene_detection_method == "vapoursynth":
-            scene_detection_perform_vapoursynth = True
-            break
-    else:
-        scene_detection_perform_vapoursynth = False
-    for zone in zones:
         if zone["zone"].scene_detection_method == "external":
             scene_detection_has_external = True
             break
     else:
         scene_detection_has_external = False
+
+
+    if scene_detection_perform_x264:
+        scene_detection_x264_output_file.unlink(missing_ok=True)
+        if scene_detection_x264_output_file_cache is not None:
+            scene_detection_x264_output_file_cache.unlink(missing_ok=True)
+
+        scene_detection_x264_scenes = {}
+        scene_detection_x264_scenes["scenes"] = []
+        scene_detection_x264_total_frames = 0
+        for zone_i, zone in enumerate(zones):
+            if zone["zone"].scene_detection_method == "x264_vapoursynth":
+                scene_detection_x264_total_frames += zone["end_frame"] - zone["start_frame"]
+                scene_detection_x264_scenes["scenes"].append({
+                    "start_frame": zone["start_frame"],
+                    "end_frame": zone["end_frame"],
+                    "zone_overrides": {
+                        "encoder": "x264",
+                        "passes": 1,
+                        "video_params": [
+                            "--output-depth", "10",
+                            "--preset", "veryfast",
+                            "--crf", "60",
+                            "--keyint", f"{zone["end_frame"] - zone["start_frame"] + 240}",
+                            "--min-keyint", "1",
+                            "--scenecut", "40",
+                            "--rc-lookahead", "120"
+                        ],
+                        "photon_noise": None,
+                        "photon_noise_height": None,
+                        "photon_noise_width": None,
+                        "chroma_noise": False,
+                        "extra_splits_len": zone["zone"].scene_detection_extra_split,
+                        "min_scene_len": zone["zone"].scene_detection_min_scene_len
+                    }
+                })
+        scene_detection_x264_scenes["frames"] = scene_detection_x264_total_frames
+        scene_detection_x264_scenes["split_scenes"] = scene_detection_x264_scenes["scenes"]
+
+        with scene_detection_x264_scenes_file.open("w") as scene_detection_x264_scenes_f:
+            json.dump(scene_detection_x264_scenes, scene_detection_x264_scenes_f, cls=NumpyEncoder)
+
+        command = [
+            "av1an",
+            "-y"
+        ]
+        if verbose < 2:
+            command += ["--quiet"]
+        if verbose >= 3:
+            command += ["--verbose"]
+        command += [
+            "--temp", scene_detection_x264_temp_dir,
+            "--keep"
+        ]
+        if resume:
+            command += ["--resume"]
+        command += [
+            "-i", scene_detection_input_file
+        ]
+        if scene_detection_vspipe_args is not None:
+            command += ["--vspipe-args"] + scene_detection_vspipe_args
+        command += [
+            "-o", scene_detection_x264_output_file,
+            "--scenes", scene_detection_x264_scenes_file,
+            "--chunk-method", zone_default.source_provider_av1an,
+            "--encoder", "x264",
+            "--pix-format", "yuv420p10le",
+            "--workers", "2",
+            "--force", "--video-params", f"[K[0m[1;3m> Progression Boost [0m[3mx264-based-scene-detection[0m[1;3m <[0m",
+            "--audio-params", "-an",
+            "--concat", "mkvmerge"
+        ]
+        scene_detection_x264_process = subprocess.Popen(command, text=True)
+
 
     if scene_detection_perform_av1an:
         scene_detection_av1an_scenes_file.unlink(missing_ok=True)
@@ -1508,7 +1554,11 @@ if not resume or not scene_detection_scenes_file.exists():
         command = [
             "av1an",
             "--temp", scene_detection_temp_dir.joinpath("av1an.tmp"),
-            "-i", input_file,
+            "-i", scene_detection_input_file
+        ]
+        if scene_detection_vspipe_args is not None:
+            command += ["--vspipe-args"] + scene_detection_vspipe_args
+        command += [
             "--scenes", scene_detection_av1an_scenes_file,
             *zone_default.scene_detection_av1an_parameters(),
             "--force-keyframes", ",".join(scene_detection_av1an_force_keyframes)
@@ -1563,10 +1613,12 @@ if not resume or not scene_detection_scenes_file.exists():
                                                                                format=vs.YUV420P8, dither_type="none")
 
         zones_diffs = {}
+        zones_vapoursynth_scenecut = {}
+        zones_luma_scenecut = {}
         for zone_i, zone in enumerate(zones):
-            assert zone["zone"].scene_detection_method in ["av1an", "vapoursynth", "external"], "Invalid `scene_detection_method`. Please check your config inside `Progression-Boost.py`."
+            assert zone["zone"].scene_detection_method in ["av1an", "x264_vapoursynth", "vapoursynth", "external"], "Invalid `scene_detection_method`. Please check your config inside `Progression-Boost.py`."
 
-            if zone["zone"].scene_detection_method == "vapoursynth":
+            if zone["zone"].scene_detection_method in ["x264_vapoursynth", "vapoursynth"]:
                 assert zone["zone"].scene_detection_vapoursynth_method in ["wwxd", "wwxd_scxvid"], "Invalid `scene_detection_vapoursynth_method`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_vapoursynth_range in ["limited", "full"], "Invalid `scene_detection_vapoursynth_range`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_extra_split >= zone["zone"].scene_detection_min_scene_len * 2, "`scene_detection_method` `vapoursynth` does not support `scene_detection_extra_split` to be smaller than 2 times `scene_detection_min_scene_len`."
@@ -1577,6 +1629,8 @@ if not resume or not scene_detection_scenes_file.exists():
                     scene_detection_clip = scene_detection_clip.scxvid.Scxvid()
 
                 diffs = np.empty((scene_detection_clip.num_frames,), dtype=float)
+                vapoursynth_scenecut = np.zeros((scene_detection_clip.num_frames,), dtype=float)
+                luma_scenecut = np.zeros((scene_detection_clip.num_frames,), dtype=bool)
                 luma_scenecut_prev = True
 
                 start = time.time() - 0.000001
@@ -1589,26 +1643,26 @@ if not resume or not scene_detection_scenes_file.exists():
                         scene_detection_average[current_frame] = frame.props["LumaAverage"]
                         scene_detection_min[current_frame] = frame.props["LumaMin"]
                         scene_detection_max[current_frame] = frame.props["LumaMax"]
+                    diffs[offset_frame] = scene_detection_diffs[current_frame]
 
                     if zone["zone"].scene_detection_vapoursynth_method == "wwxd":
-                        scene_detection_scenecut = frame.props["Scenechange"] == 1
+                        vapoursynth_scenecut[offset_frame] = frame.props["Scenechange"] == 1
                     elif zone["zone"].scene_detection_vapoursynth_method == "wwxd_scxvid":
-                        scene_detection_scenecut = (frame.props["Scenechange"] == 1) + (frame.props["_SceneChangePrev"] == 1) / 2
+                        vapoursynth_scenecut[offset_frame] = (frame.props["Scenechange"] == 1) + (frame.props["_SceneChangePrev"] == 1) / 2
+
                     if zone["zone"].scene_detection_vapoursynth_range == "limited":
-                        luma_scenecut = scene_detection_min[current_frame] > 231.125 * 2 ** (scene_detection_bits - 8) or \
-                                        scene_detection_max[current_frame] < 19.875 * 2 ** (scene_detection_bits - 8)
+                        luma_scenecut_current = scene_detection_min[current_frame] > 231.125 * 2 ** (scene_detection_bits - 8) or \
+                                                scene_detection_max[current_frame] < 19.875 * 2 ** (scene_detection_bits - 8)
                     elif zone["zone"].scene_detection_vapoursynth_range == "full":
-                        luma_scenecut = scene_detection_min[current_frame] > 251.125 * 2 ** (scene_detection_bits - 8) or \
-                                        scene_detection_max[current_frame] < 3.875 * 2 ** (scene_detection_bits - 8)
-
-                    if luma_scenecut or luma_scenecut_prev:
-                        diffs[offset_frame] = scene_detection_diffs[current_frame] + 1.17
-                    else:
-                        diffs[offset_frame] = scene_detection_diffs[current_frame] + scene_detection_scenecut
-
-                    luma_scenecut_prev = luma_scenecut
+                        luma_scenecut_current = scene_detection_min[current_frame] > 251.125 * 2 ** (scene_detection_bits - 8) or \
+                                                scene_detection_max[current_frame] < 3.875 * 2 ** (scene_detection_bits - 8)
+                    if luma_scenecut_current or luma_scenecut_prev:
+                        luma_scenecut[offset_frame] = True
+                    luma_scenecut_prev = luma_scenecut_current
 
                 zones_diffs[zone_i] = diffs
+                zones_vapoursynth_scenecut[zone_i] = vapoursynth_scenecut
+                zones_luma_scenecut[zone_i] = luma_scenecut
 
         print(f"\r\033[K{frame_print(current_frame + 1)} / VapourSynth based scene detection complete", end="\n", flush=True)
 
@@ -1636,6 +1690,34 @@ if not resume or not scene_detection_scenes_file.exists():
         if "split_scenes" in scene_detection_av1an_scenes:
             scene_detection_av1an_scenes["scenes"] = scene_detection_av1an_scenes["split_scenes"]
         assert "scenes" in scene_detection_av1an_scenes, "Unexpected result from av1an"
+
+
+    if scene_detection_perform_x264:
+        if scene_detection_x264_process.poll() is None:
+            print(f"\r\033[K{frame_print(0)} / Performing x264 based scene detection", end="", flush=True)
+        scene_detection_x264_process.wait()
+        print(f"\r\033[K{frame_print(scene_detection_x264_total_frames)} / x264 based scene detection finished", end="\n", flush=True)
+
+        assert scene_detection_x264_output_file.exists(), "Unexpected result from av1an"
+        scene_detection_x264_clip = zone_default.source_provider(scene_detection_x264_output_file)
+
+        zones_x264_scenecut = {}
+        start = time.time() - 0.000001
+        skipped_frames = 0
+        for zone_i, zone in enumerate(zones):
+            if zone["zone"].scene_detection_method != "x264_vapoursynth":
+                print(f"\r\033[K{frame_print(zone["start_frame"])} / loading x264 based scene detection / {(zone["start_frame"] - skipped_frames) / (time.time() - start):.2f} fps", end="", flush=True)
+                skipped_frames += zone["end_frame"] - zone["start_frame"]
+            else:
+                x264_scenecut = np.zeros((zone["end_frame"] - zone["start_frame"],), dtype=float)
+                for i, frame in enumerate(scene_detection_x264_clip[zone["start_frame"]:zone["end_frame"]].frames(backlog=48)):
+                    current_frame = zone["start_frame"] + i
+                    print(f"\r\033[K{frame_print(current_frame)} / loading x264 based scene detection / {(current_frame - skipped_frames) / (time.time() - start):.2f} fps", end="", flush=True)
+                    if frame.props["_PictType"] == b"I" or frame.props["_PictType"] == "I":
+                        x264_scenecut[i] = 1
+            zones_x264_scenecut[zone_i] = x264_scenecut
+
+        print(f"\r\033[K{frame_print(zone["end_frame"])} / x264 based scene detection loaded / {(zone["end_frame"] - skipped_frames) / (time.time() - start):.2f} fps", end="\n", flush=True)
 
 
     scenes = {}
@@ -1697,8 +1779,21 @@ if not resume or not scene_detection_scenes_file.exists():
             else:
                 raise ValueError("Invalid scenes file from `--input-scenes`. There are no scenes in the scenes file that reach the end of the zone")
 
-        elif zone["zone"].scene_detection_method == "vapoursynth":
+        elif zone["zone"].scene_detection_method in ["x264_vapoursynth", "vapoursynth"]:
             diffs = zones_diffs[zone_i]
+            luma_scenecut = zones_luma_scenecut[zone_i]
+            vapoursynth_scenecut = zones_vapoursynth_scenecut[zone_i]
+            if zone["zone"].scene_detection_method == "x264_vapoursynth":
+                x264_scenecut = zones_x264_scenecut[zone_i]
+
+            diffs[luma_scenecut] += 1.17
+            if zone["zone"].scene_detection_method == "x264_vapoursynth":
+                vapoursynth_scenecut *= 0.88
+                x264_scenecut *= 0.94
+                vapoursynth_scenecut += x264_scenecut
+                vapoursynth_scenecut[vapoursynth_scenecut > 1.0] = 1.0
+            diffs[~luma_scenecut] += vapoursynth_scenecut[~luma_scenecut]
+            
             diffs_sort = np.argsort(diffs, stable=True)[::-1]
 
             def scene_detection_split_scene(start_frame, end_frame):
@@ -1918,7 +2013,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.25):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.30):
                             if verbose >= 3:
                                 print(f" / extra_split split / doubleside extra_split flavoured / hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1930,7 +2025,7 @@ if not resume or not scene_detection_scenes_file.exists():
                         if current_frame - start_frame >= zone["zone"].scene_detection_extra_split and end_frame - current_frame >= zone["zone"].scene_detection_extra_split and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.15):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.25):
                             if verbose >= 3:
                                 print(f" / extra_split split / doubleside extra_split flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1944,7 +2039,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
                             if verbose >= 3:
                                 print(f" / extra_split split / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1957,7 +2052,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
                             if verbose >= 3:
                                 print(f" / extra_split split / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1970,7 +2065,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
                             if verbose >= 3:
                                 print(f" / extra_split split / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1983,7 +2078,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
                             if verbose >= 3:
                                 print(f" / extra_split split / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -1996,7 +2091,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.75):
                             if verbose >= 3:
                                 print(f" / extra_split split / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2260,6 +2355,61 @@ if not resume or not scene_detection_scenes_file.exists():
 
                     for current_frame in diffs_sort:
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
                            math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
@@ -2376,7 +2526,8 @@ if metric_has_metric:
 
         command = [
             "av1an",
-            "-y"]
+            "-y"
+        ]
         if verbose < 2:
             command += ["--quiet"]
         if verbose >= 3:
