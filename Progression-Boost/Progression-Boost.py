@@ -1744,10 +1744,10 @@ if not resume or not scene_detection_scenes_file.exists():
             x264_scenecut = np.zeros((zone["end_frame"] - zone["start_frame"],), dtype=float)
             def scene_detection_write_x264_scenecut(name, start_frame, end_frame, skip_starting_frames=False):
                 assert (scene_detection_x264_stats_dir / f"{name}.log").exists(), "Unexpected result from x264"
-                with (scene_detection_x264_stats_dir / f"{name}.log").open("r") as stats_f:
-                    stats = stats_f.read()
+                with (scene_detection_x264_stats_dir / f"{name}.log").open("r") as x264_stats_f:
+                    x264_stats = x264_stats_f.read()
 
-                for line in stats.splitlines():
+                for line in x264_stats.splitlines():
                     if match := scene_detection_match_x264_I.match(line):
                         try:
                             offset_frame = int(match.group(1))
