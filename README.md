@@ -114,8 +114,11 @@ Progressive Scene Detection is the most accurate and optimised scene detection s
 
 ### Usage
 
-To use Progressive Scene Detection, [download](../Progressive-Scene-Detection/Progressive-Scene-Detection/Progressive-Scene-Detection.py) the script, and run it with
-`python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json`.  
+To use Progressive Scene Detection,  
+You can download the script from [GitHub](../Progressive-Scene-Detection/Progressive-Scene-Detection/Progressive-Scene-Detection.py), and run the script like this:  
+```sh
+python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json
+```  
 
 ### Dependencies
 
