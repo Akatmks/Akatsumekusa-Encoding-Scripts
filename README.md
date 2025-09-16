@@ -1,4 +1,4 @@
-⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[VapourSynth Scene Detection](#vapoursynth-scene-detection)  
+⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[Progressive Scene Detection](#progressive-scene-detection)  
 
 # Progression Boost
 
@@ -106,20 +106,26 @@ To use the Dispatch Server:
 
 * Windows' builtin Task Manager is not a good tool for checking CPU usage. The CPU Utility reported in Task Manager will never reach 100% on most systems, despite the CPU is already delivering all the performance it can. This is not an advertisement, but HWiNFO, a tool commonly used by PC building community, shows a different CPU Usage number, which is more aligned to what people expects.  
 
-# VapourSynth Scene Detection
+# Progressive Scene Detection
 
 ### Introduction
 
-This is an excerpt from [Progression Boost](#progression-boost). Use this script to try out WWXD and Scxvid for av1an encoding.  
+Progressive Scene Detection is the most accurate and optimised scene detection solution as of right now.  
 
 ### Usage
 
-Check the [`requirements.txt`](VapourSynth-Scene-Detection/requirements.txt). Download the [script](VapourSynth-Scene-Detection/VapourSynth-Scene-Detection.py) and run `python VapourSynth-Scene-Detection.py --help` to view the help and the guide.  
+To use Progressive Scene Detection, [download](../Progressive-Scene-Detection/Progressive-Scene-Detection/Progressive-Scene-Detection.py) the script, and run it with
+`python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json`.  
 
-### Guide
+### Dependencies
 
-In the grand scheme of scene detection, av1an `--sc-method standard` is the more universal option for scene detection. It has multiple unique optimisations and is tested to work well in most conditions.
+* Progressive Scene Detection is a script for av1an, and it outputs scenes.json in av1an format. You need to be using av1an to use Progressive Scene Detection.  
+* Progressive Scene Detection requires `numpy`. You can install it using `python -m pip install numpy` or from official Arch Linux repository ([`python-numpy`](https://archlinux.org/packages/extra/x86_64/python-numpy/)).  
+* Progressive Scene Detection by default uses ffms2 as video provider, but you can easily switch to BestSource, lsmas or other video providers in the file itself.  
+* Progressive Scene Detection requires WWXD. You can download WWXD from vsrepo using `python vsrepo.py install wwxd` or AUR ([`vapoursynth-plugin-wwxd-git`](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git)).  
+* Progressive Scene Detection requires x264, either vanilla or mod. You would need to download x264 from [GitHub Release](https://github.com/jpsdr/x264/releases), and place them where av1an would recognise.
 
-However, it has one big problem: av1an often prefers to place the keyframe at the start of a series of still, unmoving frames. This preference even takes priority over placing keyframes at actual scene changes. For most works, it's common to find cuts where the character will make some movements at the very start of a cut, before they stops moving and starts talking. Using av1an, these few frames will be allocated to the previous scenes. These are a low number of frames, with movements, and after an actual scene changes, but placed at the very end of previous scene, which is why they will often be encoded horrendously. Compared to av1an, WWXD or Scxvid is more reliable in this matter, and would have less issues like this.  
+### Note
 
-A caveat is that WWXD and Scxvid struggles greatly in sections challenging for scene detection such as a continous cut, many times the length of `scene_detection_extra_split`, featuring lots of movements but no actual scenecuts, or sections with a lot of very fancy transition effects between cuts. WWXD and Scxvid will mark either too much or too few keyframes. This is largely alleviated by the additional scene detection logic in this script, but you should still prefer av1an `--sc-method standard` in sources with such sections.  
+* This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
+
