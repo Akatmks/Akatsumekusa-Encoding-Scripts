@@ -208,33 +208,33 @@ class DefaultZone:
 # How should this script load your source video? Select the video
 # provider for both this Python script and for av1an.
     source_clip = core.ffms2.Source(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.ffindex").expanduser().resolve())
-    source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
+    source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex").expanduser().resolve())
     source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
     source_provider_av1an = "ffms2"
 # If you want to use BestSource, the recommended way is to use
 # BestSource for source, and then use faster ffms2 to read Progression
 # Boost's probe encodes. To use this option, comment the lines above
 # and uncomment the lines below.
-    # source_clip = core.bs.VideoSource(input_file)
-    # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex"))
+    # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+    # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
     # source_provider_av1an = "bestsource"
 # If you want to use all BestSource instead, comment the lines above
 # and uncomment the lines below.
-    # source_clip = core.bs.VideoSource(input_file)
+    # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
     # source_provider = core.bs.VideoSource
     # source_provider_cache = lambda self, file: None
     # source_provider_av1an = "bestsource"
 # If you want to use lsmas instead, comment the lines above and
 # uncomment the lines below.
     # source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
-    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
+    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve(), cachefile=file.with_suffix(".lwi").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
     # source_provider_av1an = "lsmash"
 # Also, it's possible to only use BestSource for source, and then use
 # faster lsmas to read Progression Boost's probe encodes.
-    # source_clip = core.bs.VideoSource(input_file)
-    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve())
+    # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+    # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve(), cachefile=file.with_suffix(".lwi").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
     # source_provider_av1an = "bestsource"
 
