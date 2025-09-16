@@ -8,15 +8,11 @@
 
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# The guide and config starts approximately 80 lines below this. Start
-# reading from there.
-#
-# For the people that don't want too much tinkering and only want to     # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
-# adjust the most basic options and get a good result fast (one that's   # <<<<  guide and settings.  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# better than av1an's `--target-quality`!), you would only need to       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# change three options below. Go down, and only read paragraphs that     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# have arrows on the right just like this very paragraph. There will be  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# more guides below to lead you!                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Welcome to Progressive Scene Detection.
+# Progressive Scene Detection is intended to run as is, but if you want
+# to fine tune scene length, search for `For maximum scene length`.
+# If you want to change a source provider such as BestSource or lsmas,
+# search for `source_provider`.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
