@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Progression Boost
+# Progressive Scene Detection
 # Copyright (c) Akatsumekusa and contributors
 # Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e,
 # Trix and their autoboost, and BoatsMcGee and their Normal-Boost.
