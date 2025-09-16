@@ -1806,7 +1806,7 @@ if not resume or not scene_detection_scenes_file.exists():
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 x264_scenecut = zones_x264_scenecut[zone_i]
 
-            diffs[luma_scenecut] += 1.16
+            diffs[luma_scenecut] += 1.22
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 vapoursynth_scenecut *= 0.88
                 x264_scenecut *= 0.94
@@ -2213,10 +2213,9 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.15:
+                        if diffs[current_frame] < 1.17:
                             break
-                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           (current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split or end_frame - current_frame <= 2 * zone["zone"].scene_detection_target_split):
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len):
                             if verbose >= 3:
                                 print(f" / extra_split split / singleside 2 times target_split flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
