@@ -56,36 +56,22 @@ class NumpyEncoder(json.JSONEncoder):
         else:
             return super(NumpyEncoder, self).default(object)
 
-parser = argparse.ArgumentParser(prog="Progression Boost", epilog="For more configs, open `Progression-Boost.py` in a text editor and follow the guide at the very top")
+parser = argparse.ArgumentParser(prog="Progressive Scene Detection")
 parser.add_argument("-i", "--input", type=Path, required=True, help="Source video file")
-parser.add_argument("--encode-input", type=Path, help="Source file for test encodes. Supports both video file and vpy file (Default: same as `--input`). This file is only used to perform probe encodes, while all other processes will be performed using the video file specified in `--input`. Note that if you apply filtering for test encodes, you probably also want to apply the same filtering before metric calculation, which can be set via `metric_reference` in the `Progression-Boost.py` file itself")
-parser.add_argument("--encode-vspipe-args", nargs="+", help="VSPipe argument for test encodes.")
-parser.add_argument("--scene-detection-input", type=Path, help="Source file for x264 based and av1an based scene detection. Supports both video file and vpy file (Default: same as `--input`)")
-parser.add_argument("--scene-detection-vspipe-args", nargs="+", help="VSPipe argument for x264 based and av1an based scene detection.")
-parser.add_argument("--input-scenes", type=Path, help="Perform your own scene detection and skip Progression Boost's scene detection")
 parser.add_argument("-o", "--output-scenes", type=Path, required=True, help="Output scenes file for encoding")
-parser.add_argument("-m", "--output-roi-maps", type=Path, help="Directory for output ROI maps, relative or absolute. The paths to ROI maps are written into output scenes")
-group = parser.add_mutually_exclusive_group()
-group.add_argument("--zones", type=Path, help="Zones file for Progression Boost. Check the guide inside `Progression-Boost.py` for more information")
-group.add_argument("--zones-string", help="Zones string for Progression Boost. Same as `--zones` but fed from commandline")
-parser.add_argument("--temp", type=Path, help="Temporary folder for Progression Boost (Default: output scenes file with file extension replaced by „.boost.tmp“)")
-parser.add_argument("-r", "--resume", action="store_true", help="Resume from the temporary folder. By enabling this option, Progression Boost will reuse finished or unfinished testing encodes. This should be disabled should the parameters for test encode be changed")
-parser.add_argument("-v", "--verbose", action="count", default=0, help="Report more details of Progression Boost. This parameter can be specified up to 3 times")
+parser.add_argument("--temp", type=Path, help="Temporary folder for Progressive Scene Detection (Default: output scenes file with file extension replaced by „.boost.tmp“)")
+parser.add_argument("-v", "--verbose", action="count", default=0, help="Report more details of Progressive Scene Detection. This parameter can be specified up to 3 times")
 args = parser.parse_args()
 input_file = args.input
-probing_input_file = args.encode_input
-if probing_input_file is None:
-    probing_input_file = input_file
-probing_input_vspipe_args = args.encode_vspipe_args
-scene_detection_input_file = args.scene_detection_input
-if scene_detection_input_file is None:
-    scene_detection_input_file = input_file
-scene_detection_vspipe_args = args.scene_detection_vspipe_args
-input_scenes_file = args.input_scenes
+probing_input_file = input_file
+probing_input_vspipe_args = None
+scene_detection_input_file = input_file
+scene_detection_vspipe_args = None
+input_scenes_file = None
 scenes_file = args.output_scenes
-roi_maps_dir = args.output_roi_maps
-zones_file = args.zones
-zones_string = args.zones_string
+roi_maps_dir = None
+zones_file = None
+zones_string = None
 temp_dir = args.temp
 if not temp_dir:
     temp_dir = scenes_file
@@ -97,7 +83,7 @@ progression_boost_temp_dir = temp_dir / "progression-boost"
 character_boost_temp_dir = temp_dir / "characters-boost"
 for dir_ in [scene_detection_temp_dir, progression_boost_temp_dir, character_boost_temp_dir]:
     dir_.mkdir(parents=True, exist_ok=True)
-resume = args.resume
+resume = False
 verbose = args.verbose
 
 if not resume:
@@ -426,7 +412,7 @@ class DefaultZone:
 
 # Enable Progression Boost module by setting the following value to
 # True:
-    metric_enable = True
+    metric_enable = False
 # Even if you disable Progression Boost, you cannot skip this whole
 # section, as you need to set your final encoding parameters here. Read
 # first 3 cells below to find the settings you'll need to change.
@@ -1084,7 +1070,7 @@ class DefaultZone:
 # significantly better watching experience with Character Boost.
 #
 # Enable character boosting by setting the line below to True.
-    character_enable = True
+    character_enable = False
 
 # `--resume` information: Toggling modules is completely resumable.
 # Just rerun the script and it will work... unless you've changed
@@ -1415,7 +1401,7 @@ for zone in zones:
 # ---------------------------------------------------------------------
 
 
-print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progression Boost started", end="\n", flush=True)
+print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progressive Scene Detection started", end="\n", flush=True)
 
 
 #  ███████╗ ██████╗███████╗███╗   ██╗███████╗    ██████╗ ███████╗████████╗███████╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗
@@ -1578,7 +1564,7 @@ if not resume or not scene_detection_scenes_file.exists():
             "--encoder", "x264",
             "--pix-format", "yuv420p10le",
             "--workers", "2",
-            "--force", "--video-params", f"[K[0m[1;3m> Progression Boost [0m[3mx264-based-scene-detection[0m[1;3m <[0m",
+            "--force", "--video-params", f"[K[0m[1;3m> Progressive Scene Detection [0m[3mx264-based-scene-detection[0m[1;3m <[0m",
             "--audio-params", "-an",
             "--concat", "mkvmerge"
         ]
@@ -2999,8 +2985,12 @@ if not resume or not scene_detection_scenes_file.exists():
         np.savetxt(scene_detection_max_file, scene_detection_max, fmt="%.9f")
         scene_detection_diffs_available = True
 
+    scenes["split_scenes"] = scenes["scenes"]
+    with scenes_file.open("w") as scenes_f:
+        json.dump(scenes, scenes_f, cls=NumpyEncoder)
+
     if scene_detection_perform_vapoursynth:
-        print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Scene detection finished", end="\n", flush=True)
+        print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progressive Scene Detection finished", end="\n", flush=True)
 
     for dir_ in [progression_boost_temp_dir, character_boost_temp_dir]:
         shutil.rmtree(dir_, ignore_errors=True)
@@ -3008,6 +2998,9 @@ if not resume or not scene_detection_scenes_file.exists():
 else:
     with scene_detection_scenes_file.open("r") as scenes_f:
         scenes = json.load(scenes_f)
+
+
+raise SystemExit(0)
 
 
 for zone in zones:
