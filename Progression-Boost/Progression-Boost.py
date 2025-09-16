@@ -34,6 +34,7 @@ from numpy.random import default_rng
 import os
 from pathlib import Path
 import platform
+import re
 from scipy import fftpack, interpolate, signal, stats
 import shutil
 import subprocess
@@ -1422,7 +1423,7 @@ scene_detection_scenes_file = scene_detection_temp_dir.joinpath("scenes.json")
 scene_detection_x264_scenes_file = scene_detection_temp_dir.joinpath("x264.scenes.json")
 scene_detection_x264_temp_dir = scene_detection_temp_dir.joinpath("x264.tmp")
 scene_detection_x264_output_file = scene_detection_temp_dir.joinpath("x264.mkv")
-scene_detection_x264_output_file_cache = zone_default.source_provider_cache(scene_detection_x264_output_file)
+scene_detection_x264_stats_dir = scene_detection_temp_dir.joinpath("x264.logs")
 scene_detection_av1an_scenes_file = scene_detection_temp_dir.joinpath("av1an.scenes.json")
 scene_detection_diffs_file = scene_detection_temp_dir.joinpath("luma-diff.txt")
 scene_detection_average_file = scene_detection_temp_dir.joinpath("luma-average.txt")
@@ -1482,50 +1483,60 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if scene_detection_perform_x264:
         scene_detection_x264_output_file.unlink(missing_ok=True)
-        if scene_detection_x264_output_file_cache is not None:
-            scene_detection_x264_output_file_cache.unlink(missing_ok=True)
+        shutil.rmtree(scene_detection_x264_stats_dir, ignore_errors=True)
+        scene_detection_x264_stats_dir.mkdir(exist_ok=True)
 
         scene_detection_x264_scenes = {}
         scene_detection_x264_scenes["scenes"] = []
         scene_detection_x264_total_frames = 0
         for zone_i, zone in enumerate(zones):
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
-                scene_detection_x264_total_frames += zone["end_frame"] - zone["start_frame"]
-                scene_detection_x264_scenes["scenes"].append({
-                    "start_frame": zone["start_frame"],
-                    "end_frame": zone["end_frame"],
-                    "zone_overrides": {
-                        "encoder": "x264",
-                        "passes": 1,
-                        "video_params": [
-                            "--output-depth", "10",
-                            "--preset", "veryfast",
-                            "--qp", "80",
-                            "--keyint", f"{zone["end_frame"] - zone["start_frame"] + 240}",
-                            "--min-keyint", "1",
-                            "--scenecut", "40",
-                            "--rc-lookahead", "120",
-                            "--ref", "1",
-                            "--aq-mode", "0",
-                            "--no-8x8dct",
-                            "--partition", "none",
-                            "--no-weightb",
-                            "--weightp", "0",
-                            "--me", "dia",
-                            "--subme", "2", # Required for scene detection
-                            "--no-psy",
-                            "--trellis", "0",
-                            "--no-cabac",
-                            "--no-deblock"
-                        ],
-                        "photon_noise": None,
-                        "photon_noise_height": None,
-                        "photon_noise_width": None,
-                        "chroma_noise": False,
-                        "extra_splits_len": zone["zone"].scene_detection_extra_split,
-                        "min_scene_len": zone["zone"].scene_detection_min_scene_len
-                    }
-                })
+                def scene_detection_append_x264_scene(name, start_frame, end_frame):
+                    scene_detection_x264_scenes["scenes"].append({
+                        "start_frame": start_frame,
+                        "end_frame": end_frame,
+                        "zone_overrides": {
+                            "encoder": "x264",
+                            "passes": 1,
+                            "video_params": [
+                                "--output-depth", "10",
+                                "--preset", "veryfast",
+                                "--qp", "80",
+                                "--keyint", f"{end_frame - start_frame + 240}",
+                                "--min-keyint", "1",
+                                "--scenecut", "40",
+                                "--rc-lookahead", "120",
+                                "--ref", "1",
+                                "--aq-mode", "0",
+                                "--no-8x8dct",
+                                "--partition", "none",
+                                "--no-weightb",
+                                "--weightp", "0",
+                                "--me", "dia",
+                                "--subme", "2", # Required for scene detection
+                                "--no-psy",
+                                "--trellis", "0",
+                                "--no-cabac",
+                                "--no-deblock",
+                                "--slow-firstpass",
+                                "--pass", "1",
+                                "--stats", f"{scene_detection_x264_stats_dir / f"{name}.log"}"
+                            ],
+                            "photon_noise": None,
+                            "photon_noise_height": None,
+                            "photon_noise_width": None,
+                            "chroma_noise": False,
+                            "extra_splits_len": zone["zone"].scene_detection_extra_split,
+                            "min_scene_len": zone["zone"].scene_detection_min_scene_len
+                        }
+                    })
+                if zone["end_frame"] - zone["start_frame"] < 120:
+                    scene_detection_x264_total_frames += zone["end_frame"] - zone["start_frame"]
+                    scene_detection_append_x264_scene(f"{zone_i}", zone["start_frame"], zone["end_frame"])
+                else:
+                    scene_detection_x264_total_frames += zone["end_frame"] - zone["start_frame"] + 4
+                    scene_detection_append_x264_scene(f"{zone_i}_left", zone["start_frame"], math.floor((zone["start_frame"] + zone["end_frame"]) / 2) + 4)
+                    scene_detection_append_x264_scene(f"{zone_i}_right", math.floor((zone["start_frame"] + zone["end_frame"]) / 2), zone["end_frame"])
         scene_detection_x264_scenes["frames"] = scene_detection_x264_total_frames
         scene_detection_x264_scenes["split_scenes"] = scene_detection_x264_scenes["scenes"]
 
@@ -1718,26 +1729,37 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_x264_process.wait()
         print(f"\r\033[K{frame_print(scene_detection_x264_total_frames)} / x264 based scene detection finished", end="\n", flush=True)
 
-        assert scene_detection_x264_output_file.exists(), "Unexpected result from av1an"
-        scene_detection_x264_clip = zone_default.source_provider(scene_detection_x264_output_file)
-
         zones_x264_scenecut = {}
-        start = time.time() - 0.000001
-        skipped_frames = 0
+        scene_detection_match_x264_I = re.compile(r"^in:(\d+) out:\d+ type:(\w)")
         for zone_i, zone in enumerate(zones):
-            if zone["zone"].scene_detection_method != "x264_vapoursynth":
-                print(f"\r\033[K{frame_print(zone["start_frame"])} / loading x264 based scene detection / {(zone["start_frame"] - skipped_frames) / (time.time() - start):.2f} fps", end="", flush=True)
-                skipped_frames += zone["end_frame"] - zone["start_frame"]
-            else:
-                x264_scenecut = np.zeros((zone["end_frame"] - zone["start_frame"],), dtype=float)
-                for i, frame in enumerate(scene_detection_x264_clip[zone["start_frame"]:zone["end_frame"]].frames(backlog=48)):
-                    current_frame = zone["start_frame"] + i
-                    print(f"\r\033[K{frame_print(current_frame)} / loading x264 based scene detection / {(current_frame - skipped_frames) / (time.time() - start):.2f} fps", end="", flush=True)
-                    if frame.props["_PictType"] == b"I" or frame.props["_PictType"] == "I":
-                        x264_scenecut[i] = 1
-            zones_x264_scenecut[zone_i] = x264_scenecut
+            x264_scenecut = np.zeros((zone["end_frame"] - zone["start_frame"],), dtype=float)
+            def scene_detection_write_x264_scenecut(name, start_frame, end_frame, skip_starting_frames=False):
+                assert (scene_detection_x264_stats_dir / f"{name}.log").exists(), "Unexpected result from x264"
+                with (scene_detection_x264_stats_dir / f"{name}.log").open("r") as stats_f:
+                    stats = stats_f.read()
 
-        print(f"\r\033[K{frame_print(zone["end_frame"])} / x264 based scene detection loaded / {(zone["end_frame"] - skipped_frames) / (time.time() - start):.2f} fps", end="\n", flush=True)
+                for line in stats.splitlines():
+                    if match := scene_detection_match_x264_I.match(line):
+                        try:
+                            offset_frame = int(match.group(1))
+                        except ValueError:
+                            raise ValueError("Unexpected result from x264")
+                        assert offset_frame + start_frame < end_frame, "Unexpected result from x264"
+
+                        if offset_frame == 0 and skip_starting_frames:
+                            continue
+
+                        if match.group(2) == "I":
+                            x264_scenecut[offset_frame + start_frame] = 1
+
+            if zone["end_frame"] - zone["start_frame"] < 120:
+                scene_detection_write_x264_scenecut(f"{zone_i}", 0, zone["end_frame"] - zone["start_frame"])
+            else:
+                scene_detection_write_x264_scenecut(f"{zone_i}_left", 0, math.floor((zone["end_frame"] - zone["start_frame"]) / 2) + 4)
+                scene_detection_write_x264_scenecut(f"{zone_i}_right", math.floor((zone["end_frame"] - zone["start_frame"]) / 2), zone["end_frame"] - zone["start_frame"],
+                                                                       skip_starting_frames=True)
+
+            zones_x264_scenecut[zone_i] = x264_scenecut
 
 
     scenes = {}
