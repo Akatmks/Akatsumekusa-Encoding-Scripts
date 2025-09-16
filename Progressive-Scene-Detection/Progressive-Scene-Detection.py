@@ -77,7 +77,7 @@ if not temp_dir:
     temp_dir = scenes_file
     if temp_dir.with_suffix("").suffix.lower() == ".scenes":
         temp_dir = temp_dir.with_suffix("")
-    temp_dir = temp_dir.with_suffix(".boost.tmp")
+    temp_dir = temp_dir.with_suffix(".scene-detection.tmp")
 scene_detection_temp_dir = temp_dir / "scene-detection"
 progression_boost_temp_dir = temp_dir / "progression-boost"
 character_boost_temp_dir = temp_dir / "characters-boost"
