@@ -364,8 +364,20 @@ class DefaultZone:
 # encodes.
     scene_detection_extra_split = 193
     scene_detection_min_scene_len = 9
-# The next setting is only used if VapourSynth based scene detection
-# method is selected.
+# The next two settings are only used if VapourSynth based scene
+# detection is selected.
+#
+# The reason the default `scene_detection_extra_split` is as short as
+# `193` is that the encoding quality will degrade overtime, and the
+# longer the scene is, the worse the later frames can become.
+# However, if the scene is completely still, it actually won't really
+# degrade at all. Instead we provide a separate extra_split option if
+# the scene is completely still.
+    scene_detection_still_scene_extra_split = 321
+#
+# This is an old relic of WWXD + Diff based scene detection. The new
+# x264 + WWXD + Diff based scene detection is acurate enough that this
+# parameter is laregly not needed.
 #
 # WWXD has the tendency to flag too much scenechanges in complex
 # everchanging sections. This setting marks the length of a scene for
@@ -379,10 +391,6 @@ class DefaultZone:
 # flag any scenechanges, the scene detection mechanism will only
 # attempt to divide a scene if it is longer than
 # `scene_detection_extra_split`, and this setting has no effects.
-#
-# If you are using Character Boost, you should set this number lower to
-# maybe 33. If you are not going to enable Character Boost, the default
-# 60 would be fine.
     scene_detection_target_split = 25
 
 # `--resume` information: If you've modified anything scene detection
@@ -1492,11 +1500,23 @@ if not resume or not scene_detection_scenes_file.exists():
                         "video_params": [
                             "--output-depth", "10",
                             "--preset", "veryfast",
-                            "--crf", "60",
+                            "--qp", "80",
                             "--keyint", f"{zone["end_frame"] - zone["start_frame"] + 240}",
                             "--min-keyint", "1",
                             "--scenecut", "40",
-                            "--rc-lookahead", "120"
+                            "--rc-lookahead", "120",
+                            "--ref", "1",
+                            "--aq-mode", "0",
+                            "--no-8x8dct",
+                            "--partition", "none",
+                            "--no-weightb",
+                            "--weightp", "0",
+                            "--me", "dia",
+                            "--subme", "2", # Required for scene detection
+                            "--no-psy",
+                            "--trellis", "0",
+                            "--no-cabac",
+                            "--no-deblock"
                         ],
                         "photon_noise": None,
                         "photon_noise_height": None,
@@ -1786,7 +1806,7 @@ if not resume or not scene_detection_scenes_file.exists():
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 x264_scenecut = zones_x264_scenecut[zone_i]
 
-            diffs[luma_scenecut] += 1.17
+            diffs[luma_scenecut] += 1.16
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 vapoursynth_scenecut *= 0.88
                 x264_scenecut *= 0.94
@@ -1809,7 +1829,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 if end_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split:
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split and \
@@ -1820,7 +1840,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split and \
@@ -1831,7 +1851,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split and \
@@ -1842,7 +1862,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split and \
@@ -1853,7 +1873,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split and \
@@ -1864,7 +1884,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.18:
+                        if diffs[current_frame] < 1.13:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            current_frame - start_frame <= zone["zone"].scene_detection_target_split and end_frame - current_frame <= zone["zone"].scene_detection_target_split:
@@ -1876,7 +1896,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 if end_frame - start_frame <= zone["zone"].scene_detection_extra_split:
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 32 == 1) or \
@@ -1887,7 +1907,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 16 == 1) or \
@@ -1898,7 +1918,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 8 == 1) or \
@@ -1909,7 +1929,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 4 == 1) or \
@@ -1920,7 +1940,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 2 == 1) or \
@@ -1932,7 +1952,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1):
@@ -1942,7 +1962,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1):
@@ -1952,7 +1972,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1):
@@ -1962,7 +1982,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1):
@@ -1972,7 +1992,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len and \
                            ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1):
@@ -1983,7 +2003,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.18:
+                        if diffs[current_frame] < 1.13:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split or end_frame - current_frame <= 2 * zone["zone"].scene_detection_target_split):
@@ -1994,7 +2014,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.18:
+                        if diffs[current_frame] < 1.13:
                             if verbose >= 3:
                                 print(f" / branch complete", end="\n", flush=True)
                             return [start_frame]
@@ -2006,26 +2026,18 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                 else: # end_frame - start_frame > zone["zone"].scene_detection_extra_split
-                    for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.24:
-                            break
-                        if current_frame - start_frame >= zone["zone"].scene_detection_extra_split and end_frame - current_frame >= zone["zone"].scene_detection_extra_split and \
-                           ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.30):
-                            if verbose >= 3:
-                                print(f" / extra_split split / doubleside extra_split flavoured / hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
-                            return scene_detection_split_scene(start_frame, current_frame) + \
-                                   scene_detection_split_scene(current_frame, end_frame)
+                    if end_frame - start_frame <= zone["zone"].scene_detection_still_scene_extra_split and \
+                       np.all(diffs[start_frame:end_frame] < 0.0012):
+                        return [start_frame]
+
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.24:
+                        if diffs[current_frame] < 1.23:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_extra_split and end_frame - current_frame >= zone["zone"].scene_detection_extra_split and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.25):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / doubleside extra_split flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2033,65 +2045,55 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame > 2 * zone["zone"].scene_detection_target_split and end_frame - current_frame > 2 * zone["zone"].scene_detection_target_split) and \
-                           ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 32 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 32 == 1)):
                             if verbose >= 3:
                                 print(f" / extra_split split / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame > 2 * zone["zone"].scene_detection_target_split and end_frame - current_frame > 2 * zone["zone"].scene_detection_target_split) and \
-                           ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 16 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 16 == 1)):
                             if verbose >= 3:
                                 print(f" / extra_split split / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame > 2 * zone["zone"].scene_detection_target_split and end_frame - current_frame > 2 * zone["zone"].scene_detection_target_split) and \
-                           ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 8 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 8 == 1)):
                             if verbose >= 3:
                                 print(f" / extra_split split / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame > 2 * zone["zone"].scene_detection_target_split and end_frame - current_frame > 2 * zone["zone"].scene_detection_target_split) and \
-                           ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.80):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 4 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 4 == 1)):
                             if verbose >= 3:
                                 print(f" / extra_split split / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if (current_frame - start_frame > 2 * zone["zone"].scene_detection_target_split and end_frame - current_frame > 2 * zone["zone"].scene_detection_target_split) and \
-                           ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.75):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 2 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 2 == 1)):
                             if verbose >= 3:
                                 print(f" / extra_split split / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2099,7 +2101,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 32 == 1) or \
@@ -2110,7 +2112,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 16 == 1) or \
@@ -2121,7 +2123,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 8 == 1) or \
@@ -2132,7 +2134,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 4 == 1) or \
@@ -2143,7 +2145,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 2 == 1) or \
@@ -2155,7 +2157,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 32 == 1) or \
@@ -2166,7 +2168,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 16 == 1) or \
@@ -2177,7 +2179,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 8 == 1) or \
@@ -2188,7 +2190,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.16:
+                        if diffs[current_frame] < 1.11:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 4 == 1) or \
@@ -2199,7 +2201,7 @@ if not resume or not scene_detection_scenes_file.exists():
                                    scene_detection_split_scene(current_frame, end_frame)
                                    
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.17:
+                        if diffs[current_frame] < 1.12:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            ((current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split and (current_frame - start_frame) % 2 == 1) or \
@@ -2211,7 +2213,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.19:
+                        if diffs[current_frame] < 1.15:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
                            (current_frame - start_frame <= 2 * zone["zone"].scene_detection_target_split or end_frame - current_frame <= 2 * zone["zone"].scene_detection_target_split):
@@ -2222,67 +2224,66 @@ if not resume or not scene_detection_scenes_file.exists():
 
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 0.99:
+                        if diffs[current_frame] < 0.96:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 32 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 32 == 1)):
                             if verbose >= 3:
-                                print(f" / extra_split split / low scenechange / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                                print(f" / extra_split split / 0.96 mode / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 0.99:
+                        if diffs[current_frame] < 0.96:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 16 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 16 == 1)):
                             if verbose >= 3:
-                                print(f" / extra_split split / low scenechange / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                                print(f" / extra_split split / 0.96 mode / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 0.99:
+                        if diffs[current_frame] < 0.96:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 8 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 8 == 1)):
                             if verbose >= 3:
-                                print(f" / extra_split split / low scenechange / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                                print(f" / extra_split split / 0.96 mode / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 0.99:
+                        if diffs[current_frame] < 0.96:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 4 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 4 == 1)):
                             if verbose >= 3:
-                                print(f" / extra_split split / low scenechange / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                                print(f" / extra_split split / 0.96 mode / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
                     for current_frame in diffs_sort:
-                        if diffs[current_frame] < 0.99:
+                        if diffs[current_frame] < 0.96:
                             break
                         if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
-                           ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           ((current_frame - start_frame < zone["zone"].scene_detection_extra_split and (current_frame - start_frame) % 2 == 1) or \
+                            (end_frame - current_frame < zone["zone"].scene_detection_extra_split and (end_frame - current_frame) % 2 == 1)):
                             if verbose >= 3:
-                                print(f" / extra_split split / low scenechange / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                                print(f" / extra_split split / 0.96 mode / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if diffs[current_frame] < 0.96:
+                            break
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len):
+                            if verbose >= 3:
+                                print(f" / extra_split split / 0.96 mode / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
                                    scene_detection_split_scene(current_frame, end_frame)
 
