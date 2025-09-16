@@ -35,7 +35,7 @@ import os
 from pathlib import Path
 import platform
 import re
-from scipy import fftpack, interpolate, signal, stats
+# from scipy import fftpack, interpolate, signal, stats
 import shutil
 import subprocess
 import time
