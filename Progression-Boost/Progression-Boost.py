@@ -1492,11 +1492,23 @@ if not resume or not scene_detection_scenes_file.exists():
                         "video_params": [
                             "--output-depth", "10",
                             "--preset", "veryfast",
-                            "--crf", "60",
+                            "--qp", "80",
                             "--keyint", f"{zone["end_frame"] - zone["start_frame"] + 240}",
                             "--min-keyint", "1",
                             "--scenecut", "40",
-                            "--rc-lookahead", "120"
+                            "--rc-lookahead", "120",
+                            "--ref", "1",
+                            "--aq-mode", "0",
+                            "--no-8x8dct",
+                            "--partition", "none",
+                            "--no-weightb",
+                            "--weightp", "0",
+                            "--me", "dia",
+                            "--subme", "2", # Required for scene detection
+                            "--no-psy",
+                            "--trellis", "0",
+                            "--no-cabac",
+                            "--no-deblock"
                         ],
                         "photon_noise": None,
                         "photon_noise_height": None,
@@ -2010,22 +2022,9 @@ if not resume or not scene_detection_scenes_file.exists():
                         if diffs[current_frame] < 1.24:
                             break
                         if current_frame - start_frame >= zone["zone"].scene_detection_extra_split and end_frame - current_frame >= zone["zone"].scene_detection_extra_split and \
-                           ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.30):
-                            if verbose >= 3:
-                                print(f" / extra_split split / doubleside extra_split flavoured / hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
-                            return scene_detection_split_scene(start_frame, current_frame) + \
-                                   scene_detection_split_scene(current_frame, end_frame)
-
-                    for current_frame in diffs_sort:
-                        if diffs[current_frame] < 1.24:
-                            break
-                        if current_frame - start_frame >= zone["zone"].scene_detection_extra_split and end_frame - current_frame >= zone["zone"].scene_detection_extra_split and \
-                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
-                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.25):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / doubleside extra_split flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2228,7 +2227,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2241,7 +2240,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2254,7 +2253,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2267,7 +2266,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2280,7 +2279,19 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
+                            if verbose >= 3:
+                                print(f" / extra_split split / low scenechange / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
+                            return scene_detection_split_scene(start_frame, current_frame) + \
+                                   scene_detection_split_scene(current_frame, end_frame)
+
+                    for current_frame in diffs_sort:
+                        if diffs[current_frame] < 0.99:
+                            break
+                        if (current_frame - start_frame >= zone["zone"].scene_detection_min_scene_len and end_frame - current_frame >= zone["zone"].scene_detection_min_scene_len) and \
+                           math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                           math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.50):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2294,7 +2305,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 32 == 1 or (end_frame - current_frame) % 32 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.05):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 32-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2307,7 +2318,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 16 == 1 or (end_frame - current_frame) % 16 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.05):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 16-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2320,7 +2331,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 8 == 1 or (end_frame - current_frame) % 8 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.05):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 8-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2333,7 +2344,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 4 == 1 or (end_frame - current_frame) % 4 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.05):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 4-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
@@ -2346,7 +2357,7 @@ if not resume or not scene_detection_scenes_file.exists():
                            ((current_frame - start_frame) % 2 == 1 or (end_frame - current_frame) % 2 == 1) and \
                            math.ceil((current_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                            math.ceil((end_frame - current_frame) / zone["zone"].scene_detection_extra_split) <= \
-                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.05):
+                           math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split + 0.20):
                             if verbose >= 3:
                                 print(f" / extra_split split / low scenechange / 2-frame hierarchical structure flavoured / frame {current_frame} / diff {np.floor(diffs[current_frame] * 100) / 100:.2f}", end="\n", flush=True)
                             return scene_detection_split_scene(start_frame, current_frame) + \
