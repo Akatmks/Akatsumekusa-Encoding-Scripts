@@ -228,8 +228,8 @@ class DefaultZone:
 # lines below:
     # source_clip = source_clip[120:]
 # And then, for av1an, you should create a VapourSynth file like this
-# and feed it through Progression Boost's `--encode-input` commandline
-# option:
+# and feed it through Progression Boost's `--encode-input` and
+# `--scene-detection-input` commandline option:
 # ```py
 # from vapoursynth import core
 #
@@ -239,8 +239,8 @@ class DefaultZone:
 
 # Zoning information: `source_clip` and `source_provider` are not
 # zoneable, but you can write VapourSynth code to `core.std.Splice` it
-# yourself. Make sure you do the same for `--encode-input` and final
-# encode as well.
+# yourself. Make sure you do the same for `--encode-input`,
+# `--scene-detection-input`, and final encode as well.
 # ---------------------------------------------------------------------
 # We highly recommend using a SVT-AV1 derived encoder that supports
 # quarterstep `--crf`, which includes all the major forks from
