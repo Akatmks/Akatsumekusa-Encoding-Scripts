@@ -2987,6 +2987,8 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if scene_detection_perform_vapoursynth:
         print(f"\r\033[KTime {datetime.now().time().isoformat(timespec="seconds")} / Progressive Scene Detection finished", end="\n", flush=True)
+        
+    raise SystemExit(0)
 
     for dir_ in [progression_boost_temp_dir, character_boost_temp_dir]:
         shutil.rmtree(dir_, ignore_errors=True)
@@ -2996,7 +2998,7 @@ else:
         scenes = json.load(scenes_f)
 
 
-raise SystemExit(0)
+assert False, "This indicates a bug in the original code. Please report this to the repository including this entire error message."
 
 
 for zone in zones:
