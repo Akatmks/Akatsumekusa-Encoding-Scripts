@@ -1480,6 +1480,7 @@ if not resume or not scene_detection_scenes_file.exists():
         scene_detection_x264_scenes = {}
         scene_detection_x264_scenes["scenes"] = []
         scene_detection_x264_total_frames = 0
+        scene_detection_x264_total_frames_print = 0
         for zone_i, zone in enumerate(zones):
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 def scene_detection_append_x264_scene(name, start_frame, end_frame):
@@ -1521,6 +1522,7 @@ if not resume or not scene_detection_scenes_file.exists():
                             "min_scene_len": zone["zone"].scene_detection_min_scene_len
                         }
                     })
+                scene_detection_x264_total_frames_print += zone["end_frame"] - zone["start_frame"]
                 if zone["end_frame"] - zone["start_frame"] < 120:
                     scene_detection_x264_total_frames += zone["end_frame"] - zone["start_frame"]
                     scene_detection_append_x264_scene(f"{zone_i}", zone["start_frame"], zone["end_frame"])
@@ -1718,7 +1720,7 @@ if not resume or not scene_detection_scenes_file.exists():
         if scene_detection_x264_process.poll() is None:
             print(f"\r\033[K{frame_print(0)} / Performing x264 based scene detection", end="", flush=True)
         scene_detection_x264_process.wait()
-        print(f"\r\033[K{frame_print(scene_detection_x264_total_frames)} / x264 based scene detection finished", end="\n", flush=True)
+        print(f"\r\033[K{frame_print(scene_detection_x264_total_frames_print)} / x264 based scene detection finished", end="\n", flush=True)
 
         zones_x264_scenecut = {}
         scene_detection_match_x264_I = re.compile(r"^in:(\d+) out:\d+ type:(\w)")
