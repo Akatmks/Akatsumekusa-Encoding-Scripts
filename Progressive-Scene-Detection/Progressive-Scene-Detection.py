@@ -81,6 +81,8 @@ for dir_ in [scene_detection_temp_dir, progression_boost_temp_dir, character_boo
     dir_.mkdir(parents=True, exist_ok=True)
 resume = False
 verbose = args.verbose
+if verbose >= 1 and verbose < 3:
+    verbose = 3
 
 if not resume:
     temp_dir.joinpath("source.ffindex").unlink(missing_ok=True)
