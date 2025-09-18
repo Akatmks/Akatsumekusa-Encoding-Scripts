@@ -110,7 +110,7 @@ To use the Dispatch Server:
 
 ### Introduction
 
-Thanks to Exorcist, and afed for coming up with ideas that makes this new scene detection method possible.  
+Thanks to Exorcist, and afed for coming up with ideas that make this new scene detection method possible.  
 
 Progressive Scene Detection is the most accurate and optimised scene detection solution as of right now.  
 
