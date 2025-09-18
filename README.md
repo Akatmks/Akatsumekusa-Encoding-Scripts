@@ -128,9 +128,8 @@ python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json
 * Progressive Scene Detection requires `numpy`. You can install it using `python -m pip install numpy` or from official Arch Linux repository ([`python-numpy`](https://archlinux.org/packages/extra/x86_64/python-numpy/)).  
 * Progressive Scene Detection by default uses ffms2 as video provider, but you can easily switch to BestSource, lsmas or other video providers in the file itself.  
 * Progressive Scene Detection requires WWXD. You can download WWXD from vsrepo using `python vsrepo.py install wwxd` or AUR ([`vapoursynth-plugin-wwxd-git`](https://aur.archlinux.org/packages/vapoursynth-plugin-wwxd-git)).  
-* Progressive Scene Detection requires x264, either vanilla or mod. You would need to download x264 from [GitHub Release](https://github.com/jpsdr/x264/releases), and place them where av1an would recognise.
+* Progressive Scene Detection requires x264, either vanilla or mod. You would need to download x264 from [GitHub Release](https://github.com/jpsdr/x264/releases) (the mcf version should be the fastest), and place them where av1an would recognise.  
 
 ### Note
 
 * This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
-
