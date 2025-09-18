@@ -476,7 +476,7 @@ class DefaultZone:
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 8.00
+    metric_min_crf = 10.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
@@ -531,7 +531,7 @@ class DefaultZone:
 # clamp this one last time.
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
-    final_min_crf = 6.50
+    final_min_crf = 8.50
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
