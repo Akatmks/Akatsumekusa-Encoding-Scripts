@@ -140,7 +140,7 @@ If you want to use different forks of SVT-AV1 within a single encode, this is a 
 
 ### Usage
 
-1. Download `rav1e.exe` from [GitHub Release](../../../releases).  
+1. Download `rav1e.exe` from [GitHub Release](../../releases).  
 2. Place `rav1e.exe` alongside `av1an.exe`, or where av1an could recognise.  
 3. Create a `rav1e.path.txt` next to `rav1e.exe`.
 4. Create a line inside the `rav1e.path.txt` file, containing either a relative or absolute path to the real `SvtAv1EncApp.exe` you want to use. If you want to use relative path, create the path so that it is relative to the `rav1e.exe`.  
