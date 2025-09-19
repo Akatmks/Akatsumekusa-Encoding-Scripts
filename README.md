@@ -1,4 +1,4 @@
-⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[Progressive Scene Detection](#progressive-scene-detection)  
+⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[Progressive Scene Detection](#progressive-scene-detection)・[Alternative SVT-AV1](#alternative-svt-av1)  
 
 # Progression Boost
 
@@ -133,3 +133,24 @@ python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json
 ### Note
 
 * This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
+
+# Alternative SVT-AV1
+
+If you want to use different forks of SVT-AV1 within a single encode, this is a handful, although pretty rudimentary tool to achieve this.  
+
+### Usage
+
+1. Download `rav1e.exe` from [GitHub Release](../../releases).  
+2. Place `rav1e.exe` alongside `av1an.exe`, or where av1an could recognise.  
+3. Create a `rav1e.path.txt` next to `rav1e.exe`.
+4. Create a line inside the `rav1e.path.txt` file, containing either a relative or absolute path to the real `SvtAv1EncApp.exe` you want to use. If you want to use relative path, create the path so that it is relative to the `rav1e.exe`.  
+5. Run `rav1e --version` and confirm that it prints out the correct SVT-AV1 version you're using.  
+
+### Build
+
+Grab `rav1e.cpp` from [GitHub](Alternative-SVT-AV1/rav1e.cpp), grab `whereami.c` and `whereami.h` from [gpakosz/whereami](https://github.com/gpakosz/whereami), and compile with:  
+```sh
+clang++ -c rav1e.cpp -o rav1e.o -std=c++20 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
+clang -c whereami.c -o whereami.o -std=c99 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
+clang++ rav1e.o whereami.o -o rav1e.exe -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
+```
