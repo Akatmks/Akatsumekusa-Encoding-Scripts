@@ -148,7 +148,7 @@ If you want to use different forks of SVT-AV1 within a single encode, this is a 
 
 ### Build
 
-Grab `whereami.c` and `whereami.h` from [GitHub](https://github.com/gpakosz/whereami) and compile with:  
+Grab `rav1e.cpp` from [GitHub](Alternative-SVT-AV1/rav1e.cpp), grab `whereami.c` and `whereami.h` from [gpakosz/whereami](https://github.com/gpakosz/whereami), and compile with:  
 ```sh
 clang++ -c rav1e.cpp -o rav1e.o -std=c++20 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
 clang -c whereami.c -o whereami.o -std=c99 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
