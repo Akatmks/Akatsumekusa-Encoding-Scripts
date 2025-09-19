@@ -709,6 +709,18 @@ class DefaultZone:
     final_photon_noise_width = None
     final_chroma_noise = False
 
+# Finally this is the option to enable using different SVT-AV1 forks
+# within a single encode.
+# This is intended to work with the Alternative SVT-AV1 program in the
+# same repository (https://github.com/Akatmks/Akatsumekusa-Encoding-Scripts/tree/master?tab=readme-ov-file#alternative-svt-av1).
+# Progression Boost can't be used with other encoders without
+# modification (Although if that's what you're looking for, the
+# modification would be pretty simple).  
+    def final_dynamic_encoder(self, start_frame: int, end_frame: int,
+                                    crf: float,
+                                    luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> Optional[int]:
+        return "svt_av1"
+
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
 # temporary directory, and then you can rerun the script.
@@ -3806,6 +3818,13 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     if verbose >= 1:
         print(f"\r\033[K{scene_frame_print(scene_n)} / Calculating boost / --crf / ", end="", flush=True)
 
+    if zone_scene["zone"].character_enable:
+        # `character_map` in the front so that it is accessible in `metric_dynamic_crf` and `metric_dynamic_preset`.
+        character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
+        assert character_map_file.exists(), "This indicates a bug in the original code. Please report this to the repository including this entire error message."
+
+        character_map = np.load(character_map_file)
+
     if zone_scene["zone"].metric_enable:
         assert "first_qstep" in metric_result["scenes"][scene_n], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
         assert "first_score" in metric_result["scenes"][scene_n], "This indicates a bug in the original code. Please report this to the repository including this entire error message."
@@ -3920,12 +3939,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         if verbose >= 1:
             print(f"Character Boost ", end="", flush=True)
 
-        character_map_file = character_boost_temp_dir / f"character-{scene_rjust(scene_n)}.npy"
-
-        assert character_map_file.exists(), "This indicates a bug in the original code. Please report this to the repository including this entire error message."
-
-        character_map = np.load(character_map_file)
-
+        # Reading `character_map` is moved to before Progression Boost module.
         character_map_filled = character_map.copy()
         a_last_filled = None
         for i, a in enumerate(character_map):
@@ -4037,7 +4051,13 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
     final_crf_frames[np.min([math.floor(crf / 10), final_crf_frames.shape[0] - 1])] += zone_scene["end_frame"] - zone_scene["start_frame"]
 
     final_scenes["scenes"][scene_n]["zone_overrides"] = {
-        "encoder": "svt_av1",
+        "encoder": zone_scene["zone"].final_dynamic_encoder(zone_scene["start_frame"],
+                                                            zone_scene["end_frame"],
+                                                            crf,
+                                                            scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                            scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                            scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                            scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]),
         "passes": 1,
         "video_params": [
             "--crf", (f"{crf:.2f}" if zone_scene["zone"].quarterstep_crf else f"{crf:.0f}"),
