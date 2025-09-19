@@ -126,7 +126,7 @@ if not resume:
 #
 # After you've run Progression Boost, run av1an for the final encode:    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ```sh
-# av1an -i INPUT.mkv -o OUTPUT.mkv --scenes OUTPUT.scenes.json --workers WORKERS
+# av1an -i INPUT.mkv -o OUTPUT.mkv --scenes OUTPUT.scenes.json --chunk-method SOURCE_PROVIDER --pix-format yuv420p10le --workers WORKERS
 # ```
 #
 # On this note, if you don't like anything you see anywhere in this
@@ -635,6 +635,11 @@ class DefaultZone:
 #   nonzero in `final_dynamic_parameters`. `--film-grain` is a           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #   generative process and we will get metric results that doesn't       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #   match our visual experience.                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   Set `--complex-hvs 0` for `probing_dynamic_parameters` if you're     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   using `--complex-hvs 1` in `final_dynamic_parameters`. The reason    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   is that the improvements from `--complex-hvs` is mostly entirely     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   visual. It won't really affect metric scores, and it won't really    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#   affect the boosting process, but it is really slow to run.           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # If you want to set a set of fixed parameters, fill it in directly      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # after the `return` token.                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
