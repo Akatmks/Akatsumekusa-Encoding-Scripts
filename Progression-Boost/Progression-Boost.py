@@ -142,13 +142,14 @@ if not resume:
 # Here are the guide to the most necessary settings.                     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # First, here are the settings for the encoder's encoding parameters.    # <<<<  This pattern will guide you to only the necessary  <<<<<<<<<<<
-# If you've selected one of the 8 presets with regular metric based      # <<<<  guide and settings for presets with regular metric based  <<<<
+# If you've selected one of the 8 presets with regular metric based      # <<<<  guide and settings.  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # boosting, you need to adjust these 3 parameters:                       # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `metric_dynamic_preset`                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `probing_dynamic_parameters`                                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `final_dynamic_parameters`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# If you've selected the preset with Character Boost only or the Scene   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# Detection preset, you need to adjust these 3 parameters:               # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# If you've selected presets such as Preset-Character-Boost that         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# disables metric-based boosting module, you need to adjust these 3      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# parameters:                                                            # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `metric_disabled_crf`                                                # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `metric_dynamic_preset`                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `final_dynamic_parameters`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -536,9 +537,11 @@ class DefaultZone:
 # before this function and there are no clamps after this function.
         return crf
 
-# At last, if you've disabled this Progression Boost module, and you     # <<<<  Adjust this if you're using the Character Boost only or  <<<<<
-# only want Character Boost, set a base `--crf` here. This value has no  # <<<<  Scene Detection preset that skips metric based boosting.  <<<<
-# effect if Progression Boost module is enabled.                         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# At last, if you've disabled this Progression Boost module, and you     # <<<<  Adjust this if you're using presets such as  <<<<<<<<<<<<<<<<<
+# only want Character Boost, set a base `--crf` here. Or if you are      # <<<<  Preset-Character-Boost that skips metric based boosting.  <<<<
+# zoning a part of the video for fixed `--crf` encode, here is also the  # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# value you would need to specify. This value has no effect if           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Progression Boost module is enabled.                                   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
 # This `--crf` value will also be clamped by `metric_min_crf` and
 # `metric_max_crf`.                                                      # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1200,7 +1203,7 @@ class DefaultZone:
 # Section: Zones
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
-# Everything set in the previous 4 sections are in the default zones.
+# Everything set in the previous 4 sections are in the default zone.
 # We now collect them into our `zones_spec` dict. You don't need to
 # modify anything here.
 zones_spec = {}
