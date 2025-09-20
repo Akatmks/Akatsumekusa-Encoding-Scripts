@@ -134,7 +134,7 @@ if not resume:
 # If you've selected presets such as Preset-Character-Boost that         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # disables metric-based boosting module, you need to adjust these 3      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # parameters:                                                            # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# * `metric_disabled_crf`                                                # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# * `metric_disabled_base_crf`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `metric_dynamic_preset`                                              # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # * `final_dynamic_parameters`                                           # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #
@@ -529,7 +529,7 @@ class DefaultZone:
 #
 # This `--crf` value will also be clamped by `metric_min_crf` and
 # `metric_max_crf`.                                                      # <<<< ↓ Adjust it here. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    metric_disabled_crf = 28.00
+    metric_disabled_base_crf = 28.00
 
 # Although we already clamp once for Progression Boost module above,
 # the Character Boost module might also boost the `--crf` value. Let's
@@ -1132,8 +1132,8 @@ class DefaultZone:
 #
 # In some works when there are annoying backgrounds that eats too much
 # bitrate, you can even disable Progression Boost module, relying on
-# the base `--crf` set by `metric_disabled_crf` to maintain a baseline
-# consistency, and then hyperboost character here.
+# the base `--crf` set by `metric_disabled_base_crf` to maintain a
+# baseline consistency, and then hyperboost character here.
 # However, the default tune for this parameters is designed to mitigate
 # issues that are potentially missed by metric based boosting instead
 # of full on boosting. If you've disabled metric based boosting and
@@ -3924,7 +3924,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                     scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                     scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
     else:
-        crf = zone_scene["zone"].metric_disabled_crf
+        crf = zone_scene["zone"].metric_disabled_base_crf
         crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
         preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
                                                           zone_scene["end_frame"],
