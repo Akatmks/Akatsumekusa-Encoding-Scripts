@@ -1864,9 +1864,7 @@ if not resume or not scene_detection_scenes_file.exists():
             surrounding_diffs = np.maximum(diffs[:-2], diffs[2:])
             surrounding_diffs[surrounding_diffs < 0.0048] = 0.00
             diffs[1:-1] -= surrounding_diffs
-            diffs[0] -= diffs[1]
-            diffs[-1] -= diffs[-2]
-            diffs[diffs < 0.00] = 0.00
+            diffs[1:-1][(diffs_clamp := diffs[1:-1] < surrounding_diffs / 2)] = surrounding_diffs[diffs_clamp] / 2
 
             diffs[luma_scenecut] *= 1.70
             diffs[luma_scenecut] += 1.24
