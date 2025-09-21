@@ -2423,33 +2423,41 @@ if not resume or not scene_detection_scenes_file.exists():
                 section_diffs_0048 = section_diffs >= 0.0048
 
 
-                if end_frame - start_frame <= zone["zone"].scene_detection_0012_still_scene_extra_split and \
-                   np.all(~section_diffs_0012):
-                    if verbose >= 3:
-                        print(f" / branch complete / 0.0012 mode", end="\n", flush=True)
-                    return [start_frame]
+                if np.all(~section_diffs_0012):
+                    if end_frame - start_frame <= zone["zone"].scene_detection_0012_still_scene_extra_split:
+                        if verbose >= 3:
+                            print(f" / branch complete / 0.0012 mode", end="\n", flush=True)
+                        return [start_frame]
+                    else:
+                        sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0012_still_scene_extra_split)
+                        section_frames = (end_frame - start_frame) / sections
+                        section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0012_still_scene_extra_split])
+                        returning_frames = []
+                        for frame in range(start_frame, end_frame, section_frames):
+                            returning_frames.append(frame)
+                        if verbose >= 3:
+                            print(f" / split / 0.0012 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
+                        return returning_frames
 
-                    
-                if end_frame - start_frame <= zone["zone"].scene_detection_0048_still_scene_extra_split and \
-                   np.all(~section_diffs_0048):
-                    if verbose >= 3:
-                        print(f" / branch complete / 0.0048 mode", end="\n", flush=True)
-                    return [start_frame]
+                if np.all(~section_diffs_0048):
+                    if end_frame - start_frame <= zone["zone"].scene_detection_0048_still_scene_extra_split:
+                        if verbose >= 3:
+                            print(f" / branch complete / 0.0048 mode", end="\n", flush=True)
+                        return [start_frame]
+                    else:
+                        sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0048_still_scene_extra_split)
+                        section_frames = (end_frame - start_frame) / sections
+                        section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0048_still_scene_extra_split])
+                        returning_frames = []
+                        for frame in range(start_frame, end_frame, section_frames):
+                            returning_frames.append(frame)
+                        if verbose >= 3:
+                            print(f" / split / 0.0048 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
+                        return returning_frames
 
 
                 offset_frame = np.argmax(section_diffs_0012) + 1
                 reserve_offset_frame = np.argmax(section_diffs_0012[::-1]) + 1
-
-                if offset_frame == reserve_offset_frame == 1:
-                    sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0012_still_scene_extra_split)
-                    section_frames = (end_frame - start_frame) / sections
-                    section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0012_still_scene_extra_split])
-                    returning_frames = []
-                    for frame in range(start_frame, end_frame, section_frames):
-                        returning_frames.append(frame)
-                    if verbose >= 3:
-                        print(f" / split / 0.0012 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
-                    return returning_frames
 
                 split_frame = np.max([end_frame - reserve_offset_frame,
                                       end_frame - zone["zone"].scene_detection_0012_still_scene_extra_split,
@@ -2478,17 +2486,6 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 offset_frame = np.argmax(section_diffs_0048) + 1
                 reserve_offset_frame = np.argmax(section_diffs_0048[::-1]) + 1
-
-                if offset_frame == reserve_offset_frame == 1:
-                    sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0048_still_scene_extra_split)
-                    section_frames = (end_frame - start_frame) / sections
-                    section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0048_still_scene_extra_split])
-                    returning_frames = []
-                    for frame in range(start_frame, end_frame, section_frames):
-                        returning_frames.append(frame)
-                    if verbose >= 3:
-                        print(f" / split / 0.0048 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
-                    return returning_frames
 
                 split_frame = np.max([end_frame - reserve_offset_frame,
                                       end_frame - zone["zone"].scene_detection_0048_still_scene_extra_split,
