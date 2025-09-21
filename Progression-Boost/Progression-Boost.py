@@ -1861,10 +1861,14 @@ if not resume or not scene_detection_scenes_file.exists():
             if zone["zone"].scene_detection_method == "x264_vapoursynth":
                 x264_scenecut = zones_x264_scenecut[zone_i]
 
+            diffs_half = diffs / 2
+            diffs_0012 = diffs >= 0.0012
+            diffs_0048 = diffs >= 0.0048
             surrounding_diffs = np.maximum(diffs[:-2], diffs[2:])
-            surrounding_diffs[surrounding_diffs < 0.0048] = 0.00
             diffs[1:-1] -= surrounding_diffs
-            diffs[1:-1][(diffs_clamp := diffs[1:-1] < surrounding_diffs / 2)] = surrounding_diffs[diffs_clamp] / 2
+            diffs[diffs < diffs_half] = diffs_half
+            diffs[np.logical_and(diffs_0012, diffs < 0.0012)] = 0.0012
+            diffs[np.logical_and(diffs_0048, diffs < 0.0048)] = 0.0048
 
             diffs[luma_scenecut] *= 1.70
             diffs[luma_scenecut] += 1.24
