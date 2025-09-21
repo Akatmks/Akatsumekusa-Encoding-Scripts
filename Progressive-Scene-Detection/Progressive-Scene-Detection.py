@@ -997,6 +997,11 @@ class DefaultZone:
     def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
         if verbose >= 3:
             print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation", end="", flush=True)
+
+        if frames.shape[0] <= 1:
+            if verbose >= 3:
+                print(f" / score {scores[0]:.3f}", end="\n", flush=True)
+            return scores[0]
             
         if verbose >= 3:
             min, max = np.percentile(scores, [0, 100])
@@ -4000,7 +4005,9 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         if character_map_filled.shape[0] >= 2:
             character_map_filled_diff = np.sum(np.abs(np.diff(character_map_filled, axis=0)), axis=1)
             character_map_filled_sum = ((sum_filled := np.sum(character_map_filled, axis=1))[1:] + sum_filled[:-1]) / 2
-
+        else:
+            character_map_filled_diff = np.array([0], dtype=np.float64)
+            character_map_filled_sum = np.sum(character_map_filled, axis=1)
 
         if zone["zone"].character_roi_boost_max:
             character_roi_diff = np.divide(character_map_filled_diff, character_map_filled_sum, out=np.zeros_like(character_map_filled_diff), where=character_map_filled_sum != 0)
