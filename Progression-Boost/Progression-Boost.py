@@ -2463,6 +2463,8 @@ if not resume or not scene_detection_scenes_file.exists():
                     returning_frames = []
                     for frame in range(start_frame, end_frame, section_frames):
                         returning_frames.append(frame)
+                    if verbose >= 3:
+                        print(f" / split / 0.0012 spread mode / frame {" ".join(returning_frames[1:])}", end="\n", flush=True)
                     return returning_frames
 
                 split_frame = np.max([end_frame - reserve_offset_frame,
@@ -2498,6 +2500,8 @@ if not resume or not scene_detection_scenes_file.exists():
                     returning_frames = []
                     for frame in range(start_frame, end_frame, section_frames):
                         returning_frames.append(frame)
+                    if verbose >= 3:
+                        print(f" / split / 0.0048 spread mode / frame {" ".join(returning_frames[1:])}", end="\n", flush=True)
                     return returning_frames
 
                 split_frame = np.max([end_frame - reserve_offset_frame,
