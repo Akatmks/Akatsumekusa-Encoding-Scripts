@@ -351,7 +351,7 @@ class DefaultZone:
 # For maximum scene length, we have three values depending on the
 # complexity of the scene.
 # The first value is the value for regular scenes, set to `32 * 6 + 1`
-# by default. The second value `0048` is for scenes with only eyeblink
+# by default. The second value `0042` is for scenes with only eyeblink
 # or character mouth movements. The third value `0012` is for scenes
 # with no movement at all apart from random grain changes.
 #
@@ -367,7 +367,7 @@ class DefaultZone:
 # where `n` is a natural number of your choice to optimise for
 # encoder's hierarchical layer.
     scene_detection_extra_split = 193
-    scene_detection_0048_still_scene_extra_split = 257
+    scene_detection_0042_still_scene_extra_split = 257
     scene_detection_0012_still_scene_extra_split = 321
 
 # For minimum scene length, the new scene detection system is stable
@@ -1847,11 +1847,11 @@ if not resume or not scene_detection_scenes_file.exists():
 
             diffs_half = diffs / 2
             diffs_0012 = diffs >= 0.0012
-            diffs_0048 = diffs >= 0.0048
+            diffs_0042 = diffs >= 0.0042
             diffs[1:] -= diffs[:-1]
             diffs[diffs < diffs_half] = diffs_half[diffs < diffs_half]
             diffs[np.logical_and(diffs_0012, diffs < 0.0012)] = 0.0012
-            diffs[np.logical_and(diffs_0048, diffs < 0.0048)] = 0.0048
+            diffs[np.logical_and(diffs_0042, diffs < 0.0042)] = 0.0042
 
             diffs[luma_scenecut] *= 1.70
             diffs[luma_scenecut] += 1.24
@@ -1866,7 +1866,7 @@ if not resume or not scene_detection_scenes_file.exists():
             diffs_sort = np.argsort(diffs, stable=True)[::-1]
 
             def scene_detection_split_scene(start_frame, end_frame):
-                assert zone["zone"].scene_detection_0048_still_scene_extra_split >= zone["zone"].scene_detection_extra_split, "Invalid `scene_detection_0048_still_scene_extra_split`. This value must be bigger than or equal to `scene_detection_extra_split`. Please check your config inside `Progression-Boost.py`."
+                assert zone["zone"].scene_detection_0042_still_scene_extra_split >= zone["zone"].scene_detection_extra_split, "Invalid `scene_detection_0042_still_scene_extra_split`. This value must be bigger than or equal to `scene_detection_extra_split`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_0012_still_scene_extra_split >= zone["zone"].scene_detection_extra_split, "Invalid `scene_detection_0012_still_scene_extra_split`. This value must be bigger than or equal to `scene_detection_extra_split`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_min_scene_len * 2 <= zone["zone"].scene_detection_extra_split, "Invalid `scene_detection_min_scene_len`. 2 times this value must be smaller than or equal to `scene_detection_extra_split`. Please check your config inside `Progression-Boost.py`."
                 assert zone["zone"].scene_detection_18_target_split * 2 <= zone["zone"].scene_detection_12_target_split, "Invalid `scene_detection_18_target_split`. 2 times this value must be smaller than or equal to `scene_detection_12_target_split`. Please check your config inside `Progression-Boost.py`."
@@ -2420,7 +2420,7 @@ if not resume or not scene_detection_scenes_file.exists():
 
                 section_diffs = diffs[start_frame + 1:end_frame]
                 section_diffs_0012 = section_diffs >= 0.0012
-                section_diffs_0048 = section_diffs >= 0.0048
+                section_diffs_0042 = section_diffs >= 0.0042
 
 
                 if np.all(~section_diffs_0012):
@@ -2439,20 +2439,20 @@ if not resume or not scene_detection_scenes_file.exists():
                             print(f" / split / 0.0012 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
                         return returning_frames
 
-                if np.all(~section_diffs_0048):
-                    if end_frame - start_frame <= zone["zone"].scene_detection_0048_still_scene_extra_split:
+                if np.all(~section_diffs_0042):
+                    if end_frame - start_frame <= zone["zone"].scene_detection_0042_still_scene_extra_split:
                         if verbose >= 3:
-                            print(f" / branch complete / 0.0048 mode", end="\n", flush=True)
+                            print(f" / branch complete / 0.0042 mode", end="\n", flush=True)
                         return [start_frame]
                     else:
-                        sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0048_still_scene_extra_split)
+                        sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0042_still_scene_extra_split)
                         section_frames = (end_frame - start_frame) / sections
-                        section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0048_still_scene_extra_split])
+                        section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0042_still_scene_extra_split])
                         returning_frames = []
                         for frame in range(start_frame, end_frame, section_frames):
                             returning_frames.append(frame)
                         if verbose >= 3:
-                            print(f" / split / 0.0048 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
+                            print(f" / split / 0.0042 divide mode / frame {" ".join([str(item) for item in returning_frames[1:]])}", end="\n", flush=True)
                         return returning_frames
 
 
@@ -2484,30 +2484,30 @@ if not resume or not scene_detection_scenes_file.exists():
                            scene_detection_split_scene(split_frame, end_frame)
 
 
-                offset_frame = np.argmax(section_diffs_0048) + 1
-                reserve_offset_frame = np.argmax(section_diffs_0048[::-1]) + 1
+                offset_frame = np.argmax(section_diffs_0042) + 1
+                reserve_offset_frame = np.argmax(section_diffs_0042[::-1]) + 1
 
                 split_frame = np.max([end_frame - reserve_offset_frame,
-                                      end_frame - zone["zone"].scene_detection_0048_still_scene_extra_split,
+                                      end_frame - zone["zone"].scene_detection_0042_still_scene_extra_split,
                                       start_frame + zone["zone"].scene_detection_min_scene_len])
                 if end_frame - split_frame > zone["zone"].scene_detection_12_target_split and \
                    math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                    1 <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
-                        print(f" / split / 0.0048 rear mode / frame {split_frame}", end="\n", flush=True)
+                        print(f" / split / 0.0042 rear mode / frame {split_frame}", end="\n", flush=True)
                     return scene_detection_split_scene(start_frame, split_frame) + \
                            [split_frame]
 
                 split_frame = np.min([start_frame + offset_frame,
-                                      start_frame + zone["zone"].scene_detection_0048_still_scene_extra_split,
+                                      start_frame + zone["zone"].scene_detection_0042_still_scene_extra_split,
                                       end_frame - zone["zone"].scene_detection_min_scene_len])
                 if split_frame - start_frame > zone["zone"].scene_detection_12_target_split and \
                    1 + \
                    math.ceil((end_frame - split_frame) / zone["zone"].scene_detection_extra_split) <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
-                        print(f" / split / 0.0048 front mode / frame {split_frame}", end="\n", flush=True)
+                        print(f" / split / 0.0042 front mode / frame {split_frame}", end="\n", flush=True)
                     return [start_frame] + \
                            scene_detection_split_scene(split_frame, end_frame)
 
