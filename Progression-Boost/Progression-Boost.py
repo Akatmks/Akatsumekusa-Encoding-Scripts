@@ -1868,7 +1868,7 @@ if not resume or not scene_detection_scenes_file.exists():
             diffs[0] -= diffs[1]
             diffs[-1] -= diffs[-2]
             diffs[1:-1] -= surrounding_diffs
-            diffs[diffs < diffs_half] = diffs_half
+            diffs[diffs < diffs_half] = diffs_half[diffs < diffs_half]
             diffs[np.logical_and(diffs_0012, diffs < 0.0012)] = 0.0012
             diffs[np.logical_and(diffs_0048, diffs < 0.0048)] = 0.0048
 
