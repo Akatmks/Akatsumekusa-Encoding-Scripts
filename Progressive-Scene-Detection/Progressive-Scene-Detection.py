@@ -2422,11 +2422,13 @@ if not resume or not scene_detection_scenes_file.exists():
                 section_diffs_0012 = section_diffs >= 0.0012
                 section_diffs_0048 = section_diffs >= 0.0048
 
+
                 if end_frame - start_frame <= zone["zone"].scene_detection_0012_still_scene_extra_split and \
                    np.all(~section_diffs_0012):
                     if verbose >= 3:
                         print(f" / branch complete / 0.0012 mode", end="\n", flush=True)
                     return [start_frame]
+
                     
                 if end_frame - start_frame <= zone["zone"].scene_detection_0048_still_scene_extra_split and \
                    np.all(~section_diffs_0048):
@@ -2434,63 +2436,75 @@ if not resume or not scene_detection_scenes_file.exists():
                         print(f" / branch complete / 0.0048 mode", end="\n", flush=True)
                     return [start_frame]
 
-                if (offset_frame := np.argmax(section_diffs_0012) + 1) >= zone["zone"].scene_detection_extra_split:
+
+                offset_frame = np.argmax(section_diffs_0012) + 1
+                reserve_offset_frame = np.argmax(section_diffs_0012[::-1]) + 1
+
+                if offset_frame == reserve_offset_frame == 1:
+                    sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0012_still_scene_extra_split)
+                    section_frames = (end_frame - start_frame) / sections
+                    section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0012_still_scene_extra_split])
+                    returning_frames = []
+                    for frame in range(start_frame, end_frame, section_frames):
+                        returning_frames.append(frame)
+                    return returning_frames
+
+                split_frame = np.max([end_frame - reserve_offset_frame,
+                                      end_frame - zone["zone"].scene_detection_0012_still_scene_extra_split,
+                                      start_frame + zone["zone"].scene_detection_min_scene_len])
+                if math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                   1 <= \
+                   math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
-                        print(f" / split / 0.0012 mode", end="", flush=True)
-                    split_frame = np.min([start_frame + offset_frame,
-                                          start_frame + zone["zone"].scene_detection_0048_still_scene_extra_split,
-                                          end_frame - zone["zone"].scene_detection_min_scene_len])
-                    if math.ceil((end_frame - split_frame) / 16) * 16 + 1 <= zone["zone"].scene_detection_extra_split:
-                        split_frame = end_frame - (math.ceil((end_frame - split_frame) / 16) * 16 + 1)
-                        if verbose >= 3:
-                            print(f" / 16-frame hierarchical structure flavoured", end="", flush=True)
-                    if verbose >= 3:
-                        print(f" / frame {split_frame}", end="\n", flush=True)
-                    return [start_frame] + \
-                           scene_detection_split_scene(split_frame, end_frame)
-                if (reserve_offset_frame := np.argmax(section_diffs_0012[::-1]) + 1) >= zone["zone"].scene_detection_extra_split:
-                    if verbose >= 3:
-                        print(f" / split / 0.0012 mode", end="", flush=True)
-                    split_frame = np.max([end_frame - reserve_offset_frame,
-                                          end_frame - zone["zone"].scene_detection_0012_still_scene_extra_split,
-                                          start_frame + zone["zone"].scene_detection_min_scene_len])
-                    if math.ceil((split_frame - start_frame) / 16) * 16 + 1 <= zone["zone"].scene_detection_extra_split:
-                        split_frame = start_frame + math.ceil((split_frame - start_frame) / 16) * 16 + 1
-                        if verbose >= 3:
-                            print(f" / 16-frame hierarchical structure flavoured", end="", flush=True)
-                    if verbose >= 3:
-                        print(f" / frame {split_frame}", end="\n", flush=True)
+                        print(f" / split / 0.0012 rear mode / frame {split_frame}", end="\n", flush=True)
                     return scene_detection_split_scene(start_frame, split_frame) + \
                            [split_frame]
 
-                if (offset_frame := np.argmax(section_diffs_0048) + 1) >= zone["zone"].scene_detection_extra_split:
+                split_frame = np.min([start_frame + offset_frame,
+                                      start_frame + zone["zone"].scene_detection_0012_still_scene_extra_split,
+                                      end_frame - zone["zone"].scene_detection_min_scene_len])
+                if 1 + \
+                   math.ceil((end_frame - split_frame) / zone["zone"].scene_detection_extra_split) <= \
+                   math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
-                        print(f" / split / 0.0048 mode", end="", flush=True)
-                    split_frame = np.min([start_frame + offset_frame,
-                                          start_frame + zone["zone"].scene_detection_0048_still_scene_extra_split,
-                                          end_frame - zone["zone"].scene_detection_min_scene_len])
-                    if math.ceil((end_frame - split_frame) / 16) * 16 + 1 <= zone["zone"].scene_detection_extra_split:
-                        split_frame = end_frame - (math.ceil((end_frame - split_frame) / 16) * 16 + 1)
-                        if verbose >= 3:
-                            print(f" / 16-frame hierarchical structure flavoured", end="", flush=True)
-                    if verbose >= 3:
-                        print(f" / frame {split_frame}", end="\n", flush=True)
+                        print(f" / split / 0.0012 front mode / frame {split_frame}", end="\n", flush=True)
                     return [start_frame] + \
                            scene_detection_split_scene(split_frame, end_frame)
-                if (reserve_offset_frame := np.argmax(section_diffs_0048[::-1]) + 1) >= zone["zone"].scene_detection_extra_split:
+
+
+                offset_frame = np.argmax(section_diffs_0048) + 1
+                reserve_offset_frame = np.argmax(section_diffs_0048[::-1]) + 1
+
+                if offset_frame == reserve_offset_frame == 1:
+                    sections = math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_0048_still_scene_extra_split)
+                    section_frames = (end_frame - start_frame) / sections
+                    section_frames = np.min([math.ceil((section_frames - 1) / 16) * 16 + 1, zone["zone"].scene_detection_0048_still_scene_extra_split])
+                    returning_frames = []
+                    for frame in range(start_frame, end_frame, section_frames):
+                        returning_frames.append(frame)
+                    return returning_frames
+
+                split_frame = np.max([end_frame - reserve_offset_frame,
+                                      end_frame - zone["zone"].scene_detection_0048_still_scene_extra_split,
+                                      start_frame + zone["zone"].scene_detection_min_scene_len])
+                if math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                   1 <= \
+                   math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
-                        print(f" / split / 0.0048 mode", end="", flush=True)
-                    split_frame = np.max([end_frame - reserve_offset_frame,
-                                          end_frame - zone["zone"].scene_detection_0012_still_scene_extra_split,
-                                          start_frame + zone["zone"].scene_detection_min_scene_len])
-                    if math.ceil((split_frame - start_frame) / 16) * 16 + 1 <= zone["zone"].scene_detection_extra_split:
-                        split_frame = start_frame + math.ceil((split_frame - start_frame) / 16) * 16 + 1
-                        if verbose >= 3:
-                            print(f" / 16-frame hierarchical structure flavoured", end="", flush=True)
-                    if verbose >= 3:
-                        print(f" / frame {split_frame}", end="\n", flush=True)
+                        print(f" / split / 0.0048 rear mode / frame {split_frame}", end="\n", flush=True)
                     return scene_detection_split_scene(start_frame, split_frame) + \
                            [split_frame]
+
+                split_frame = np.min([start_frame + offset_frame,
+                                      start_frame + zone["zone"].scene_detection_0048_still_scene_extra_split,
+                                      end_frame - zone["zone"].scene_detection_min_scene_len])
+                if 1 + \
+                   math.ceil((end_frame - split_frame) / zone["zone"].scene_detection_extra_split) <= \
+                   math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
+                    if verbose >= 3:
+                        print(f" / split / 0.0048 front mode / frame {split_frame}", end="\n", flush=True)
+                    return [start_frame] + \
+                           scene_detection_split_scene(split_frame, end_frame)
 
 
 
@@ -3569,7 +3583,7 @@ if metric_has_metric:
                     clip = metric_first_metric_clips[(zone_scene["zone"], reference_offset)][int(metric_result["scenes"][scene_n]["frames"][0] + probing_frame_head)]
                     for frame in metric_result["scenes"][scene_n]["frames"][1:]:
                         clip += metric_first_metric_clips[(zone_scene["zone"], reference_offset)][int(frame + probing_frame_head)]
-        
+
                     scores = np.array([zone_scene["zone"].metric_vapoursynth_metric(frame) for frame in clip.frames(backlog=48)])
                     
                 elif zone_scene["zone"].metric_method == "ffvship":
