@@ -2470,7 +2470,8 @@ if not resume or not scene_detection_scenes_file.exists():
                 split_frame = np.max([end_frame - reserve_offset_frame,
                                       end_frame - zone["zone"].scene_detection_0012_still_scene_extra_split,
                                       start_frame + zone["zone"].scene_detection_min_scene_len])
-                if math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                if end_frame - split_frame > scene_detection_12_target_split and \
+                   math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                    1 <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
@@ -2481,7 +2482,8 @@ if not resume or not scene_detection_scenes_file.exists():
                 split_frame = np.min([start_frame + offset_frame,
                                       start_frame + zone["zone"].scene_detection_0012_still_scene_extra_split,
                                       end_frame - zone["zone"].scene_detection_min_scene_len])
-                if 1 + \
+                if split_frame - start_frame > scene_detection_12_target_split and \
+                   1 + \
                    math.ceil((end_frame - split_frame) / zone["zone"].scene_detection_extra_split) <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
@@ -2507,7 +2509,8 @@ if not resume or not scene_detection_scenes_file.exists():
                 split_frame = np.max([end_frame - reserve_offset_frame,
                                       end_frame - zone["zone"].scene_detection_0048_still_scene_extra_split,
                                       start_frame + zone["zone"].scene_detection_min_scene_len])
-                if math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
+                if end_frame - split_frame > scene_detection_12_target_split and \
+                   math.ceil((split_frame - start_frame) / zone["zone"].scene_detection_extra_split) + \
                    1 <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
@@ -2518,7 +2521,8 @@ if not resume or not scene_detection_scenes_file.exists():
                 split_frame = np.min([start_frame + offset_frame,
                                       start_frame + zone["zone"].scene_detection_0048_still_scene_extra_split,
                                       end_frame - zone["zone"].scene_detection_min_scene_len])
-                if 1 + \
+                if split_frame - start_frame > scene_detection_12_target_split and \
+                   1 + \
                    math.ceil((end_frame - split_frame) / zone["zone"].scene_detection_extra_split) <= \
                    math.ceil((end_frame - start_frame) / zone["zone"].scene_detection_extra_split):
                     if verbose >= 3:
