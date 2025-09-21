@@ -1862,6 +1862,7 @@ if not resume or not scene_detection_scenes_file.exists():
                 x264_scenecut = zones_x264_scenecut[zone_i]
 
             surrounding_diffs = np.maximum(diffs[:-2], diffs[2:])
+            surrounding_diffs[surrounding_diffs < 0.0048] = 0.00
             diffs[1:-1] -= surrounding_diffs
             diffs[0] -= diffs[1]
             diffs[-1] -= diffs[-2]
