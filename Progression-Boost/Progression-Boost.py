@@ -3460,131 +3460,137 @@ if metric_has_metric:
                 if verbose >= 3:
                     print(f"\r\033[K{scene_frame_print(scene_n)} / Frame selection", end="", flush=True)
 
-                rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
-            
-                # These frames are offset from `scene["start_frame"] + 1` and that's why they are offfset, not offset
-                offfset_frames = np.array([], dtype=np.int32)
+                if zone_scene["end_frame"] - zone_scene["start_frame"] > 1:
+                    rng = default_rng(1188246) # Guess what is this number. It's the easiest cipher out there.
                 
-                scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
-
-                transform = fftpack.dct(scene_diffs)
-                transform[np.max([math.ceil(transform.shape[0] / 5), 7]):] = 0
-                reconstructed = fftpack.idct(transform)
-
-                peaks, properties = signal.find_peaks(reconstructed, prominence=0)
-                peaks_sort = peaks[np.argsort(properties["prominences"])[::-1]]
-
-                picked = 0
-                if verbose >= 3:
-                    print(f" / peak transformed", end="", flush=True)
-                for offfset_frame in peaks_sort:
-                    if picked >= zone_scene["zone"].metric_peak_transformed_diff_frames:
-                        break
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 3:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
-
-                scene_diffs_sort = np.argsort(scene_diffs)[::-1]
-
-                picked = 0
-                if verbose >= 3:
-                    print(f" / highest diff", end="", flush=True)
-                for offfset_frame in scene_diffs_sort:
-                    if picked >= zone_scene["zone"].metric_highest_diff_frames:
-                        break
-                    if offfset_frame in offfset_frames:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 3:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
-
-                if zone_scene["zone"].metric_highest_probing_diff_frames:
-                    if (zone_scene["zone"], reference_offset) not in metric_diff_clips:
-                        metric_diff_clips[(zone_scene["zone"], reference_offset)] = core.std.PlaneStats(metric_processed_reference[zone_scene["zone"]][reference_offset:],
-                                                                                                        metric_processed_first[zone_scene["zone"]],
-                                                                                                        prop="Encode")
-                    clip = metric_diff_clips[(zone_scene["zone"], reference_offset)][probing_frame_head:probing_frame_head + zone_scene["end_frame"] - zone_scene["start_frame"]]
-                    encode_diffs = [frame.props["EncodeDiff"] for frame in clip.frames(backlog=48)]
-                    encode_diffs_sort = np.argsort(encode_diffs, stable=True)[::-1]
+                    # These frames are offset from `scene["start_frame"] + 1` and that's why they are offfset, not offset
+                    offfset_frames = np.array([], dtype=np.int32)
+                    
+                    scene_diffs = scene_detection_diffs[zone_scene["start_frame"] + 1:zone_scene["end_frame"]]
+    
+                    transform = fftpack.dct(scene_diffs)
+                    transform[np.max([math.ceil(transform.shape[0] / 5), 7]):] = 0
+                    reconstructed = fftpack.idct(transform)
+    
+                    peaks, properties = signal.find_peaks(reconstructed, prominence=0)
+                    peaks_sort = peaks[np.argsort(properties["prominences"])[::-1]]
+    
                     picked = 0
                     if verbose >= 3:
-                        print(f" / highest probing diff", end="", flush=True)
-                    for frame in encode_diffs_sort:
-                        if picked >= zone_scene["zone"].metric_highest_probing_diff_frames:
+                        print(f" / peak transformed", end="", flush=True)
+                    for offfset_frame in peaks_sort:
+                        if picked >= zone_scene["zone"].metric_peak_transformed_diff_frames:
                             break
-                        if frame - 1 in offfset_frames:
-                            continue
-                        offfset_frames = np.append(offfset_frames, frame - 1)
+                        offfset_frames = np.append(offfset_frames, offfset_frame)
                         picked += 1
                         if verbose >= 3:
-                            print(f" {zone_scene["start_frame"] + frame}", end="", flush=True)
-                
-                if verbose >= 3:
-                    print(f" / last", end="", flush=True)
-                if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
-                    offfset_frames = np.append(offfset_frames, zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
+                            print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+    
+                    scene_diffs_sort = np.argsort(scene_diffs)[::-1]
+    
+                    picked = 0
                     if verbose >= 3:
-                        print(f" {zone_scene["end_frame"] - 1}", end="", flush=True)
-            
-                scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
-                scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
-                scene_diffs_upper_bracket_ = np.argwhere(scene_diffs > scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
-                scene_diffs_lower_bracket_ = np.argwhere(scene_diffs <= scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
-                scene_diffs_upper_bracket = np.empty_like(scene_diffs_upper_bracket_)
-                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[:math.ceil(scene_diffs_upper_bracket_.shape[0] / 2)]))
-                scene_diffs_upper_bracket[::2] = scene_diffs_upper_bracket__
-                rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[-math.floor(scene_diffs_upper_bracket_.shape[0] / 2):]))
-                scene_diffs_upper_bracket[1::2] = scene_diffs_upper_bracket__
-                scene_diffs_lower_bracket = np.empty_like(scene_diffs_lower_bracket_)
-                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[:math.ceil(scene_diffs_lower_bracket_.shape[0] / 2)]))
-                scene_diffs_lower_bracket[::2] = scene_diffs_lower_bracket__
-                rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[-math.floor(scene_diffs_lower_bracket_.shape[0] / 2):]))
-                scene_diffs_lower_bracket[1::2] = scene_diffs_lower_bracket__
-            
-                picked = 0
-                if verbose >= 3:
-                    print(f" / upper bracket", end="", flush=True)
-                for offfset_frame in scene_diffs_upper_bracket:
-                    if picked >= zone_scene["zone"].metric_upper_diff_bracket_frames:
-                        break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 3:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
-                
-                if picked < zone_scene["zone"].metric_upper_diff_bracket_fallback_frames:
-                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames + zone_scene["zone"].metric_upper_diff_bracket_fallback_frames - picked
-                else:
-                    to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
-            
-                if verbose >= 3:
-                    print(f" / first", end="", flush=True)
-                if zone_scene["zone"].metric_first_frame >= 1 and -1 not in offfset_frames:
-                    offfset_frames = np.append(offfset_frames, -1)
-                    if verbose >= 3:
-                        print(f" {zone_scene["start_frame"]}", end="", flush=True)
-            
-                picked = 0
-                if verbose >= 3:
-                    print(f" / lower bracket", end="", flush=True)
-                for offfset_frame in scene_diffs_lower_bracket:
-                    if picked >= to_pick:
-                        break
-                    if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
-                        continue
-                    offfset_frames = np.append(offfset_frames, offfset_frame)
-                    picked += 1
-                    if verbose >= 3:
-                        print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
-
-                if verbose >= 3:
-                    print(f"", end="\n", flush=True)
+                        print(f" / highest diff", end="", flush=True)
+                    for offfset_frame in scene_diffs_sort:
+                        if picked >= zone_scene["zone"].metric_highest_diff_frames:
+                            break
+                        if offfset_frame in offfset_frames:
+                            continue
+                        offfset_frames = np.append(offfset_frames, offfset_frame)
+                        picked += 1
+                        if verbose >= 3:
+                            print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+    
+                    if zone_scene["zone"].metric_highest_probing_diff_frames:
+                        if (zone_scene["zone"], reference_offset) not in metric_diff_clips:
+                            metric_diff_clips[(zone_scene["zone"], reference_offset)] = core.std.PlaneStats(metric_processed_reference[zone_scene["zone"]][reference_offset:],
+                                                                                                            metric_processed_first[zone_scene["zone"]],
+                                                                                                            prop="Encode")
+                        clip = metric_diff_clips[(zone_scene["zone"], reference_offset)][probing_frame_head:probing_frame_head + zone_scene["end_frame"] - zone_scene["start_frame"]]
+                        encode_diffs = [frame.props["EncodeDiff"] for frame in clip.frames(backlog=48)]
+                        encode_diffs_sort = np.argsort(encode_diffs, stable=True)[::-1]
+                        picked = 0
+                        if verbose >= 3:
+                            print(f" / highest probing diff", end="", flush=True)
+                        for frame in encode_diffs_sort:
+                            if picked >= zone_scene["zone"].metric_highest_probing_diff_frames:
+                                break
+                            if frame - 1 in offfset_frames:
+                                continue
+                            offfset_frames = np.append(offfset_frames, frame - 1)
+                            picked += 1
+                            if verbose >= 3:
+                                print(f" {zone_scene["start_frame"] + frame}", end="", flush=True)
                     
-                metric_result["scenes"][scene_n]["frames"] = np.sort(offfset_frames) + 1
+                    if verbose >= 3:
+                        print(f" / last", end="", flush=True)
+                    if zone_scene["zone"].metric_last_frame >= 1 and zone_scene["end_frame"] - zone_scene["start_frame"] - 2 not in offfset_frames:
+                        offfset_frames = np.append(offfset_frames, zone_scene["end_frame"] - zone_scene["start_frame"] - 2)
+                        if verbose >= 3:
+                            print(f" {zone_scene["end_frame"] - 1}", end="", flush=True)
+                
+                    scene_diffs_percentile = np.percentile(scene_diffs, 40, method="linear")
+                    scene_diffs_percentile_absolute_deviation = np.percentile(np.abs(scene_diffs - scene_diffs_percentile), 40, method="linear")
+                    scene_diffs_upper_bracket_ = np.argwhere(scene_diffs > scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                    scene_diffs_lower_bracket_ = np.argwhere(scene_diffs <= scene_diffs_percentile + 5 * scene_diffs_percentile_absolute_deviation).reshape((-1))
+                    scene_diffs_upper_bracket = np.empty_like(scene_diffs_upper_bracket_)
+                    rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[:math.ceil(scene_diffs_upper_bracket_.shape[0] / 2)]))
+                    scene_diffs_upper_bracket[::2] = scene_diffs_upper_bracket__
+                    rng.shuffle((scene_diffs_upper_bracket__ := scene_diffs_upper_bracket_[-math.floor(scene_diffs_upper_bracket_.shape[0] / 2):]))
+                    scene_diffs_upper_bracket[1::2] = scene_diffs_upper_bracket__
+                    scene_diffs_lower_bracket = np.empty_like(scene_diffs_lower_bracket_)
+                    rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[:math.ceil(scene_diffs_lower_bracket_.shape[0] / 2)]))
+                    scene_diffs_lower_bracket[::2] = scene_diffs_lower_bracket__
+                    rng.shuffle((scene_diffs_lower_bracket__ := scene_diffs_lower_bracket_[-math.floor(scene_diffs_lower_bracket_.shape[0] / 2):]))
+                    scene_diffs_lower_bracket[1::2] = scene_diffs_lower_bracket__
+                
+                    picked = 0
+                    if verbose >= 3:
+                        print(f" / upper bracket", end="", flush=True)
+                    for offfset_frame in scene_diffs_upper_bracket:
+                        if picked >= zone_scene["zone"].metric_upper_diff_bracket_frames:
+                            break
+                        if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
+                            continue
+                        offfset_frames = np.append(offfset_frames, offfset_frame)
+                        picked += 1
+                        if verbose >= 3:
+                            print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+                    
+                    if picked < zone_scene["zone"].metric_upper_diff_bracket_fallback_frames:
+                        to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames + zone_scene["zone"].metric_upper_diff_bracket_fallback_frames - picked
+                    else:
+                        to_pick = zone_scene["zone"].metric_lower_diff_bracket_frames
+                
+                    if verbose >= 3:
+                        print(f" / first", end="", flush=True)
+                    if zone_scene["zone"].metric_first_frame >= 1 and -1 not in offfset_frames:
+                        offfset_frames = np.append(offfset_frames, -1)
+                        if verbose >= 3:
+                            print(f" {zone_scene["start_frame"]}", end="", flush=True)
+                
+                    picked = 0
+                    if verbose >= 3:
+                        print(f" / lower bracket", end="", flush=True)
+                    for offfset_frame in scene_diffs_lower_bracket:
+                        if picked >= to_pick:
+                            break
+                        if offfset_frames.shape[0] != 0 and np.min(np.abs(offfset_frames - offfset_frame)) < zone_scene["zone"].metric_diff_brackets_min_separation:
+                            continue
+                        offfset_frames = np.append(offfset_frames, offfset_frame)
+                        picked += 1
+                        if verbose >= 3:
+                            print(f" {zone_scene["start_frame"] + 1 + offfset_frame}", end="", flush=True)
+    
+                    if verbose >= 3:
+                        print(f"", end="\n", flush=True)
+                        
+                    metric_result["scenes"][scene_n]["frames"] = np.sort(offfset_frames) + 1
+
+                else:
+                    if verbose >= 3:
+                        print(f" / frame {zone_scene["start_frame"]}", end="\n", flush=True)
+                    metric_result["scenes"][scene_n]["frames"] = np.array([0], dtype=np.int32)
 
 
             if "first_score" not in metric_result["scenes"][scene_n]:
