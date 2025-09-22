@@ -1262,13 +1262,17 @@ zones_spec["builtin_example"] = BuiltinExampleZone()
 
 # Just like this, we've added our custom zones to `zones_spec`. To
 # referece this zone and actually tell the script when to use each
-# zones, use the commandline parameter `--zones` or `--zones-script`.
+# zones, use the commandline parameter `--zones` or `--zones-string`.
 #
 # `--zones` are for zones file.
 # The format for zones file are `start_frame end_frame zones_key`.
 #   The `end_frame` here is exclusive.
 #   The `zones_key` here are the same key we use to add to
 #   `zones_spec`.
+# This is similar to the zones of av1an, except that you only put the
+# name for the zone after the start and end frames.
+# You can also use `-1` as `end_frame` to zone until the end of the
+# video.
 # An example zones file could look like this:
 # ```
 # 1000 2000 builtin_example
@@ -1344,8 +1348,8 @@ for item in zones_list:
     if item[1] <= -2:
         raise ValueError(f"Invalid end_frame in the zones with value {item[1]}")
     if item[1] > zone_default.source_clip.num_frames:
-        print(f"\r\033[K\033[31mOut of bound end_frame in the zones with value {item[1]}. Clamp end_frame for the zone to {zone_default.source_clip.num_frames}...\033[0m", end="\n", flush=True)
-        print(f"\r\033[KUse `-1` as end_frame to silence this out of bound warning.", end="\n", flush=True)
+        print(f"\r\033[K\033[31mOut of bound end_frame {item[1]} in one of the zones provided. Clamp end_frame for the zone to {zone_default.source_clip.num_frames}...\033[0m", end="\n", flush=True)
+        print(f"\r\033[KUse `-1` as end_frame to always end the zone at the last frame of the video.", end="\n", flush=True)
         item[1] = zone_default.source_clip.num_frames
     if item[1] == -1:
         item[1] = zone_default.source_clip.num_frames
