@@ -59,6 +59,9 @@ int main(int argc, char** argv) {
         else if (strcmp(argv[i], "--output") == 0) {
             args += "\"-b\"";
         }
+        else if (strcmp(argv[i], "--photon-noise-table") == 0) {
+            args += "\"--fgs-table\"";
+        }
         else if (strcmp(argv[i], "-y") == 0);
         else {
             args += "\"";
