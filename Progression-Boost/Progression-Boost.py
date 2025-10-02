@@ -1603,7 +1603,7 @@ if not resume or not scene_detection_scenes_file.exists():
         with scene_detection_x264_scenes_file.open("w") as scene_detection_x264_scenes_f:
             json.dump(scene_detection_x264_scenes, scene_detection_x264_scenes_f, cls=NumpyEncoder)
 
-        if zone_default.source_clip_cache is not None:
+        if zone_default.source_clip_cache_reuse and zone_default.source_clip_cache is not None:
             scene_detection_x264_temp_dir_cache = scene_detection_x264_temp_dir / "split" / "cache"
             scene_detection_x264_temp_dir_cache = scene_detection_x264_temp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
             
@@ -1647,7 +1647,7 @@ if not resume or not scene_detection_scenes_file.exists():
     if scene_detection_perform_av1an:
         scene_detection_av1an_scenes_file.unlink(missing_ok=True)
 
-        if zone_default.source_clip_cache is not None:
+        if zone_default.source_clip_cache_reuse and zone_default.source_clip_cache is not None:
             scene_detection_av1an_temp_dir_cache = scene_detection_temp_dir / "av1an.tmp" / "split" / "cache"
             scene_detection_av1an_temp_dir_cache = scene_detection_av1an_temp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
             
@@ -3186,7 +3186,7 @@ if metric_has_metric:
         if probing_output_file_cache is not None:
             probing_output_file_cache.unlink(missing_ok=True)
             
-        if zone_default.source_clip_cache is not None:
+        if zone_default.source_clip_cache_reuse and zone_default.source_clip_cache is not None:
             probing_tmp_dir_cache = probing_tmp_dir / "split" / "cache"
             probing_tmp_dir_cache = probing_tmp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
             
