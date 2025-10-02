@@ -3487,6 +3487,13 @@ if metric_has_metric:
 
     if metric_method_has_ffvship:
         metric_ffvship_output_file = progression_boost_temp_dir / "metric-ffvship.json"
+        metric_ffvship_source_cache = progression_boost_temp_dir / "metric-ffvship-source.ffindex"
+        metric_ffvship_first_cache = progression_boost_temp_dir / "metric-ffvship-first.ffindex"
+
+        if zone_default.source_clip_cache_reuse and zone_default.source_clip_cache is not None and zone_default.source_clip_cache.suffix == ".ffindex":
+            if not metric_ffvship_source_cache.exists():
+                metric_ffvship_source_cache.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zone_default.source_clip_cache, metric_ffvship_source_cache)
 
     start = time.time() - 0.000001
     start_count = -1
@@ -3662,6 +3669,9 @@ if metric_has_metric:
                         "FFVship",
                         "--source", input_file,
                         "--encoded", probing_first_output_file,
+                        "--cache-index",
+                        "--source-index", metric_ffvship_source_cache,
+                        "--encoded-index", metric_ffvship_first_cache,
                         "--metric", zone_scene["zone"].metric_ffvship_calculate
                     ]
                     if zone_scene["zone"].metric_ffvship_calculate == "Butteraugli" and zone_scene["zone"].metric_ffvship_intensity_target is not None:
@@ -3831,6 +3841,9 @@ if metric_has_metric:
         metric_second = zone_default.source_provider(probing_second_output_file)
         metric_processed_second = {}
         metric_second_metric_clips = {}
+        
+    if metric_method_has_ffvship:
+        metric_ffvship_second_cache = progression_boost_temp_dir / "metric-ffvship-second.ffindex"
 
     start = time.time() - 0.000001
     start_count = -1
@@ -3866,6 +3879,9 @@ if metric_has_metric:
                         "FFVship",
                         "--source", input_file,
                         "--encoded", probing_second_output_file,
+                        "--cache-index",
+                        "--source-index", metric_ffvship_source_cache,
+                        "--encoded-index", metric_ffvship_second_cache,
                         "--metric", zone_scene["zone"].metric_ffvship_calculate
                     ]
                     if zone_scene["zone"].metric_ffvship_calculate == "Butteraugli" and zone_scene["zone"].metric_ffvship_intensity_target is not None:
