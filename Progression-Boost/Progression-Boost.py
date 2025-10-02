@@ -210,6 +210,7 @@ class DefaultZone:
 # How should this script load your source video? Select the video
 # provider for both this Python script and for av1an.
     source_clip = core.ffms2.Source(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.ffindex").expanduser().resolve())
+    source_clip_cache = temp_dir.joinpath("source.ffindex")
     source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex").expanduser().resolve())
     source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
     source_provider_av1an = "ffms2"
@@ -218,24 +219,28 @@ class DefaultZone:
 # Boost's probe encodes. To use this option, comment the lines above
 # and uncomment the lines below.
     # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+    # source_clip_cache = None
     # source_provider = lambda self, file: core.ffms2.Source(file.expanduser().resolve(), cachefile=file.with_suffix(".ffindex").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".ffindex")
     # source_provider_av1an = "bestsource"
 # If you want to use all BestSource instead, comment the lines above
 # and uncomment the lines below.
     # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+    # source_clip_cache = None
     # source_provider = core.bs.VideoSource
     # source_provider_cache = lambda self, file: None
     # source_provider_av1an = "bestsource"
 # If you want to use lsmas instead, comment the lines above and
 # uncomment the lines below.
     # source_clip = core.lsmas.LWLibavSource(input_file.expanduser().resolve(), cachefile=temp_dir.joinpath("source.lwi").expanduser().resolve())
+    # source_clip_cache = temp_dir.joinpath("source.lwi")
     # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve(), cachefile=file.with_suffix(".lwi").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
     # source_provider_av1an = "lsmash"
 # Also, it's possible to only use BestSource for source, and then use
 # faster lsmas to read Progression Boost's probe encodes.
     # source_clip = core.bs.VideoSource(input_file.expanduser().resolve())
+    # source_clip_cache = None
     # source_provider = lambda self, file: core.lsmas.LWLibavSource(file.expanduser().resolve(), cachefile=file.with_suffix(".lwi").expanduser().resolve())
     # source_provider_cache = lambda self, file: file.with_suffix(".lwi")
     # source_provider_av1an = "bestsource"
@@ -256,10 +261,23 @@ class DefaultZone:
 # src.set_output()
 # ```
 
+# To optimise for speed, Progression Boost copies `source_clip_cache`
+# into the av1an temp folder for scene detection and probing. This
+# will cause issues if:
+# 1. You're using different video files (not vpy; vpy would be
+#    totally fine) for `--input`, `encode-input`, and
+#    `--scene-detection-input`.
+# 2. You're using ffms2. lsmas would automatically recreate the cache
+#    if it finds it mismatched. It's only an issue with ffms2.
+# If you're having this issue, you can set the following option to
+# `False`, or switch to lsmas or BestSource.
+    source_clip_cache_reuse = True
+
 # Zoning information: `source_clip` and `source_provider` are not
 # zoneable, but you can write VapourSynth code to `core.std.Splice` it
 # yourself. Make sure you do the same for `--encode-input`,
 # `--scene-detection-input`, and final encode as well.
+# `source_clip_cache_reuse` is not zoneable.
 # ---------------------------------------------------------------------
 # We highly recommend using a SVT-AV1 derived encoder that supports
 # quarterstep `--crf`, which includes all the major forks from
@@ -1585,6 +1603,14 @@ if not resume or not scene_detection_scenes_file.exists():
         with scene_detection_x264_scenes_file.open("w") as scene_detection_x264_scenes_f:
             json.dump(scene_detection_x264_scenes, scene_detection_x264_scenes_f, cls=NumpyEncoder)
 
+        if zone_default.source_clip_cache is not None:
+            scene_detection_x264_temp_dir_cache = scene_detection_x264_temp_dir / "split" / "cache"
+            scene_detection_x264_temp_dir_cache = scene_detection_x264_temp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
+            
+            if not scene_detection_x264_temp_dir_cache.exists():
+                scene_detection_x264_temp_dir_cache.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zone_default.source_clip_cache, scene_detection_x264_temp_dir_cache)
+
         command = [
             "av1an",
             "-y"
@@ -1620,6 +1646,14 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if scene_detection_perform_av1an:
         scene_detection_av1an_scenes_file.unlink(missing_ok=True)
+
+        if zone_default.source_clip_cache is not None:
+            scene_detection_av1an_temp_dir_cache = scene_detection_temp_dir / "av1an.tmp" / "split" / "cache"
+            scene_detection_av1an_temp_dir_cache = scene_detection_av1an_temp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
+            
+            if not scene_detection_av1an_temp_dir_cache.exists():
+                scene_detection_av1an_temp_dir_cache.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zone_default.source_clip_cache, scene_detection_av1an_temp_dir_cache)
 
         scene_detection_av1an_force_keyframes = []
         for zone in zones:
@@ -3151,6 +3185,14 @@ if metric_has_metric:
         probing_output_file.unlink(missing_ok=True)
         if probing_output_file_cache is not None:
             probing_output_file_cache.unlink(missing_ok=True)
+            
+        if zone_default.source_clip_cache is not None:
+            probing_tmp_dir_cache = probing_tmp_dir / "split" / "cache"
+            probing_tmp_dir_cache = probing_tmp_dir_cache.with_suffix(zone_default.source_clip_cache.suffix)
+            
+            if not probing_tmp_dir_cache.exists():
+                probing_tmp_dir_cache.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zone_default.source_clip_cache, probing_tmp_dir_cache)
 
         command = [
             "av1an",
