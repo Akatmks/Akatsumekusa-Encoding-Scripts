@@ -841,7 +841,7 @@ class DefaultZone:
 #
 # Sometimes, sometimes SVT-AV1-PSY will encode the last frame of a
 # scene slightly worse than the rest of the frames. Do you want to
-# always include the first frame in metric calculation?
+# always include the last frame in metric calculation?
     metric_last_frame = 1
 
 # `--resume` information: If you changed the frame selection, you need
