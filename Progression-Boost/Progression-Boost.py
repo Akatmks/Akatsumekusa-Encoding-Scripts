@@ -744,9 +744,12 @@ class DefaultZone:
 # Progression Boost can't be used with other encoders without
 # modification (Although if that's what you're looking for, the
 # modification would be pretty simple).  
+    def probing_dynamic_encoder(self, start_frame: int, end_frame: int,
+                                      luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> str:
+        return "svt_av1"
     def final_dynamic_encoder(self, start_frame: int, end_frame: int,
                                     crf: float,
-                                    luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> Optional[int]:
+                                    luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> str:
         return "svt_av1"
 
 # `--resume` information: If you changed parameters for probing, you
@@ -1541,7 +1544,6 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if scene_detection_perform_x264:
         scene_detection_x264_output_file.unlink(missing_ok=True)
-        shutil.rmtree(scene_detection_x264_stats_dir, ignore_errors=True)
         scene_detection_x264_stats_dir.mkdir(exist_ok=True)
 
         scene_detection_x264_scenes = {}
@@ -3285,6 +3287,12 @@ if metric_has_metric and probing_first_perform_encode:
                 "end_frame": zone_scene["end_frame"],
                 "zone_overrides": copy.copy(zone_scene["zone_overrides"])
             }
+            probing_scene["zone_overrides"]["encoder"] = zone_scene["zone"].probing_dynamic_encoder(zone_scene["start_frame"],
+                                                                                                    zone_scene["end_frame"],
+                                                                                                    scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
             if zone_scene["zone"].quarterstep_crf:
                 probing_scene["zone_overrides"]["video_params"] = [
                     "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["first_qstep"], side="right") - 1) / 4:.2f}"
@@ -3726,6 +3734,12 @@ if metric_has_metric and probing_second_perform_encode:
                 "end_frame": zone_scene["end_frame"],
                 "zone_overrides": copy.copy(zone_scene["zone_overrides"])
             }
+            probing_scene["zone_overrides"]["encoder"] = zone_scene["zone"].probing_dynamic_encoder(zone_scene["start_frame"],
+                                                                                                    zone_scene["end_frame"],
+                                                                                                    scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                                                                    scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
             if zone_scene["zone"].quarterstep_crf:
                 probing_scene["zone_overrides"]["video_params"] = [
                     "--crf", f"{(np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4:.2f}"
@@ -4035,13 +4049,16 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                                   scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
                 if verbose >= 1:
                     print(f"fallback {crf:>5.2f} / ", end="", flush=True)
-        crf = zone_scene["zone"].metric_dynamic_crf(zone_scene["start_frame"],
-                                                    zone_scene["end_frame"],
-                                                    crf,
-                                                    scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
+        new_crf = zone_scene["zone"].metric_dynamic_crf(zone_scene["start_frame"],
+                                                        zone_scene["end_frame"],
+                                                        crf,
+                                                        scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
+        if new_crf != crf:
+            crf = new_crf
+            print(f"dynamic {crf:>5.2f} / ", end="", flush=True)
     else:
         crf = zone_scene["zone"].metric_disabled_base_crf
         crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
