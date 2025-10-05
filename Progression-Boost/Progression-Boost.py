@@ -1544,7 +1544,6 @@ if not resume or not scene_detection_scenes_file.exists():
 
     if scene_detection_perform_x264:
         scene_detection_x264_output_file.unlink(missing_ok=True)
-        shutil.rmtree(scene_detection_x264_stats_dir, ignore_errors=True)
         scene_detection_x264_stats_dir.mkdir(exist_ok=True)
 
         scene_detection_x264_scenes = {}
@@ -4050,13 +4049,16 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                                   scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
                 if verbose >= 1:
                     print(f"fallback {crf:>5.2f} / ", end="", flush=True)
-        crf = zone_scene["zone"].metric_dynamic_crf(zone_scene["start_frame"],
-                                                    zone_scene["end_frame"],
-                                                    crf,
-                                                    scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
-                                                    scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
+        new_crf = zone_scene["zone"].metric_dynamic_crf(zone_scene["start_frame"],
+                                                        zone_scene["end_frame"],
+                                                        crf,
+                                                        scene_detection_average[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_min[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
+                                                        scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
+        if new_crf != crf:
+            crf = new_crf
+            print(f"dynamic {crf:>5.2f} / ", end="", flush=True)
     else:
         crf = zone_scene["zone"].metric_disabled_base_crf
         crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
