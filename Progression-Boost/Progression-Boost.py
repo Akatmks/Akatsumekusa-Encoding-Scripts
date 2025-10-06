@@ -1199,7 +1199,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 6.00 ~ 9.00.
 #
 # The number here should be positive.
-    character_motion_crf_boost_max = 4.00
+    character_motion_crf_boost_max = 3.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
@@ -4178,7 +4178,11 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_diff = 0.0
         if character_diff > 1.00:
             character_diff = 1.00
-        crf -= zone_scene["zone"].character_motion_crf_boost_max * character_diff
+        luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
+        luma_diff = np.percentile(luma_diff, 30)
+        character_motion_crf_boost_hiritsu = np.interp(luma_diff, [0.008, 0.016],
+                                                                  [1.0,   0.2])
+        crf -= zone_scene["zone"].character_motion_crf_boost_max * character_diff * character_motion_crf_boost_hiritsu
         if verbose >= 1:
             print(f"motion --crf {crf:>5.2f} / ", end="", flush=True)
 
