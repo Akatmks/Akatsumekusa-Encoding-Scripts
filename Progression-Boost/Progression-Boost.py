@@ -1186,7 +1186,7 @@ class DefaultZone:
 #
 # The number here should be positive.
     character_crf_boost_max = 7.00
-    character_crf_boost_alt_curve = 0
+    character_crf_boost_alt_curve = 1
 
 # The third is also a `--crf` based boosting method, but based on how
 # much the character moves across the scene. This is to address the
