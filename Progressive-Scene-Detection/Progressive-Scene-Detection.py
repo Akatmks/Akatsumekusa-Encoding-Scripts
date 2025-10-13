@@ -931,21 +931,21 @@ class DefaultZone:
 #
 # The second fomula is more aggressive, and is the default for Preset-
 # (Character-Boost)-Butteraugli-Max.
-    metric_better = np.less
-    metric_make_better = np.subtract
-    metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=203)
-    def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
-        if adjustment < 0:
-            adjustment = 0
-        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
-    metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = 203
-    def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.032 - frame[1] * 0.20
-        if adjustment < 0:
-            adjustment = 0
-        return frame[1] + adjustment
+    # metric_better = np.less
+    # metric_make_better = np.subtract
+    # metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=203)
+    # def metric_vapoursynth_metric(self, frame):
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = 203
+    # def metric_ffvship_metric(self, frame):
+    #     adjustment = frame[2] * 0.032 - frame[1] * 0.20
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame[1] + adjustment
 
 # Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
 # very sensitive to fine details, but it is faster, and is good enough
