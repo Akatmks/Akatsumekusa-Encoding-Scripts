@@ -26,15 +26,15 @@ You should always pick a Butteraugli based preset, unless you're stuck with Inte
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Preset-Max-Character-Boost-Butteraugli](../master/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on maximum retention. |
-| [Preset-Balanced-Character-Boost-Butteraugli](../Preset-Balanced-Character-Boost-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting the whole quality range, focusing on quality consistency<br /> while improving bad frames and giving a nice boost to characters. |
-| [Preset-Balanced-Character-Boost-SSIMU2](../Preset-Balanced-Character-Boost-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency, with a nice boost to characters. |
+| [Max-Character-Boost-Butteraugli](../master/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on maximum retention. |
+| [Balanced-Character-Boost-Butteraugli](../Preset-Balanced-Character-Boost-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting the whole quality range, focusing on quality consistency<br /> while improving bad frames and giving a nice boost to characters. |
+| [Balanced-Character-Boost-SSIMU2](../Preset-Balanced-Character-Boost-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency, with a nice boost to characters. |
 
 There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is useful when the background of the source is very complicated and would take unreasonable amount of bitrate with normal metric based boosting. In this case, we can choose to disregard the background and letting it be a little bit less faithful, but rely on Character Boost to achieve a good quality on characters.  
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Preset-Basic-Character-Boost](../Preset-Basic-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
+| [Basic-Character-Boost](../Preset-Basic-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
 
 ### Presets without Character Boost
 
@@ -44,8 +44,8 @@ Explanation for picking between Butteraugli and SSIMU2 are available in the last
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Preset-Basic-Butteraugli](../Preset-Basic-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting entire quality range, focusing on quality consistency<br /> while also improving bad frames. |
-| [Preset-Basic-SSIMU2](../Preset-Basic-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
+| [Basic-Butteraugli](../Preset-Basic-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting entire quality range, focusing on quality consistency<br /> while also improving bad frames. |
+| [Basic-SSIMU2](../Preset-Basic-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency. |
 
 ## Dependencies
 
