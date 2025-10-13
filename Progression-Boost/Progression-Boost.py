@@ -447,7 +447,7 @@ class DefaultZone:
 
 # Enable Progression Boost module by setting the following value to
 # True:
-    metric_enable = True
+    metric_enable = False
 # Even if you disable Progression Boost, you cannot skip this whole
 # section, as you need to set your final encoding parameters here. Read
 # first 3 cells below to find the settings you'll need to change.
@@ -572,7 +572,7 @@ class DefaultZone:
 # clamp this one last time.
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
-    final_min_crf = 6.00
+    final_min_crf = 14.00
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
@@ -1185,7 +1185,7 @@ class DefaultZone:
 # `character_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
-    character_crf_boost_max = 3.00
+    character_crf_boost_max = 11.00
     character_crf_boost_alt_curve = 0
 
 # The third is also a `--crf` based boosting method, but based on how
@@ -1199,7 +1199,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 6.00 ~ 9.00.
 #
 # The number here should be positive.
-    character_motion_crf_boost_max = 3.00
+    character_motion_crf_boost_max = 4.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
