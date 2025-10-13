@@ -4038,7 +4038,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["second_score"], metric_result["scenes"][scene_n]["first_score"]):
                 crf, preset = metric_linear()
             else:
-                crf = np.min([zone_scene["zone"].metric_unreliable_crf_fallback(), (np.searchsorted(dc, metric_result["scenes"][scene_n]["second_qstep"], side="right") - 1) / 4])
+                crf = zone_scene["zone"].metric_unreliable_crf_fallback()
                 crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
                 preset = zone_scene["zone"].metric_dynamic_preset(zone_scene["start_frame"],
                                                                   zone_scene["end_frame"],
