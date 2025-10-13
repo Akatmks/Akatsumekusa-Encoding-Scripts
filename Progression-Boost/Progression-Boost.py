@@ -515,7 +515,7 @@ class DefaultZone:
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 12.00
+    metric_min_crf = 11.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
