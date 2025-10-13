@@ -4165,7 +4165,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                              [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.67])
         elif zone_scene["zone"].character_crf_boost_alt_curve == 1:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
-                                                             [0.00, 0.00, 0.71, 1.00, 1.00, 0.91, 0.81])
+                                                             [0.00, 0.11, 0.71, 1.00, 1.00, 0.91, 0.81])
         else:
             assert False, "Invalid `character_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
         crf -= zone_scene["zone"].character_crf_boost_max * character_hiritsu
