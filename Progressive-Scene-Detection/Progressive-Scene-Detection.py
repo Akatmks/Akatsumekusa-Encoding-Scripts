@@ -492,14 +492,14 @@ class DefaultZone:
 # If you've adjusted the script to select more frames than the default
 # of your downloaded Progression Boost Preset, you can try
 # `--crf 60.00` here, but `--crf 50.00` should also be fine.
-    metric_max_crf = 52.00
+    metric_max_crf = 32.00
 # For the minimum `--crf` value, the precision of this boosting method
 # deteriorates at very low `--crf` values. And also unless you're
 # willing to spend 10% of your entire episode in a single 6 second
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 10.00
+    metric_min_crf = 11.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
@@ -556,7 +556,7 @@ class DefaultZone:
 # clamp this one last time.
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
-    final_min_crf = 8.50
+    final_min_crf = 6.00
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
@@ -612,7 +612,7 @@ class DefaultZone:
     def metric_dynamic_preset(self, start_frame: int, end_frame: int,
                                     crf: float,
                                     luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
-        return 2
+        return 0
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
@@ -669,15 +669,15 @@ class DefaultZone:
                                          crf: float,
                                          luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 0 --psy-rd 1.5 --spy-rd 0
+                  --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
+                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, start_frame: int, end_frame: int,
                                        crf: float,
                                        luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
-                  --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 12 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 1 --psy-rd 1.5 --spy-rd 0
+                  --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
+                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
 # `--resume` information: If you changed parameters for probing, you
@@ -792,7 +792,7 @@ class DefaultZone:
 # slowest and highest quality situations. For other cases, if you want
 # to be safer, you should measure more frames in such as
 # `metric_highest_diff_frames`.
-    metric_highest_probing_diff_frames = 0
+    metric_highest_probing_diff_frames = 8
 #
 # After that, we now use a randomiser to select frames across the whole
 # scene. This is the primary method of selecting frames in the old
@@ -913,39 +913,39 @@ class DefaultZone:
 # uses the following formula to mix Butteraugli 3Norm and INFNorm.
 # The first formula is less aggressive, and is the default for
 # Preset-(Character-Boost)-Butteraugli-Mean.
-    metric_better = np.less
-    metric_make_better = np.subtract
-    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
-    def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
-        if adjustment < 0:
-            adjustment = 0
-        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
-    metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = None
-    def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.036 - frame[1] * 0.32
-        if adjustment < 0:
-            adjustment = 0
-        return frame[1] + adjustment
-#
-# The second fomula is more aggressive, and is the default for Preset-
-# (Character-Boost)-Butteraugli-Max.
     # metric_better = np.less
     # metric_make_better = np.subtract
-    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=170)
     # def metric_vapoursynth_metric(self, frame):
-    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
-    # metric_ffvship_intensity_target = None
+    # metric_ffvship_intensity_target = 170
     # def metric_ffvship_metric(self, frame):
-    #     adjustment = frame[2] * 0.032 - frame[1] * 0.20
+    #     adjustment = frame[2] * 0.036 - frame[1] * 0.32
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame[1] + adjustment
+#
+# The second fomula is more aggressive, and is the default for Preset-
+# (Character-Boost)-Butteraugli-Max.
+    metric_better = np.less
+    metric_make_better = np.subtract
+    metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=203)
+    def metric_vapoursynth_metric(self, frame):
+        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
+        if adjustment < 0:
+            adjustment = 0
+        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
+    metric_ffvship_calculate = "Butteraugli"
+    metric_ffvship_intensity_target = 203
+    def metric_ffvship_metric(self, frame):
+        adjustment = frame[2] * 0.032 - frame[1] * 0.20
+        if adjustment < 0:
+            adjustment = 0
+        return frame[1] + adjustment
 
 # Same as the issue above with Butteraugli 3Norm, SSIMU2 are also not
 # very sensitive to fine details, but it is faster, and is good enough
@@ -986,8 +986,8 @@ class DefaultZone:
 # slipping through.
     # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
     #     return np.min(scores)
-    # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
-    #     return np.max(scores)
+    def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
+        return np.max(scores)
 
 # The second method is based on mean instead of min or max. It is aimed
 # for archieving consistency in quality in the form of low standard
@@ -1015,46 +1015,46 @@ class DefaultZone:
 # Progression Boost presets. Even if Harmonic Mean and Root Mean Cube
 # is no longer recommended, we still want to take this chance and thank
 # Miss Moonlight for her various contributions to boosting.
-    def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
-        if verbose >= 3:
-            print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation", end="", flush=True)
-
-        if frames.shape[0] <= 1:
-            if verbose >= 3:
-                print(f" / score {scores[0]:.3f}", end="\n", flush=True)
-            return scores[0]
+    # def metric_summarise(self, frames: np.ndarray[np.int32], scores: np.ndarray[np.float32]) -> np.float32:
+    #     if verbose >= 3:
+    #         print(f"\r\033[K{scene_frame_print(scene_n)} / Metric summarisation", end="", flush=True)
+    #
+    #     if frames.shape[0] <= 1:
+    #         if verbose >= 3:
+    #             print(f" / score {scores[0]:.3f}", end="\n", flush=True)
+    #         return scores[0]
             
-        if verbose >= 3:
-            min, max = np.percentile(scores, [0, 100])
-            if self.metric_better(max, min):
-                high_extremum = max
-                low_extremum = min
-            else:
-                high_extremum = min
-                low_extremum = max
-            print(f" / extremum {high_extremum:.3f} {low_extremum:.3f}", end="", flush=True)
-
-        median = np.median(scores)
-        mad = stats.median_abs_deviation(scores)
-        threshold = self.metric_make_better(median, mad * 1.5)
-        frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores), scores == threshold))]
-        scores = scores[trim]
-        if verbose >= 3:
-            print(f" / trim thr {threshold:.3f}", end="", flush=True)
-
-        interpolation = interpolate.PchipInterpolator(frames, scores)
-        scores = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
-    
-        mean = np.mean(scores)
-        if verbose >= 3:
-            print(f" / mean {mean:.3f}", end="", flush=True)
-
-        deviation = np.mean((scores - mean) ** 8) ** (1 / 8)
-        mean = self.metric_make_better(mean, -deviation)
-        if verbose >= 3:
-            print(f" / deviation {deviation:.3f} / mean {mean:.3f}", end="\n", flush=True)
-
-        return mean
+    #     if verbose >= 3:
+    #         min, max = np.percentile(scores, [0, 100])
+    #         if self.metric_better(max, min):
+    #             high_extremum = max
+    #             low_extremum = min
+    #         else:
+    #             high_extremum = min
+    #             low_extremum = max
+    #         print(f" / extremum {high_extremum:.3f} {low_extremum:.3f}", end="", flush=True)
+    #
+    #     median = np.median(scores)
+    #     mad = stats.median_abs_deviation(scores)
+    #     threshold = self.metric_make_better(median, mad * 1.5)
+    #     frames = frames[(trim := np.logical_or(self.metric_better(threshold, scores), scores == threshold))]
+    #     scores = scores[trim]
+    #     if verbose >= 3:
+    #         print(f" / trim thr {threshold:.3f}", end="", flush=True)
+    #
+    #     interpolation = interpolate.PchipInterpolator(frames, scores)
+    #     scores = interpolation(np.arange(np.min(frames), np.max(frames) + 0.5))
+    #
+    #     mean = np.mean(scores)
+    #     if verbose >= 3:
+    #         print(f" / mean {mean:.3f}", end="", flush=True)
+    #
+    #     deviation = np.mean((scores - mean) ** 8) ** (1 / 8)
+    #     mean = self.metric_make_better(mean, -deviation)
+    #     if verbose >= 3:
+    #         print(f" / deviation {deviation:.3f} / mean {mean:.3f}", end="\n", flush=True)
+    #
+    #     return mean
 
 # If you want to use a different method than above to summarise the
 # data, implement your own method here.
@@ -1082,7 +1082,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.950
+    metric_target = 0.800
 
 # `--resume` information: If you changed `metric_target`, just rerun
 # the script and it will work. Unlike some other options, you don't
@@ -1143,7 +1143,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_roi_boost_max = 5.50
+    character_roi_boost_max = 5.00
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1169,7 +1169,7 @@ class DefaultZone:
 # `character_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
-    character_crf_boost_max = 4.00
+    character_crf_boost_max = 3.00
     character_crf_boost_alt_curve = 0
 
 # The third is also a `--crf` based boosting method, but based on how
@@ -4158,7 +4158,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                              [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.67])
         elif zone_scene["zone"].character_crf_boost_alt_curve == 1:
             character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
-                                                             [0.00, 0.00, 0.71, 1.00, 1.00, 0.91, 0.81])
+                                                             [0.00, 0.11, 0.71, 1.00, 1.00, 0.91, 0.81])
         else:
             assert False, "Invalid `character_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
         crf -= zone_scene["zone"].character_crf_boost_max * character_hiritsu
