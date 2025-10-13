@@ -604,7 +604,7 @@ class DefaultZone:
 # than one third of the entire encoding time. If you have more time,
 # you should use a slower `--preset` for final encoding pass and don't
 # waste time on boosting.
-    probing_preset = 7
+    probing_preset = 8
 
 # We'll now set the `--preset` for the output scenes file for our        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # eventual final encode. Put your `--preset` after the `return` below,   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -686,14 +686,14 @@ class DefaultZone:
                                          luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
-                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 0
+                  --psy-rd 1.5 --spy-rd 2 --complex-hvs 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, start_frame: int, end_frame: int,
                                        crf: float,
                                        luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 10 --qm-min 8 --chroma-qm-min 10
-                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 1
+                  --psy-rd 1.5 --spy-rd 2 --complex-hvs 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
 # `--resume` information: If you changed parameters for probing, you
@@ -880,7 +880,7 @@ class DefaultZone:
 # cropped compare. This may not may not be preferrable. If you want to
 # enable cropping, uncomment the lines below to crop the clip to 900p
 # before comparing.
-        # clip = clip.std.Crop(left=160, right=160, top=90, bottom=90)
+        clip = clip.std.Crop(left=160, right=160, top=90, bottom=90)
 # If you want some other processing before calculating metrics, you can
 # implement it here.
         return clip
@@ -929,21 +929,21 @@ class DefaultZone:
 # uses the following formula to mix Butteraugli 3Norm and INFNorm.
 # The first formula is less aggressive, and is the default for
 # Preset-(Character-Boost)-Butteraugli-Mean.
-    metric_better = np.less
-    metric_make_better = np.subtract
-    metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=170)
-    def metric_vapoursynth_metric(self, frame):
-        adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
-        if adjustment < 0:
-            adjustment = 0
-        return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
-    metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = 170
-    def metric_ffvship_metric(self, frame):
-        adjustment = frame[2] * 0.036 - frame[1] * 0.32
-        if adjustment < 0:
-            adjustment = 0
-        return frame[1] + adjustment
+    # metric_better = np.less
+    # metric_make_better = np.subtract
+    # metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=170)
+    # def metric_vapoursynth_metric(self, frame):
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
+    # metric_ffvship_calculate = "Butteraugli"
+    # metric_ffvship_intensity_target = 170
+    # def metric_ffvship_metric(self, frame):
+    #     adjustment = frame[2] * 0.036 - frame[1] * 0.32
+    #     if adjustment < 0:
+    #         adjustment = 0
+    #     return frame[1] + adjustment
 #
 # The second fomula is more aggressive, and is the default for Preset-
 # (Character-Boost)-Butteraugli-Max.
@@ -967,12 +967,12 @@ class DefaultZone:
 # very sensitive to fine details, but it is faster, and is good enough
 # for medium and low quality encodes. To use SSIMU2 via FFVship or
 # vship, uncomment the lines below.
-    # metric_better = np.greater
-    # metric_make_better = np.add
-    # metric_vapoursynth_calculate = core.vship.SSIMULACRA2
-    # metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
-    # metric_ffvship_calculate = "SSIMULACRA2"
-    # metric_ffvship_metric = lambda self, frame: frame[0]
+    metric_better = np.greater
+    metric_make_better = np.add
+    metric_vapoursynth_calculate = core.vship.SSIMULACRA2
+    metric_vapoursynth_metric = lambda self, frame: frame.props["_SSIMULACRA2"]
+    metric_ffvship_calculate = "SSIMULACRA2"
+    metric_ffvship_metric = lambda self, frame: frame[0]
 
 # To use SSIMU2 via vszip, uncomment the lines below.
     # metric_better = np.greater
@@ -1098,7 +1098,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.900
+    metric_target = 80.000
 
 # `--resume` information: If you changed `metric_target`, just rerun
 # the script and it will work. Unlike some other options, you don't
