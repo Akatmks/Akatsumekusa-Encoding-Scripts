@@ -508,7 +508,7 @@ class DefaultZone:
 # If you've adjusted the script to select more frames than the default
 # of your downloaded Progression Boost Preset, you can try
 # `--crf 60.00` here, but `--crf 50.00` should also be fine.
-    metric_max_crf = 40.00
+    metric_max_crf = 44.00
 # For the minimum `--crf` value, the precision of this boosting method
 # deteriorates at very low `--crf` values. And also unless you're
 # willing to spend 10% of your entire episode in a single 6 second
