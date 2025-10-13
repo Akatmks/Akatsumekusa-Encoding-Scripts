@@ -508,14 +508,14 @@ class DefaultZone:
 # If you've adjusted the script to select more frames than the default
 # of your downloaded Progression Boost Preset, you can try
 # `--crf 60.00` here, but `--crf 50.00` should also be fine.
-    metric_max_crf = 40.00
+    metric_max_crf = 44.00
 # For the minimum `--crf` value, the precision of this boosting method
 # deteriorates at very low `--crf` values. And also unless you're
 # willing to spend 10% of your entire episode in a single 6 second
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 18.00
+    metric_min_crf = 14.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
@@ -1132,7 +1132,7 @@ class DefaultZone:
 # significantly better watching experience with Character Boost.
 #
 # Enable character boosting by setting the line below to True.
-    character_enable = True
+    character_enable = False
 
 # `--resume` information: Toggling modules is completely resumable.
 # Just rerun the script and it will work... unless you've changed
