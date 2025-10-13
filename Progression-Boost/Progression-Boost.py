@@ -508,14 +508,14 @@ class DefaultZone:
 # If you've adjusted the script to select more frames than the default
 # of your downloaded Progression Boost Preset, you can try
 # `--crf 60.00` here, but `--crf 50.00` should also be fine.
-    metric_max_crf = 40.00
+    metric_max_crf = 32.00
 # For the minimum `--crf` value, the precision of this boosting method
 # deteriorates at very low `--crf` values. And also unless you're
 # willing to spend 10% of your entire episode in a single 6 second
 # scene, you really don't want it that low.
 # That's said, if you are aiming for the highest quality, fell free to
 # lower this further to `--crf 6.00`.
-    metric_min_crf = 8.00
+    metric_min_crf = 12.00
 # Our first probe will be happening at `--crf 24.00`. If the quality of
 # the scene is worse than `metric_target`, we will perform our second
 # probe at a better `--crf`. In very rare and strange scenarios, this
@@ -572,7 +572,7 @@ class DefaultZone:
 # clamp this one last time.
 # This clamp is applied after both Progression Boost and Character
 # Boost has finished.
-    final_min_crf = 6.50
+    final_min_crf = 6.00
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
@@ -686,14 +686,14 @@ class DefaultZone:
                                          luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 0 --psy-rd 2.5 --spy-rd 0
+                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 0
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
     def final_dynamic_parameters(self, start_frame: int, end_frame: int,
                                        crf: float,
                                        luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> list[str]:
         return """--lp 3 --keyint -1 --input-depth 10 --scm 0
                   --tune 3 --qp-scale-compress-strength 3 --luminance-qp-bias 16 --qm-min 8 --chroma-qm-min 10
-                  --complex-hvs 1 --psy-rd 2.5 --spy-rd 0
+                  --psy-rd 2.0 --spy-rd 2 --complex-hvs 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
 # `--resume` information: If you changed parameters for probing, you
@@ -931,14 +931,14 @@ class DefaultZone:
 # Preset-(Character-Boost)-Butteraugli-Mean.
     # metric_better = np.less
     # metric_make_better = np.subtract
-    # metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    # metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=170)
     # def metric_vapoursynth_metric(self, frame):
     #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
-    # metric_ffvship_intensity_target = None
+    # metric_ffvship_intensity_target = 170
     # def metric_ffvship_metric(self, frame):
     #     adjustment = frame[2] * 0.036 - frame[1] * 0.32
     #     if adjustment < 0:
@@ -949,14 +949,14 @@ class DefaultZone:
 # (Character-Boost)-Butteraugli-Max.
     metric_better = np.less
     metric_make_better = np.subtract
-    metric_vapoursynth_calculate = core.vship.BUTTERAUGLI
+    metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=203)
     def metric_vapoursynth_metric(self, frame):
         adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
         if adjustment < 0:
             adjustment = 0
         return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     metric_ffvship_calculate = "Butteraugli"
-    metric_ffvship_intensity_target = None
+    metric_ffvship_intensity_target = 203
     def metric_ffvship_metric(self, frame):
         adjustment = frame[2] * 0.032 - frame[1] * 0.20
         if adjustment < 0:
@@ -1098,7 +1098,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 0.750
+    metric_target = 0.800
 
 # `--resume` information: If you changed `metric_target`, just rerun
 # the script and it will work. Unlike some other options, you don't
@@ -1159,7 +1159,7 @@ class DefaultZone:
 # depending on how the hierarchial structure is commonly constructed.
 #
 # The number here should be positive.
-    character_roi_boost_max = 5.50
+    character_roi_boost_max = 5.00
 
 # This second is a `--crf` based character boosting based on how much
 # character occupies the screen.
@@ -1185,7 +1185,7 @@ class DefaultZone:
 # `character_crf_boost_alt_curve` to `1`.
 #
 # The number here should be positive.
-    character_crf_boost_max = 4.00
+    character_crf_boost_max = 3.00
     character_crf_boost_alt_curve = 0
 
 # The third is also a `--crf` based boosting method, but based on how
@@ -1199,7 +1199,7 @@ class DefaultZone:
 # and the maximum recommended value for this would be 6.00 ~ 9.00.
 #
 # The number here should be positive.
-    character_motion_crf_boost_max = 4.00
+    character_motion_crf_boost_max = 3.00
 
 # `--resume` information: If you changed any character boosting related
 # settings, just rerun the script and it will work. Unlike some other
