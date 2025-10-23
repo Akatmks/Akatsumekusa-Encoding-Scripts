@@ -261,8 +261,8 @@ class DefaultZone:
 # src.set_output()
 # ```
 
-# If you are filtering for your final encode, such as performing AA or
-# dehalo, this is what you need to consider for Progression Boost.
+# If you are filtering for your final encode, this is what you need to
+# consider for Progression Boost.
 #
 # First, not Progression Boost, let's consider your final encode.
 # » How heavy is your filterchain? Specifically how much time does it
