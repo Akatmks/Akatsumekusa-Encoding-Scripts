@@ -261,6 +261,56 @@ class DefaultZone:
 # src.set_output()
 # ```
 
+# If you are filtering for your final encode, such as performing AA or
+# dehalo, this is what you need to consider for Progression Boost.
+#
+# First, not Progression Boost, let's consider your final encode.
+# » How heavy is your filterchain? Specifically how much time does it
+#   take to load in. av1an runs each scenes individually, which means
+#   you're loading and reloading the filterchain hundreds of times in
+#   an episode.
+# » In addition, how many layers of dynamic filters have you been
+#   using? For example if you have a `tr=2` `mc_degrain` followed by a
+#   `tr=2` `bm3d`. You'll be wasting 4 frames of `mc_degrain` result
+#   per scene. If it is very fast `DFTTest`, then it probably doesn't
+#   matter, but if it is a slower `mc_degrain`, it might matter.
+# » If you have too much time loss on these two parts, you might want
+#   to consider filtering to a lossless H264 intermediate and then
+#   encode from that. Especially if you have a CPU heavy filtering,
+#   where there won't be CPU left for AV1 encoding during filtering
+#   anyway, using H264 intermediate will certainly save you time.
+# » If you're doing lossless H264 intermediate, then just feed the
+#   intermediate into Progression Boost and your final encode as normal
+#   video file and it will work.
+#
+# If your filtering is not that complex and especially doesn't involve
+# multiple layers of temporal filtering, or your filtering is GPU
+# intensive but not CPU, not using lossless intermediate and instead
+# directly feed the filtering `.vpy` file to av1an for final encode
+# will save your time and effort.
+# In this case, here's how you want to handle Progression Boost.
+# » The only part where Progression Boost will be affected is metric
+#   calculation, so if you're using a Character Boost only preset, just
+#   throw the source video file into this script without filtering and
+#   it will work.
+# » The filtering that affect metric calculation are denoising,
+#   debanding, or anything related to noise. Metric are all very
+#   sensitive to noise, even noise that our eyes can barely register.
+#   If you're not denoising, or you're only doing light denoise, just
+#   use the source video directly in Progression Boost without
+#   filtering. Other filtering especially lineart related processes
+#   such as AA or dehalo doesn't really affect metric score and the
+#   boosting result.
+# » Now if you have heavier denoise, this is what you should do:
+#   You should create a separate filtering script that only contains
+#   a fast denoising step such as DFTTest (make sure you're using GPU
+#   for DFTTest). The goal is to simulate the level of denoising that
+#   will happen in your final encode, and then do nothing else in this
+#   very fast filtering. With this fast filtering process, you need to
+#   a) feed the script to Progression Boost via `--encode-input`, and
+#   b) search for `metric_reference` in the script, and apply the same
+#      filtering to `metric_reference`.
+
 # To optimise for speed, Progression Boost copies `source_clip_cache`
 # into the av1an temp folder for scene detection and probing. This
 # will cause issues if:
@@ -869,7 +919,8 @@ class DefaultZone:
     metric_reference = source_clip.resize.Bicubic(filter_param_a=0.0, filter_param_b=0.0, format=vs.YUV420P10)
 #
 # For VapourSynth based metric calculation, this function allows you to
-# perform some additional filtering before calculating metrics.
+# perform some additional filtering on both `metric_reference` above
+# and the probe encode before calculating metrics.
     def metric_process(self, clip: vs.VideoNode) -> vs.VideoNode:
 # First, here is a hack if you want higher speed calculating metrics.
 # What about cropping the clip from 1080p to 900p or 720p? This is
