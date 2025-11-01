@@ -129,6 +129,7 @@ python Progressive-Scene-Detection.py -i INPUT.mkv -o OUTPUT.scenes.json
 
 ### Note
 
+* If you have a more limited system and x264 based solutions are too slow, you can go into the script and search for `WWXD alone`. You can first read the guide inside the file to understand what weakness WWXD alone would have, and then you can choose to switch to it. In WWXD only mode, all the other scene detection optimisations of Progressive Scene Detection will still be available.  
 * This script will get updated from time to time. Always use the newest version when you start a new project if you can.  
 
 # Alternative SVT-AV1
