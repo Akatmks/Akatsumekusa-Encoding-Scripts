@@ -359,7 +359,7 @@ class DefaultZone:
 #
 # Progression Boost performs x264 and WWXD in parellel. On systems with
 # 6 core 12 threads or more, x264 + WWXD method should be almost the
-# same speed as WWXD alone. But if you're on a lowerend system, WWXD
+# same speed as WWXD alone. But if you're on a limited system, WWXD
 # alone might be faster for you.
 # Note that WWXD alone would handle sources with scenes that are hard
 # for scene detection poorly. Examples of scenes that are hard for
@@ -369,6 +369,8 @@ class DefaultZone:
 # transition in between. Progression Boost's internal diff based
 # algorithm can alleviates the biggest issues, but nonetheless WWXD
 # alone would not be able to place scenecuts as optimal as x264 + WWXD.
+# To use only WWXD, comment the lines a section above for x264 + WWXD
+# and uncomment the lines below.
     # scene_detection_method = "vapoursynth".lower()
     # scene_detection_vapoursynth_method = "wwxd".lower()
 
