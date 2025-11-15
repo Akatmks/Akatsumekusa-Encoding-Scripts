@@ -677,7 +677,7 @@ class DefaultZone:
     def metric_dynamic_preset(self, start_frame: int, end_frame: int,
                                     crf: float,
                                     luma_average: np.ndarray[np.float32], luma_min: np.ndarray[np.float32], luma_max: np.ndarray[np.float32], luma_diff: np.ndarray[np.float32]) -> int:
-        return 0
+        return 2
 
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
