@@ -4080,7 +4080,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
         luma_diff = np.percentile(luma_diff, 25)
         metric_target_offset_hiritsu = np.interp(luma_diff, [0.004, 0.010, 0.028, 0.034],
-                                                            [0.0,   1.0,   1.0,   0.5])
+                                                            [0.0,   1.0,   1.0,   0.4])
             
 
         if metric_result["scenes"][scene_n]["first_qstep"] < metric_result["scenes"][scene_n]["second_qstep"]:
