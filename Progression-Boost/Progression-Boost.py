@@ -1156,7 +1156,7 @@ class DefaultZone:
 # The value that's set for the preset you selected should be good, but
 # you may adjust the strength of this feature further in the variable
 # below.
-    metric_panning_rejection_sigma = 1.0
+    metric_panning_rejection_sigma = 1.2
 
 # `--resume` information: If you changed `metric_target` or
 # `metric_panning_rejection_sigma`, in most cases, you can just rerun
