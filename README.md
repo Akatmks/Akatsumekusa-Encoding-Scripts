@@ -8,7 +8,7 @@ Thanks to Ironclad and their grav1an, Miss Moonlight and their Lav1e, Trix and t
 Thanks to name?, MA0MA0, Exorcist, and afed that helps testing and coming up with new ideas for the new version of Progression Boost.  
 
 Constant quality? Eliminating bad frames? Better character? Better bitrate allocation? Whatever your target is, Progression Boost gets you covered.  
-Progression Boost is a fast, safe, and featurerich boosting script. It comes with readytouse presets that you can try directly, but it can also be configured to target unique quality targets and more.  
+Progression Boost is a fast, safe, and featurerich boosting script specifically tuned for anime. Compared to other boosting methods that focus on achieving a perfect metric score, Progression Boost optimised for things that you actually care about in anime. It comes with readytouse presets that you can try directly, but it can also be configured to target unique quality targets and more.  
 
 ## Download
 
@@ -26,15 +26,15 @@ You should always pick a Butteraugli based preset, unless you're stuck with Inte
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Max-Character-Boost-Butteraugli](../master/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on maximum retention. |
-| [Balanced-Character-Boost-Butteraugli](../Preset-Balanced-Character-Boost-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting the whole quality range, focusing on quality consistency<br /> while improving bad frames and giving a nice boost to characters. |
-| [Balanced-Character-Boost-SSIMU2](../Preset-Balanced-Character-Boost-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency, and with a nice boost to characters. |
+| [Max-Character-Butteraugli](../master/Progression-Boost/Progression-Boost.py) | Targeting highest quality, focusing on maximum retention. |
+| [Balanced-Character-Butteraugli](../Preset-Balanced-Character-Boost-Butteraugli/Progression-Boost/Progression-Boost.py) | Targeting the whole quality range, focusing on quality consistency<br /> while improving bad frames and giving a nice boost to characters. |
+| [Balanced-Character-SSIMU2](../Preset-Balanced-Character-Boost-SSIMU2/Progression-Boost/Progression-Boost.py) | Targeting medium to low quality levels, slightly faster while delivering<br />decent quality consistency, and with a nice boost to characters. |
 
-There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is useful when the background of the source is very complicated and would take unreasonable amount of bitrate with normal metric based boosting. In this case, we can choose to disregard the background and letting it be a little bit less faithful, but rely on Character Boost to achieve a good quality on characters.  
+There is also a preset that disables metric based boosting and solely relies on Character Boosting. This is especially useful in lower quality encodes when the background of the source is very complicated and would take unreasonable amount of bitrate with normal metric based boosting. In this case, we can choose to disregard the background and letting it be a little bit blurry, but rely on Character Boost to achieve a nearperfect quality on characters.  
 
 | Preset | Quality Target Explained |
 | :-- | :-- |
-| [Basic-Character-Boost](../Preset-Basic-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
+| [Basic-Character](../Preset-Basic-Character-Boost/Progression-Boost/Progression-Boost.py) | Boosting characters, while relying on `--crf` for a basic quality consistency. |
 
 ### Presets without Character Boost
 
