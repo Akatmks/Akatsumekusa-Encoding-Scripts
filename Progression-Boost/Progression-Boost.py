@@ -1150,9 +1150,23 @@ class DefaultZone:
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
     metric_target = 0.800
 
-# `--resume` information: If you changed `metric_target`, just rerun
+# Progression Boost features a panning rejection feature, which
+# automatically lowers `metric_target` when it detects a scene as a
+# pan.
+# The value that's set for the preset you selected should be good, but
+# you may adjust the strength of this feature further in the variable
+# below.
+    metric_panning_rejection_sigma = 0.5
+
+# `--resume` information: If you changed `metric_target` or
+# `metric_panning_rejection_sigma`, in most cases, you can just rerun
 # the script and it will work. Unlike some other options, you don't
 # need to delete anything in the temp folder for this change to update.
+# However, if you adjusted `metric_target` too much, such as from
+# Butteraugli 1.100 all the way to 0.700 or from SSIMU2 88.000 to
+# 80.000, you may need to delete `probe-encode-second.tmp`,
+# `probe-encode-second.mkv` and `probe-encode-second.scenes.json` in
+# the `progression-boost` folder inside the temporary directory.
 # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
@@ -4022,7 +4036,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             fit = Polynomial.fit([metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]],
                                  [metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]],
                                  1)
-            qstep = fit(zone_scene["zone"].metric_target)
+            qstep = fit(offset_metric_target)
 
             crf = np.interp(qstep, dc, dc_X) / 4
             crf = np.clip(crf, zone_scene["zone"].metric_min_crf, zone_scene["zone"].metric_max_crf)
@@ -4034,7 +4048,7 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                                                               scene_detection_max[zone_scene["start_frame"]:zone_scene["end_frame"]],
                                                               scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]])
             if verbose >= 1:
-                print(f"original {crf:>5.2f} / ", end="", flush=True)
+                print(f"{crf:>5.2f} / ", end="", flush=True)
 
             if qstep > 163:
                 if zone_scene["zone"].probing_preset >= 6:
@@ -4069,8 +4083,29 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
             return crf, preset
 
+        # Panning Rejection
+        luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
+        luma_diff = np.percentile(luma_diff, 25)
+        metric_target_offset_hiritsu = np.interp(luma_diff, [0.004, 0.008, 0.012, 0.030, 0.036],
+                                                            [0.0,   0.6,   1.0,   1.0,   0.6])
+            
+
         if metric_result["scenes"][scene_n]["first_qstep"] < metric_result["scenes"][scene_n]["second_qstep"]:
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["first_score"], metric_result["scenes"][scene_n]["second_score"]):
+                if metric_target_offset_hiritsu == 0.0:
+                    if verbose >= 1:
+                        print(f"original ", end="", flush=True)
+                    offset_metric_target = zone_scene["zone"].metric_target
+                else:
+                    if verbose >= 3:
+                        print(f"{luma_diff:.3f} ", end="", flush=True)
+                    if verbose >= 1:
+                        print(f"panning rejected ", end="", flush=True)
+                    offset_metric_target = zone_scene["zone"].metric_target + 0.20 * \
+                                                                              zone_scene["zone"].metric_panning_rejection_sigma * \
+                                                                              metric_target_offset_hiritsu * \
+                                                                              (metric_result["scenes"][scene_n]["second_score"] - metric_result["scenes"][scene_n]["first_score"])
+
                 crf, preset = metric_linear()
             else:
                 crf = np.interp(np.mean([metric_result["scenes"][scene_n]["first_qstep"], metric_result["scenes"][scene_n]["second_qstep"]]), dc, dc_X) / 4
@@ -4086,6 +4121,20 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                     print(f"fallback {crf:>5.2f} / ", end="", flush=True)
         else: # second_qstep < first_qstep
             if zone_scene["zone"].metric_better(metric_result["scenes"][scene_n]["second_score"], metric_result["scenes"][scene_n]["first_score"]):
+                if metric_target_offset_hiritsu == 0.0:
+                    if verbose >= 1:
+                        print(f"original ", end="", flush=True)
+                    offset_metric_target = zone_scene["zone"].metric_target
+                else:
+                    if verbose >= 3:
+                        print(f"{luma_diff:.3f} ", end="", flush=True)
+                    if verbose >= 1:
+                        print(f"panning rejected ", end="", flush=True)
+                    offset_metric_target = zone_scene["zone"].metric_target + 0.40 * \
+                                                                              zone_scene["zone"].metric_panning_rejection_sigma * \
+                                                                              metric_target_offset_hiritsu * \
+                                                                              (metric_result["scenes"][scene_n]["first_score"] - metric_result["scenes"][scene_n]["second_score"])
+
                 crf, preset = metric_linear()
             else:
                 crf = zone_scene["zone"].metric_unreliable_crf_fallback()
@@ -4228,10 +4277,11 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
             character_diff = 0.0
         if character_diff > 1.00:
             character_diff = 1.00
+        # Panning Rejection
         luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
-        luma_diff = np.percentile(luma_diff, 30)
-        character_motion_crf_boost_hiritsu = np.interp(luma_diff, [0.008, 0.016],
-                                                                  [1.0,   0.2])
+        luma_diff = np.percentile(luma_diff, 25)
+        character_motion_crf_boost_hiritsu = np.interp(luma_diff, [0.008, 0.016, 0.030, 0.036],
+                                                                  [1.0,   0.5,   0.5,   0.75])
         crf -= zone_scene["zone"].character_motion_crf_boost_max * character_diff * character_motion_crf_boost_hiritsu
         if verbose >= 1:
             print(f"motion --crf {crf:>5.2f} / ", end="", flush=True)
