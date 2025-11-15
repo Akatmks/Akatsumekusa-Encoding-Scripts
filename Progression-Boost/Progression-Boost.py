@@ -3425,18 +3425,21 @@ if character_has_character:
                                                    width=character_block_width*64, height=character_block_height*64, src_width=character_block_width*64, src_height=character_block_height*64, \
                                                    format=vs.RGBS, primaries_in=1, matrix_in=1, transfer_in=1, range_in=0, transfer=13, range=1)
     character_clip = vsmlrt.inference(character_clip, character_model, backend=character_backend)
-    character_clip = character_clip.akarin.Expr("x 0.95 > x 0 ?")
+    character_clip = character_clip.akarin.Expr("x 0.25 > x 0 ?")
 
     character_clip = character_clip.std.PlaneStats(prop="Kyara")
 
+    character_clip = character_clip.std.Maximum()
     character_clip = character_clip.resize.Bicubic(filter_param_a=0, filter_param_b=0, \
                                                    width=character_block_width, height=character_block_height)
-    character_clip = character_clip.akarin.Expr("x 2 *")
     character_clip = character_clip.akarin.Expr("""
-x[-1,-1] x[-1,0] x[-1,1] x[0,-1] x[0,0] x[0,1] x[1,-1] x[1,0] x[1,1] + + + + + + + + 9 / avg!
-avg@ x > avg@ x ? r!
-r@ 1 < r@ 1 ? r!
-r@ -1 > r@ -1 ?""")
+    x[-1,-1] x[-1,0] x[-1,1]
+    x[0,-1]          x[0,1]
+    x[1,-1]  x[1,0]  x[1,1]
+    + + + + + + + sur!
+    x sur@ sqrt * sur@ 8 / max
+    1 min
+    """)
 
     def character_calculate_character(character_map_file, scene_n):
         diffs = scene_detection_diffs[scenes["scenes"][scene_n]["start_frame"]:scenes["scenes"][scene_n]["end_frame"]]
@@ -4260,11 +4263,11 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
 
         character_hiritsu = character_kyara["scenes"][scene_n]["kyara"]
         if zone_scene["zone"].character_crf_boost_alt_curve == 0:
-            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
-                                                             [0.00, 0.00, 1.00, 1.00, 0.91, 0.81, 0.67])
+            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.02, 0.12, 0.22, 0.32, 0.42, 0.52],
+                                                             [0.00, 0.00, 1.00, 1.00, 0.92, 0.82, 0.67])
         elif zone_scene["zone"].character_crf_boost_alt_curve == 1:
-            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.01, 0.11, 0.21, 0.31, 0.41, 0.51],
-                                                             [0.00, 0.11, 0.71, 1.00, 1.00, 0.91, 0.81])
+            character_hiritsu = np.interp(character_hiritsu, [0.00, 0.02, 0.12, 0.22, 0.32, 0.42, 0.52],
+                                                             [0.00, 0.12, 0.72, 1.00, 1.00, 0.92, 0.82])
         else:
             assert False, "Invalid `character_crf_boost_alt_curve`. Please check your config inside `Progression-Boost.py`."
         crf -= zone_scene["zone"].character_crf_boost_max * character_hiritsu
