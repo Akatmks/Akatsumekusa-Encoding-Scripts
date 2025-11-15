@@ -3437,7 +3437,7 @@ if character_has_character:
     x[0,-1]          x[0,1]
     x[1,-1]  x[1,0]  x[1,1]
     + + + + + + + sur!
-    x sur@ sqrt * sur@ 8 / max
+    x sur@ 0.75 pow * sur@ 8 / max
     1 min
     """)
 
