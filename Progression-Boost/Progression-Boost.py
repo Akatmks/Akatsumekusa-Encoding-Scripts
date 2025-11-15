@@ -1156,7 +1156,7 @@ class DefaultZone:
 # The value that's set for the preset you selected should be good, but
 # you may adjust the strength of this feature further in the variable
 # below.
-    metric_panning_rejection_sigma = 1.0
+    metric_panning_rejection_sigma = 1.2
 
 # `--resume` information: If you changed `metric_target` or
 # `metric_panning_rejection_sigma`, in most cases, you can just rerun
@@ -4086,8 +4086,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         # Panning Rejection
         luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
         luma_diff = np.percentile(luma_diff, 25)
-        metric_target_offset_hiritsu = np.interp(luma_diff, [0.004, 0.008, 0.012, 0.030, 0.036],
-                                                            [0.0,   0.6,   1.0,   1.0,   0.6])
+        metric_target_offset_hiritsu = np.interp(luma_diff, [0.004, 0.010, 0.028, 0.034],
+                                                            [0.0,   1.0,   1.0,   0.5])
             
 
         if metric_result["scenes"][scene_n]["first_qstep"] < metric_result["scenes"][scene_n]["second_qstep"]:
@@ -4280,8 +4280,8 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
         # Panning Rejection
         luma_diff = scene_detection_diffs[zone_scene["start_frame"]:zone_scene["end_frame"]]
         luma_diff = np.percentile(luma_diff, 25)
-        character_motion_crf_boost_hiritsu = np.interp(luma_diff, [0.008, 0.016, 0.030, 0.036],
-                                                                  [1.0,   0.5,   0.5,   0.75])
+        character_motion_crf_boost_hiritsu = np.interp(luma_diff, [0.008, 0.016, 0.028, 0.034],
+                                                                  [1.0,   0.4,   0.4,   0.8])
         crf -= zone_scene["zone"].character_motion_crf_boost_max * character_diff * character_motion_crf_boost_hiritsu
         if verbose >= 1:
             print(f"motion --crf {crf:>5.2f} / ", end="", flush=True)
