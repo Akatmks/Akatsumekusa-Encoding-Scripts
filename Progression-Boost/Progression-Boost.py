@@ -745,6 +745,22 @@ class DefaultZone:
                   --psy-rd 1.5 --spy-rd 2 --complex-hvs 1
                   --color-primaries 1 --transfer-characteristics 1 --matrix-coefficients 1 --color-range 0""".split()
 
+# A trick in this whole chain of dynamic `--crf`, dynamic `--preset`,
+# and dynamic parameters is that you can actually specify flags to
+# pass along from for example `metric_dynamic_preset` to
+# `final_dynamic_parameters`. In `metric_` functions, you can write:
+# ```py
+# global my_flag
+# my_flag = True
+# ```
+# and then in `final_` functions you can write:
+# ```py
+# if my_flag in globals() and my_flag:
+# ```
+# Do note the execution order of `metric_dynamic_preset`, then
+# `metric_dynamic_crf` (but only if `metric_enable`), and then
+# Character Boost, and at last the `final_` functions.
+
 # `--resume` information: If you changed parameters for probing, you
 # need to delete everything in `progression-boost` folder inside the
 # temporary directory, and then you can rerun the script.
