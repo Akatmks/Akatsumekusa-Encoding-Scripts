@@ -25,7 +25,6 @@ import argparse
 from collections.abc import Callable
 import copy
 from datetime import datetime
-from functools import partial
 import json
 import math
 import numpy as np
@@ -997,7 +996,7 @@ class DefaultZone:
 # Preset-(Character-Boost)-Butteraugli-Mean.
     # metric_better = np.less
     # metric_make_better = np.subtract
-    # metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=170)
+    # metric_vapoursynth_calculate = lambda self, source, distorted: core.vship.BUTTERAUGLI(source, distorted, intensity_multiplier=170)
     # def metric_vapoursynth_metric(self, frame):
     #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
     #     if adjustment < 0:
@@ -1015,7 +1014,7 @@ class DefaultZone:
 # (Character-Boost)-Butteraugli-Max.
     metric_better = np.less
     metric_make_better = np.subtract
-    metric_vapoursynth_calculate = partial(core.vship.BUTTERAUGLI, intensity_multiplier=203)
+    metric_vapoursynth_calculate = lambda self, source, distorted: core.vship.BUTTERAUGLI(source, distorted, intensity_multiplier=203)
     def metric_vapoursynth_metric(self, frame):
         adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.032 - frame.props["_BUTTERAUGLI_3Norm"] * 0.20
         if adjustment < 0:
