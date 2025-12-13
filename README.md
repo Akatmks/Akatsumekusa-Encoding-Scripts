@@ -1,4 +1,4 @@
-⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[Progressive Scene Detection](#progressive-scene-detection)・[Alternative SVT-AV1](#alternative-svt-av1)  
+⮚ [Progression Boost](#progression-boost)・[Dispatch Server](#dispatch-server)・[Progressive Scene Detection](#progressive-scene-detection)・[Alternative SVT-AV1](#alternative-svt-av1)・[vodesfunc_noise_mod](#vodesfunc_noise_mod)  
 
 # Progression Boost
 
@@ -151,4 +151,19 @@ Grab `rav1e.cpp` from [GitHub](Alternative-SVT-AV1/rav1e.cpp), grab `whereami.c`
 clang++ -c rav1e.cpp -o rav1e.o -std=c++20 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
 clang -c whereami.c -o whereami.o -std=c99 -I. -DNDEBUG -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
 clang++ rav1e.o whereami.o -o rav1e.exe -O3 -Wall -Wextra -fvisibility=hidden -fuse-ld=lld -flto -march=x86-64-v3 -mtune=x86-64
+```
+
+# vodesfunc_noise_mod
+
+`vodesfunc_noise_mod.py` is a modded version of [vodesfunc.noise](https://github.com/Vodes/vodesfunc/blob/master/vodesfunc/noise.py). It makes higher frequency component of the noise more static. It uses x265's default quantisation table to adjust the noise, and should be slightly better when encoding using x265.  
+
+It requires a version of DCTFilter that supports inputting full quantisation table, such as [this version](https://github.com/Mr-Z-2697/VapourSynth-DCTFilter) from Mr-Z-2697.  
+
+To use it in filtering:  
+```py
+from vodesfunc_noise_mod import adaptive_grain, ntype4
+
+rg = adaptive_grain(clip, strength=[2.0, 0.4], size=3.0,
+                          temporal_average=50, seed=274810,
+                          **ntype4)
 ```
