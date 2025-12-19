@@ -1875,7 +1875,7 @@ if not resume or not scene_detection_scenes_file.exists():
         for zone_i, zone in enumerate(zones):
             x264_scenecut = np.zeros((zone["end_frame"] - zone["start_frame"],), dtype=float)
             def scene_detection_write_x264_scenecut(name, start_frame, end_frame, skip_starting_frames=False):
-                assert (scene_detection_x264_stats_dir / f"{name}.log").exists(), "Unexpected result from x264"
+                assert (scene_detection_x264_stats_dir / f"{name}.log").exists(), "Unexpected result from av1an or x264"
                 with (scene_detection_x264_stats_dir / f"{name}.log").open("r") as x264_stats_f:
                     x264_stats = x264_stats_f.read()
 
@@ -1884,8 +1884,8 @@ if not resume or not scene_detection_scenes_file.exists():
                         try:
                             offset_frame = int(match.group(1))
                         except ValueError:
-                            raise ValueError("Unexpected result from x264")
-                        assert offset_frame + start_frame < end_frame, "Unexpected result from x264"
+                            raise ValueError("Unexpected result from av1an or x264")
+                        assert offset_frame + start_frame < end_frame, "Unexpected result from av1an or x264"
 
                         if offset_frame == 0 and skip_starting_frames:
                             continue
