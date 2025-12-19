@@ -993,25 +993,27 @@ class DefaultZone:
 # directly even aiming for the highest quality targets. Instead we
 # uses the following formula to mix Butteraugli 3Norm and INFNorm.
 # The first formula is less aggressive, and is the default for
-# Preset-(Character-Boost)-Butteraugli-Mean.
+# Preset-Balanced / Preset-Basic.
     # metric_better = np.less
     # metric_make_better = np.subtract
     # metric_vapoursynth_calculate = lambda self, source, distorted: core.vship.BUTTERAUGLI(source, distorted, intensity_multiplier=170)
     # def metric_vapoursynth_metric(self, frame):
-    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.036 - frame.props["_BUTTERAUGLI_3Norm"] * 0.32
+    #     adjustment = frame.props["_BUTTERAUGLI_INFNorm"] * 0.030 - frame.props["_BUTTERAUGLI_3Norm"] * 0.24
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame.props["_BUTTERAUGLI_3Norm"] + adjustment
     # metric_ffvship_calculate = "Butteraugli"
     # metric_ffvship_intensity_target = 170
     # def metric_ffvship_metric(self, frame):
-    #     adjustment = frame[2] * 0.036 - frame[1] * 0.32
+    #     adjustment = frame[2] * 0.030 - frame[1] * 0.24
     #     if adjustment < 0:
     #         adjustment = 0
     #     return frame[1] + adjustment
 #
-# The second fomula is more aggressive, and is the default for Preset-
-# (Character-Boost)-Butteraugli-Max.
+# The second fomula is more aggressive, and is the default for
+# Preset-Max.
+# You are also welcomed to use this for Preset-Balanced or Preset-Basic
+# if you care more about small details.
     # metric_better = np.less
     # metric_make_better = np.subtract
     # metric_vapoursynth_calculate = lambda self, source, distorted: core.vship.BUTTERAUGLI(source, distorted, intensity_multiplier=203)
