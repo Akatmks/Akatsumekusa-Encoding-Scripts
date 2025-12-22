@@ -764,7 +764,7 @@ class DefaultZone:
         return (f"--workers 8 --pix-format yuv420p10le"
 # Below are the parameters that should always be used. Regular users
 # would not need to modify these.
-              + f" --chunk-method {self.source_provider_av1an} --encoder svt-av1 --audio-params -an --concat mkvmerge --force --video-params").split() + \
+              + f" --chunk-method {self.source_provider_av1an} --chunk-order random --encoder svt-av1 --audio-params -an --concat mkvmerge --force --video-params").split() + \
                 [message]
 
 # These are the photon noise parameters for your final encode. These
