@@ -652,7 +652,7 @@ class DefaultZone:
 # than one third of the entire encoding time. If you have more time,
 # you should use a slower `--preset` for final encoding pass and don't
 # waste time on boosting.
-    probing_preset = 7
+    probing_preset = 8
 
 # We'll now set the `--preset` for the output scenes file for our        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # eventual final encode. Put your `--preset` after the `return` below,   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
