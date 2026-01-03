@@ -652,7 +652,7 @@ class DefaultZone:
 # than one third of the entire encoding time. If you have more time,
 # you should use a slower `--preset` for final encoding pass and don't
 # waste time on boosting.
-    probing_preset = 7
+    probing_preset = 8
 
 # We'll now set the `--preset` for the output scenes file for our        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # eventual final encode. Put your `--preset` after the `return` below,   # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -4071,7 +4071,16 @@ for scene_n, zone_scene in enumerate(zone_scenes["scenes"]):
                 print(f"{crf:>5.2f} / ", end="", flush=True)
 
             if qstep > 163:
-                if zone_scene["zone"].probing_preset >= 6:
+                if zone_scene["zone"].probing_preset >= 8:
+                    if preset <= -1:
+                        qstep = (qstep - 163) * 0.69 + 163
+                    elif preset <= 0:
+                        qstep = (qstep - 163) * 0.70 + 163
+                    elif preset <= 2:
+                        qstep = (qstep - 163) * 0.73 + 163
+                    elif preset <= 6:
+                        qstep = (qstep - 163) * 0.81 + 163
+                elif zone_scene["zone"].probing_preset >= 6:
                     if preset <= -1:
                         qstep = (qstep - 163) * 0.72 + 163
                     elif preset <= 0:
