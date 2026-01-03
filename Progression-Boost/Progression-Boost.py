@@ -1165,7 +1165,7 @@ class DefaultZone:
 # better result in your final encode using a slower `--preset`. You      # <<<<  all the other settings once you become familiar with the <<<<<
 # should account for this difference when setting the number below.      # <<<<  script. There's still a lot of improvements, timewise or  <<<<
 # Maybe set it a little bit lower than your actual target.               # <<<<  qualitywise, you can have with all the other options.  <<<<<<<
-    metric_target = 80.000
+    metric_target = 78.000
 
 # Progression Boost features a panning rejection feature, which
 # automatically lowers `metric_target` when it detects a scene as a
